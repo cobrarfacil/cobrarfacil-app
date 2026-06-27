@@ -274,7 +274,7 @@ function Checkout({ planoInicial, onVoltar }) {
               <div style={{ marginBottom: 18 }}>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Forma de pagamento</label>
                 <div style={{ display: "flex", gap: 8 }}>
-                  {[["pix", "💠 Pix", "Aprovação imediata"], ["cartao", "💳 Cartão", "Crédito em até 12x"]].map(([k, l, sub]) => (
+                  {[["pix", "💠 Pix", "Aprovação imediata"], ["cartao", "💳 Cartão", "Crédito " + planoSel.parcelasLabel]].map(([k, l, sub]) => (
                     <div key={k} onClick={() => setFormaPag(k)} style={{ flex: 1, background: formaPag === k ? "#EFF6FF" : "#F8FAFC", border: "2px solid " + (formaPag === k ? "#1E40AF" : "#E2E8F0"), borderRadius: 10, padding: "12px", textAlign: "center", cursor: "pointer" }}>
                       <div style={{ fontSize: 18, marginBottom: 4 }}>{l}</div>
                       <div style={{ fontSize: 11, color: "#64748B" }}>{sub}</div>
