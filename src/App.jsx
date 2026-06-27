@@ -139,29 +139,38 @@ function Checkout({ planoInicial, onVoltar }) {
   const [plano, setPlano] = useState(planoInicial || "trimestral");
   const [formaPag, setFormaPag] = useState("pix");
   const [dados, setDados] = useState({ nome: "", email: "", cpf: "", telefone: "" });
+  const [cartao, setCartao] = useState({ numero: "", nome: "", validade: "", cvv: "" });
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState(null);
 
   const planos = {
-    mensal:     { nome: "Mensal",     valor: 14700, label: "R$147/mês",  economia: null },
-    trimestral: { nome: "Trimestral", valor: 35700, label: "R$119/mês",  economia: "Economize R$84" },
-    anual:      { nome: "Anual",      valor: 116400, label: "R$97/mês", economia: "Economize R$600" },
+    mensal:     { nome: "Mensal",     valor: 14700,  label: "R$147/mês",  economia: null,            parcelas: 1, parcelasLabel: "à vista" },
+    trimestral: { nome: "Trimestral", valor: 35700,  label: "R$119/mês",  economia: "Economize R$84", parcelas: 2, parcelasLabel: "em até 2x" },
+    anual:      { nome: "Anual",      valor: 116400, label: "R$97/mês",   economia: "Economize R$600", parcelas: 3, parcelasLabel: "em até 3x" },
   };
 
   const planoSel = planos[plano];
 
   const pagar = async () => {
     setErro("");
-    if (!dados.nome || !dados.email || !dados.cpf || !dados.telefone) {
-      setErro("Preencha todos os campos"); return;
+    if (formaPag === "cartao") {
+      if (!cartao.numero || !cartao.nome || !cartao.validade || !cartao.cvv) {
+        setErro("Preencha todos os dados do cartão"); return;
+      }
     }
     setLoading(true);
     try {
       const res = await fetch(BACKEND_URL + "/pagamento/criar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...dados, plano, forma_pagamento: formaPag }),
+        body: JSON.stringify({
+          ...dados, plano, forma_pagamento: formaPag,
+          card_number: cartao.numero,
+          card_name: cartao.nome,
+          card_expiry: cartao.validade,
+          card_cvv: cartao.cvv,
+        }),
       });
       const data = await res.json();
       if (data.sucesso) {
@@ -277,6 +286,20 @@ function Checkout({ planoInicial, onVoltar }) {
               {formaPag === "pix" && (
                 <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "12px 14px", marginBottom: 18, fontSize: 13, color: "#1E3A8A" }}>
                   💠 Após confirmar, o QR Code Pix aparecerá na tela. Pague e receba seu acesso no WhatsApp em instantes.
+                </div>
+              )}
+
+              {formaPag === "cartao" && (
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#166534", fontWeight: 600 }}>
+                    💳 Plano {planoSel.nome}: {planoSel.parcelasLabel} no crédito
+                  </div>
+                  <Inp label="Número do cartão" value={cartao.numero} onChange={e => setCartao(p => ({ ...p, numero: e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim() }))} placeholder="0000 0000 0000 0000" maxLength={19} />
+                  <Inp label="Nome no cartão" value={cartao.nome} onChange={e => setCartao(p => ({ ...p, nome: e.target.value.toUpperCase() }))} placeholder="NOME SOBRENOME" />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <Inp label="Validade" value={cartao.validade} onChange={e => { let v = e.target.value.replace(/\D/g, ''); if (v.length >= 2) v = v.slice(0,2) + '/' + v.slice(2,4); setCartao(p => ({ ...p, validade: v })); }} placeholder="MM/AA" maxLength={5} />
+                    <Inp label="CVV" value={cartao.cvv} onChange={e => setCartao(p => ({ ...p, cvv: e.target.value.replace(/\D/g, '') }))} placeholder="123" maxLength={4} />
+                  </div>
                 </div>
               )}
 
