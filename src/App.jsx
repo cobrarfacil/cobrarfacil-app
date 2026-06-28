@@ -97,14 +97,8 @@ function TrocarSenha({ email, onSucesso }) {
         body: JSON.stringify({ email, senha_atual: senhaAtual, nova_senha: novaSenha }),
       });
       const data = await res.json();
-      if (data.sucesso) {
-        onSucesso();
-      } else {
-        setErro(data.erro || "Erro ao trocar senha");
-      }
-    } catch (e) {
-      setErro("Erro de conexão");
-    }
+      if (data.sucesso) { onSucesso(); } else { setErro(data.erro || "Erro ao trocar senha"); }
+    } catch (e) { setErro("Erro de conexão"); }
     setLoading(false);
   };
 
@@ -135,7 +129,7 @@ function TrocarSenha({ email, onSucesso }) {
 
 // ─── CHECKOUT ─────────────────────────────────────────────────────────────
 function Checkout({ planoInicial, onVoltar }) {
-  const [step, setStep] = useState(1); // 1=dados, 2=pagamento, 3=sucesso
+  const [step, setStep] = useState(1);
   const [plano, setPlano] = useState(planoInicial || "trimestral");
   const [formaPag, setFormaPag] = useState("pix");
   const [dados, setDados] = useState({ nome: "", email: "", cpf: "", telefone: "" });
@@ -145,7 +139,7 @@ function Checkout({ planoInicial, onVoltar }) {
   const [resultado, setResultado] = useState(null);
 
   const planos = {
-    mensal:     { nome: "Mensal",     valor: 14700,  label: "R$147/mês",  economia: null,            parcelas: 1, parcelasLabel: "à vista" },
+    mensal:     { nome: "Mensal",     valor: 14700,  label: "R$147/mês",  economia: null,             parcelas: 1, parcelasLabel: "à vista" },
     trimestral: { nome: "Trimestral", valor: 35700,  label: "R$119/mês",  economia: "Economize R$84", parcelas: 2, parcelasLabel: "em até 2x" },
     anual:      { nome: "Anual",      valor: 116400, label: "R$97/mês",   economia: "Economize R$600", parcelas: 3, parcelasLabel: "em até 3x" },
   };
@@ -155,43 +149,28 @@ function Checkout({ planoInicial, onVoltar }) {
   const pagar = async () => {
     setErro("");
     if (formaPag === "cartao") {
-      if (!cartao.numero || !cartao.nome || !cartao.validade || !cartao.cvv) {
-        setErro("Preencha todos os dados do cartão"); return;
-      }
+      if (!cartao.numero || !cartao.nome || !cartao.validade || !cartao.cvv) { setErro("Preencha todos os dados do cartão"); return; }
     }
     setLoading(true);
     try {
       const res = await fetch(BACKEND_URL + "/pagamento/criar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...dados, plano, forma_pagamento: formaPag,
-          card_number: cartao.numero,
-          card_name: cartao.nome,
-          card_expiry: cartao.validade,
-          card_cvv: cartao.cvv,
-        }),
+        body: JSON.stringify({ ...dados, plano, forma_pagamento: formaPag, card_number: cartao.numero, card_name: cartao.nome, card_expiry: cartao.validade, card_cvv: cartao.cvv }),
       });
       const data = await res.json();
-      if (data.sucesso) {
-        setResultado(data.dados);
-        setStep(3);
-      } else {
-        setErro(data.erro?.message || data.erro || "Erro ao processar pagamento");
-      }
-    } catch (e) {
-      setErro("Erro de conexão com o servidor");
-    }
+      if (data.sucesso) { setResultado(data.dados); setStep(3); }
+      else { setErro(data.erro?.message || data.erro || "Erro ao processar pagamento"); }
+    } catch (e) { setErro("Erro de conexão com o servidor"); }
     setLoading(false);
   };
 
   const pixCode = resultado?.charges?.[0]?.last_transaction?.qr_code;
-  const pixUrl = resultado?.charges?.[0]?.last_transaction?.qr_code_url;
+  const pixUrl  = resultado?.charges?.[0]?.last_transaction?.qr_code_url;
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E40AF 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ width: "100%", maxWidth: 520 }}>
-        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
           <button onClick={onVoltar} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, width: 34, height: 34, cursor: "pointer", color: "#fff", fontSize: 18 }}>←</button>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -200,7 +179,6 @@ function Checkout({ planoInicial, onVoltar }) {
           </div>
         </div>
 
-        {/* Steps */}
         {step < 3 && (
           <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
             {[["1", "Seus dados"], ["2", "Pagamento"]].map((s, i) => (
@@ -217,13 +195,11 @@ function Checkout({ planoInicial, onVoltar }) {
 
         <div style={{ background: "#fff", borderRadius: 20, padding: 28, boxShadow: "0 25px 80px rgba(0,0,0,0.3)" }}>
 
-          {/* STEP 1: Dados */}
           {step === 1 && (
             <div>
               <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>Seus dados</h2>
               <p style={{ margin: "0 0 22px", fontSize: 13, color: "#64748B" }}>Usaremos para criar seu acesso e enviar credenciais por WhatsApp</p>
 
-              {/* Seleção de plano */}
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Plano escolhido</label>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -247,30 +223,21 @@ function Checkout({ planoInicial, onVoltar }) {
               <Btn onClick={() => { if (!dados.nome || !dados.email || !dados.cpf || !dados.telefone) { setErro("Preencha todos os campos"); return; } setErro(""); setStep(2); }} style={{ width: "100%", justifyContent: "center" }}>
                 Continuar para pagamento →
               </Btn>
-
-              <div style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: "#94A3B8" }}>
-                🔒 Seus dados são protegidos · 7 dias de garantia ou devolvemos
-              </div>
+              <div style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: "#94A3B8" }}>🔒 Seus dados são protegidos · 7 dias de garantia ou devolvemos</div>
             </div>
           )}
 
-          {/* STEP 2: Pagamento */}
           {step === 2 && (
             <div>
               <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>Pagamento</h2>
-
-              {/* Resumo */}
               <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: "12px 16px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ fontWeight: 700, color: "#0F172A" }}>Plano {planoSel.nome}</div>
                   <div style={{ fontSize: 12, color: "#64748B" }}>{dados.nome} · {dados.email}</div>
                 </div>
-                <div style={{ fontWeight: 900, fontSize: 22, color: "#1E40AF" }}>
-                  {(planoSel.valor / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                </div>
+                <div style={{ fontWeight: 900, fontSize: 22, color: "#1E40AF" }}>{(planoSel.valor / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
               </div>
 
-              {/* Forma de pagamento */}
               <div style={{ marginBottom: 18 }}>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Forma de pagamento</label>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -308,14 +275,10 @@ function Checkout({ planoInicial, onVoltar }) {
               <Btn onClick={pagar} disabled={loading} style={{ width: "100%", justifyContent: "center", fontSize: 15, padding: "14px" }}>
                 {loading ? "Processando..." : formaPag === "pix" ? "💠 Gerar QR Code Pix" : "💳 Pagar com cartão"}
               </Btn>
-
-              <div style={{ fontSize: 11, color: "#94A3B8", textAlign: "center", marginTop: 10 }}>
-                🔒 Pagamento seguro via Pagar.me (Stone) · 7 dias de garantia
-              </div>
+              <div style={{ fontSize: 11, color: "#94A3B8", textAlign: "center", marginTop: 10 }}>🔒 Pagamento seguro via Pagar.me (Stone) · 7 dias de garantia</div>
             </div>
           )}
 
-          {/* STEP 3: Sucesso */}
           {step === 3 && (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
@@ -323,7 +286,6 @@ function Checkout({ planoInicial, onVoltar }) {
               <p style={{ color: "#64748B", fontSize: 14, marginBottom: 24 }}>
                 Assim que o pagamento for identificado, você receberá seu login e senha no WhatsApp <strong>{dados.telefone}</strong>.
               </p>
-
               {pixCode && (
                 <div style={{ background: "#F8FAFC", borderRadius: 14, padding: 20, marginBottom: 20, border: "1px solid #E2E8F0" }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A", marginBottom: 12 }}>💠 QR Code Pix</div>
@@ -331,20 +293,14 @@ function Checkout({ planoInicial, onVoltar }) {
                   <div style={{ marginTop: 12 }}>
                     <div style={{ fontSize: 12, color: "#64748B", marginBottom: 8 }}>Ou copie o código abaixo:</div>
                     <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 12px", fontFamily: "monospace", fontSize: 10, wordBreak: "break-all", color: "#374151" }}>{pixCode}</div>
-                    <button onClick={() => navigator.clipboard?.writeText(pixCode)} style={{ marginTop: 8, background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                      📋 Copiar código Pix
-                    </button>
+                    <button onClick={() => navigator.clipboard?.writeText(pixCode)} style={{ marginTop: 8, background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📋 Copiar código Pix</button>
                   </div>
                 </div>
               )}
-
               <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#92400E" }}>
                 ⏳ Aguarde o pagamento ser confirmado. Você receberá login e senha via WhatsApp automaticamente.
               </div>
-
-              <button onClick={onVoltar} style={{ background: "#F1F5F9", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", color: "#374151" }}>
-                Voltar ao login
-              </button>
+              <button onClick={onVoltar} style={{ background: "#F1F5F9", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", color: "#374151" }}>Voltar ao login</button>
             </div>
           )}
         </div>
@@ -363,14 +319,22 @@ function LoginScreen({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
+  // ── NOVIDADE: lê ?plano= da URL e abre checkout direto ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const planoUrl = params.get("plano");
+    if (planoUrl && ["mensal", "trimestral", "anual"].includes(planoUrl)) {
+      setPlanoCheckout(planoUrl);
+      setCheckout(true);
+    }
+  }, []);
+
   if (checkout) return <Checkout planoInicial={planoCheckout} onVoltar={() => setCheckout(false)} />;
 
   const go = async () => {
     setErro("");
     if (!email || !senha) { setErro("Preencha e-mail e senha"); return; }
-    if (email === "admin@cobrarfacil.com.br" && senha === "admin2026") {
-      onLogin({ isAdmin: true }); return;
-    }
+    if (email === "admin@cobrarfacil.com.br" && senha === "admin2026") { onLogin({ isAdmin: true }); return; }
     setLoading(true);
     try {
       const res = await fetch(BACKEND_URL + "/auth/login", {
@@ -383,18 +347,14 @@ function LoginScreen({ onLogin }) {
         localStorage.setItem("cobrarfacil_token", data.token);
         localStorage.setItem("cobrarfacil_usuario", JSON.stringify(data.usuario));
         onLogin({ isAdmin: false, usuario: data.usuario, token: data.token });
-      } else {
-        setErro(data.erro || "Email ou senha incorretos");
-      }
-    } catch (e) {
-      setErro("Erro de conexão com o servidor");
-    }
+      } else { setErro(data.erro || "Email ou senha incorretos"); }
+    } catch (e) { setErro("Erro de conexão com o servidor"); }
     setLoading(false);
   };
 
   const planos = [
-    { key: "mensal",     nome: "Mensal",     preco: "R$147", periodo: "/mês", economia: null,           cor: "#3B82F6" },
-    { key: "trimestral", nome: "Trimestral", preco: "R$119", periodo: "/mês", economia: "Economize R$84",  cor: "#7C3AED", destaque: true },
+    { key: "mensal",     nome: "Mensal",     preco: "R$147", periodo: "/mês", economia: null,            cor: "#3B82F6" },
+    { key: "trimestral", nome: "Trimestral", preco: "R$119", periodo: "/mês", economia: "Economize R$84", cor: "#7C3AED", destaque: true },
     { key: "anual",      nome: "Anual",      preco: "R$97",  periodo: "/mês", economia: "Economize R$600", cor: "#16A34A" },
   ];
 
@@ -453,9 +413,7 @@ function LoginScreen({ onLogin }) {
                 </div>
               ))}
             </div>
-            <div style={{ textAlign: "center", fontSize: 12, color: "#94A3B8" }}>
-              🔒 Pagamento seguro · 7 dias de garantia ou devolvemos · Cancele quando quiser
-            </div>
+            <div style={{ textAlign: "center", fontSize: 12, color: "#94A3B8" }}>🔒 Pagamento seguro · 7 dias de garantia ou devolvemos · Cancele quando quiser</div>
           </div>
         )}
 
@@ -467,7 +425,7 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// ─── DADOS MOCK (clientes de demonstração) ────────────────────────────────
+// ─── DADOS MOCK ───────────────────────────────────────────────────────────
 const DB_DEMO = {
   clientes: [
     { id: 1, nome: "João Silva", cpf: "123.456.789-00", telefone: "(44) 99801-2233", email: "joao@email.com", totalDivida: 850, status: "pendente", vencimento: "2026-06-20", parcelas: 3, parcelasPagas: 0, diasAtraso: 0 },
@@ -496,13 +454,11 @@ function AdminPanel({ onLogout }) {
   const mrr = ADMIN_LOJISTAS.filter(l => l.status === "ativo").reduce((a, l) => a + l.mrr, 0);
   const ativos = ADMIN_LOJISTAS.filter(l => l.status === "ativo");
   const inadimplentes = ADMIN_LOJISTAS.filter(l => l.inadimplente);
-
   const statusBadge = {
     ativo:        { bg: "#DCFCE7", color: "#16A34A", label: "✅ Ativo" },
     inadimplente: { bg: "#FEF3C7", color: "#D97706", label: "⚠️ Inadimplente" },
     cancelado:    { bg: "#FEE2E2", color: "#DC2626", label: "❌ Cancelado" },
   };
-
   return (
     <div style={{ minHeight: "100vh", background: "#0F172A", fontFamily: "'Inter', -apple-system, sans-serif" }}>
       <div style={{ background: "#1E293B", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "14px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -517,11 +473,7 @@ function AdminPanel({ onLogout }) {
       </div>
       <div style={{ padding: 28 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 24 }}>
-          {[
-            { label: "MRR", value: fmt(mrr), color: "#22C55E", bg: "#052e16" },
-            { label: "Clientes ativos", value: ativos.length, color: "#3B82F6", bg: "#0c1a3a" },
-            { label: "Inadimplentes", value: inadimplentes.length, color: "#F59E0B", bg: "#2a1a00" },
-          ].map(c => (
+          {[{ label: "MRR", value: fmt(mrr), color: "#22C55E", bg: "#052e16" }, { label: "Clientes ativos", value: ativos.length, color: "#3B82F6", bg: "#0c1a3a" }, { label: "Inadimplentes", value: inadimplentes.length, color: "#F59E0B", bg: "#2a1a00" }].map(c => (
             <div key={c.label} style={{ background: c.bg, borderRadius: 14, padding: 18, border: "1px solid rgba(255,255,255,0.06)" }}>
               <div style={{ fontSize: 26, fontWeight: 800, color: c.color }}>{c.value}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0", marginTop: 4 }}>{c.label}</div>
@@ -569,14 +521,12 @@ function Dashboard({ clientes }) {
   const pagos = clientes.filter(c => c.status === "pago");
   const totalRecebido = pagos.reduce((a, c) => a + c.totalDivida, 0);
   const totalEmRisco = atrasados.reduce((a, c) => a + c.totalDivida, 0);
-
   const cards = [
     { label: "Total em cobrança", value: fmt(total), icon: <Ic.money />, color: "#1E40AF", bg: "#EFF6FF" },
     { label: "Já recebido", value: fmt(totalRecebido), icon: <Ic.trend />, color: "#16A34A", bg: "#F0FDF4" },
     { label: "Em risco", value: fmt(totalEmRisco), icon: <Ic.alert />, color: "#DC2626", bg: "#FEF2F2" },
     { label: "Clientes", value: clientes.length, icon: <Ic.users />, color: "#7C3AED", bg: "#F5F3FF" },
   ];
-
   return (
     <div>
       <div style={{ marginBottom: 22 }}>
@@ -628,15 +578,8 @@ function Clientes({ clientes, setClientes, onCobranca }) {
   const [novo, setNovo] = useState({ nome: "", cpf: "", telefone: "", email: "", totalDivida: "", parcelas: "1", vencimento: "" });
   const [toast, setToast] = useState(null);
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
-
-  const calcDiasAtraso = (vencimento) => {
-    if (!vencimento) return 0;
-    const diff = Math.floor((new Date() - new Date(vencimento)) / (1000 * 60 * 60 * 24));
-    return diff > 0 ? diff : 0;
-  };
-
+  const calcDiasAtraso = (vencimento) => { if (!vencimento) return 0; const diff = Math.floor((new Date() - new Date(vencimento)) / (1000 * 60 * 60 * 24)); return diff > 0 ? diff : 0; };
   const filtrados = clientes.filter(c => (filtro === "todos" || c.status === filtro) && c.nome.toLowerCase().includes(busca.toLowerCase()));
-
   const addCliente = () => {
     if (!novo.nome || !novo.telefone || !novo.totalDivida) return;
     const diasAtraso = calcDiasAtraso(novo.vencimento);
@@ -646,7 +589,6 @@ function Clientes({ clientes, setClientes, onCobranca }) {
     setNovo({ nome: "", cpf: "", telefone: "", email: "", totalDivida: "", parcelas: "1", vencimento: "" });
     showToast("Cliente cadastrado com sucesso!");
   };
-
   return (
     <div>
       {toast && <ToastMsg {...toast} />}
@@ -721,20 +663,14 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   const [msg, setMsg] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
-
   const clienteSelecionado = clientes.find(c => c.id.toString() === clienteSel);
-
-  useEffect(() => {
-    if (clientePreSelecionado) { setClienteSel(clientePreSelecionado.id.toString()); setClientePreSelecionado(null); }
-  }, []);
-
+  useEffect(() => { if (clientePreSelecionado) { setClienteSel(clientePreSelecionado.id.toString()); setClientePreSelecionado(null); } }, []);
   useEffect(() => {
     if (clienteSelecionado) {
       const pix = pixKey ? "\n💳 Pix: *" + pixKey + "* | Valor: *" + fmt(clienteSelecionado.totalDivida) + "*" : "";
       setMsg(`Olá ${clienteSelecionado.nome.split(" ")[0]} 😊\n\nIdentificamos uma pendência de *${fmt(clienteSelecionado.totalDivida)}* em aberto.\n\nRegularize agora via Pix:${pix}\n\nQualquer dúvida, é só chamar! 🙏`);
     }
   }, [clienteSel]);
-
   const enviar = () => {
     if (!clienteSel || !msg) return;
     setEnviando(true);
@@ -743,7 +679,6 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
       setEnviando(false); setSucesso(true); setTimeout(() => setSucesso(false), 3000);
     }, 1200);
   };
-
   return (
     <div>
       <div style={{ marginBottom: 20 }}><h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Enviar Cobrança</h1></div>
@@ -777,7 +712,6 @@ function Historico({ historico, setHistorico, clientes, setClientes }) {
   const [toast, setToast] = useState(null);
   const [confirmando, setConfirmando] = useState(null);
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
-
   const confirmarPagamento = (h) => {
     setConfirmando(h.id);
     setTimeout(() => {
@@ -787,14 +721,12 @@ function Historico({ historico, setHistorico, clientes, setClientes }) {
       showToast("✅ Pagamento confirmado!");
     }, 800);
   };
-
   const statusInfo = (status) => ({
     entregue:        { bg: "#F0FDF4", color: "#16A34A", label: "✓ Entregue" },
     lido:            { bg: "#EFF6FF", color: "#1E40AF", label: "✓✓ Lido" },
     pago_confirmado: { bg: "#DCFCE7", color: "#15803D", label: "💰 Pago" },
     nao_pago:        { bg: "#FEE2E2", color: "#DC2626", label: "✗ Não pagou" },
   }[status] || { bg: "#F1F5F9", color: "#64748B", label: status });
-
   return (
     <div>
       {toast && <ToastMsg {...toast} />}
@@ -838,14 +770,7 @@ function Configuracoes({ usuario, pixKey, setPixKey }) {
   const [pixSalvo, setPixSalvo] = useState(!!pixKey);
   const [toast, setToast] = useState(null);
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2000); };
-
-  const salvarPix = () => {
-    if (!pixInput.trim()) return;
-    setPixKey(pixInput.trim());
-    setPixSalvo(true);
-    showToast("Chave Pix salva!");
-  };
-
+  const salvarPix = () => { if (!pixInput.trim()) return; setPixKey(pixInput.trim()); setPixSalvo(true); showToast("Chave Pix salva!"); };
   return (
     <div>
       {toast && <ToastMsg {...toast} />}
@@ -886,47 +811,31 @@ function Configuracoes({ usuario, pixKey, setPixKey }) {
 
 // ─── APP PRINCIPAL ────────────────────────────────────────────────────────
 export default function CobrarFacil() {
-  const [sessao, setSessao] = useState(null); // null = não logado
+  const [sessao, setSessao] = useState(null);
   const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [tela, setTela] = useState("dashboard");
-  const [menuAberto, setMenuAberto] = useState(false);
   const [clientes, setClientes] = useState(DB_DEMO.clientes);
   const [historico, setHistorico] = useState(DB_DEMO.historico);
   const [clienteParaCobrar, setClienteParaCobrar] = useState(null);
   const [pixKey, setPixKey] = useState(() => { try { return localStorage.getItem("cobrarfacil_pix") || ""; } catch { return ""; } });
 
-  // Verificar sessão salva
   useEffect(() => {
     try {
       const token = localStorage.getItem("cobrarfacil_token");
       const usuario = localStorage.getItem("cobrarfacil_usuario");
-      if (token && usuario) {
-        setSessao({ isAdmin: false, usuario: JSON.parse(usuario), token });
-      }
+      if (token && usuario) { setSessao({ isAdmin: false, usuario: JSON.parse(usuario), token }); }
     } catch {}
   }, []);
 
   const salvarPixKey = (key) => { try { localStorage.setItem("cobrarfacil_pix", key); } catch {} setPixKey(key); };
-
-  const logout = () => {
-    try { localStorage.removeItem("cobrarfacil_token"); localStorage.removeItem("cobrarfacil_usuario"); } catch {}
-    setSessao(null);
-    setTrocandoSenha(false);
-  };
-
-  const onLogin = (dados) => {
-    setSessao(dados);
-    if (!dados.isAdmin && dados.usuario?.primeiro_acesso) {
-      setTrocandoSenha(true);
-    }
-  };
+  const logout = () => { try { localStorage.removeItem("cobrarfacil_token"); localStorage.removeItem("cobrarfacil_usuario"); } catch {} setSessao(null); setTrocandoSenha(false); };
+  const onLogin = (dados) => { setSessao(dados); if (!dados.isAdmin && dados.usuario?.primeiro_acesso) { setTrocandoSenha(true); } };
 
   if (!sessao) return <LoginScreen onLogin={onLogin} />;
   if (sessao.isAdmin) return <AdminPanel onLogout={logout} />;
   if (trocandoSenha) return <TrocarSenha email={sessao.usuario?.email} onSucesso={() => setTrocandoSenha(false)} />;
 
   const irParaCobranca = (c) => { setClienteParaCobrar(c); setTela("cobrancas"); };
-
   const nav = [
     { key: "dashboard", label: "Painel",    icon: <Ic.dash /> },
     { key: "clientes",  label: "Clientes",  icon: <Ic.clients /> },
@@ -934,12 +843,10 @@ export default function CobrarFacil() {
     { key: "historico", label: "Histórico", icon: <Ic.history /> },
     { key: "config",    label: "Config.",   icon: <Ic.settings /> },
   ];
-
   const atrasadosCount = clientes.filter(c => c.status === "atrasado").length;
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif" }}>
-      {menuAberto && <div onClick={() => setMenuAberto(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 99 }} />}
       <div style={{ width: 220, background: "#0F172A", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100 }}>
         <div style={{ padding: "18px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -952,7 +859,7 @@ export default function CobrarFacil() {
         </div>
         <nav style={{ flex: 1, padding: "14px 10px", overflowY: "auto" }}>
           {nav.map(n => (
-            <button key={n.key} onClick={() => { setTela(n.key); setMenuAberto(false); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "10px 12px", borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 3, background: tela === n.key ? "rgba(59,130,246,0.15)" : "transparent", color: tela === n.key ? "#60A5FA" : "#64748B", fontSize: 13, fontWeight: tela === n.key ? 700 : 500, textAlign: "left" }}>
+            <button key={n.key} onClick={() => setTela(n.key)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "10px 12px", borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 3, background: tela === n.key ? "rgba(59,130,246,0.15)" : "transparent", color: tela === n.key ? "#60A5FA" : "#64748B", fontSize: 13, fontWeight: tela === n.key ? 700 : 500, textAlign: "left" }}>
               {n.icon} {n.label}
               {n.key === "clientes" && atrasadosCount > 0 && <span style={{ marginLeft: "auto", background: "#DC2626", color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "1px 6px" }}>{atrasadosCount}</span>}
             </button>
