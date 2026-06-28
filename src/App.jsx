@@ -14,11 +14,8 @@ const Ic = {
   clients:  () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
   charge:   () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
   history:  () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-  upload:   () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
-  negat:    () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
   settings: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
   whatsapp: () => <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.004 2C6.478 2 2 6.478 2 12.004c0 1.85.488 3.585 1.337 5.09L2 22l4.992-1.311A10 10 0 0 0 12.004 22C17.53 22 22 17.522 22 12.004 22 6.478 17.53 2 12.004 2z" opacity=".3"/></svg>,
-  email:    () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
   plus:     () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   send:     () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
   alert:    () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
@@ -28,13 +25,9 @@ const Ic = {
   trend:    () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
   users:    () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>,
   bell:     () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
-  robot:    () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M12 11V7"/><circle cx="12" cy="5" r="2"/><line x1="8" y1="15" x2="8" y2="17"/><line x1="16" y1="15" x2="16" y2="17"/></svg>,
-  download: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-  shield:   () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-  info:     () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
-  approve:  () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
-  recover:  () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
-  key:      () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>,
+  upload:   () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+  qr:       () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3"/></svg>,
+  refresh:  () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
 };
 
 const Badge = ({ status }) => {
@@ -77,7 +70,7 @@ const ToastMsg = ({ msg, type }) => (
   <div style={{ position: "fixed", top: 20, right: 20, background: type === "success" ? "#16A34A" : "#DC2626", color: "#fff", borderRadius: 12, padding: "12px 20px", fontSize: 14, fontWeight: 600, zIndex: 3000, boxShadow: "0 4px 20px rgba(0,0,0,0.2)", maxWidth: 320 }}>{msg}</div>
 );
 
-// ─── TELA DE TROCA DE SENHA ───────────────────────────────────────────────
+// ─── TROCAR SENHA ─────────────────────────────────────────────────────────
 function TrocarSenha({ email, onSucesso }) {
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
@@ -91,14 +84,10 @@ function TrocarSenha({ email, onSucesso }) {
     if (novaSenha !== confirmar) { setErro("As senhas não coincidem"); return; }
     setLoading(true);
     try {
-      const res = await fetch(BACKEND_URL + "/auth/trocar-senha", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha_atual: senhaAtual, nova_senha: novaSenha }),
-      });
+      const res = await fetch(BACKEND_URL + "/auth/trocar-senha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, senha_atual: senhaAtual, nova_senha: novaSenha }) });
       const data = await res.json();
-      if (data.sucesso) { onSucesso(); } else { setErro(data.erro || "Erro ao trocar senha"); }
-    } catch (e) { setErro("Erro de conexão"); }
+      if (data.sucesso) onSucesso(); else setErro(data.erro || "Erro ao trocar senha");
+    } catch { setErro("Erro de conexão"); }
     setLoading(false);
   };
 
@@ -111,16 +100,12 @@ function TrocarSenha({ email, onSucesso }) {
           <p style={{ color: "#94A3B8", fontSize: 14, margin: 0 }}>Por segurança, troque a senha temporária antes de continuar</p>
         </div>
         <div style={{ background: "#fff", borderRadius: 20, padding: 32, boxShadow: "0 25px 80px rgba(0,0,0,0.3)" }}>
-          <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 10, padding: "10px 14px", marginBottom: 20, fontSize: 13, color: "#92400E" }}>
-            ⚠️ Use a senha temporária que recebeu no WhatsApp como senha atual
-          </div>
+          <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 10, padding: "10px 14px", marginBottom: 20, fontSize: 13, color: "#92400E" }}>⚠️ Use a senha temporária que recebeu no WhatsApp como senha atual</div>
           <Inp label="Senha atual (temporária)" type="password" value={senhaAtual} onChange={e => setSenhaAtual(e.target.value)} placeholder="Senha recebida no WhatsApp" />
           <Inp label="Nova senha" type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
           <Inp label="Confirmar nova senha" type="password" value={confirmar} onChange={e => setConfirmar(e.target.value)} placeholder="Repita a nova senha" />
           {erro && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erro}</div>}
-          <Btn onClick={trocar} disabled={loading || !senhaAtual || !novaSenha || !confirmar} style={{ width: "100%", justifyContent: "center" }}>
-            {loading ? "Salvando..." : "🔑 Definir nova senha"}
-          </Btn>
+          <Btn onClick={trocar} disabled={loading || !senhaAtual || !novaSenha || !confirmar} style={{ width: "100%", justifyContent: "center" }}>{loading ? "Salvando..." : "🔑 Definir nova senha"}</Btn>
         </div>
       </div>
     </div>
@@ -143,25 +128,18 @@ function Checkout({ planoInicial, onVoltar }) {
     trimestral: { nome: "Trimestral", valor: 35700,  label: "R$119/mês",  economia: "Economize R$84", parcelas: 2, parcelasLabel: "em até 2x" },
     anual:      { nome: "Anual",      valor: 116400, label: "R$97/mês",   economia: "Economize R$600", parcelas: 3, parcelasLabel: "em até 3x" },
   };
-
   const planoSel = planos[plano];
 
   const pagar = async () => {
     setErro("");
-    if (formaPag === "cartao") {
-      if (!cartao.numero || !cartao.nome || !cartao.validade || !cartao.cvv) { setErro("Preencha todos os dados do cartão"); return; }
-    }
+    if (formaPag === "cartao" && (!cartao.numero || !cartao.nome || !cartao.validade || !cartao.cvv)) { setErro("Preencha todos os dados do cartão"); return; }
     setLoading(true);
     try {
-      const res = await fetch(BACKEND_URL + "/pagamento/criar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...dados, plano, forma_pagamento: formaPag, card_number: cartao.numero, card_name: cartao.nome, card_expiry: cartao.validade, card_cvv: cartao.cvv }),
-      });
+      const res = await fetch(BACKEND_URL + "/pagamento/criar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...dados, plano, forma_pagamento: formaPag, card_number: cartao.numero, card_name: cartao.nome, card_expiry: cartao.validade, card_cvv: cartao.cvv }) });
       const data = await res.json();
       if (data.sucesso) { setResultado(data.dados); setStep(3); }
-      else { setErro(data.erro?.message || data.erro || "Erro ao processar pagamento"); }
-    } catch (e) { setErro("Erro de conexão com o servidor"); }
+      else setErro(data.erro?.message || data.erro || "Erro ao processar pagamento");
+    } catch { setErro("Erro de conexão com o servidor"); }
     setLoading(false);
   };
 
@@ -194,12 +172,10 @@ function Checkout({ planoInicial, onVoltar }) {
         )}
 
         <div style={{ background: "#fff", borderRadius: 20, padding: 28, boxShadow: "0 25px 80px rgba(0,0,0,0.3)" }}>
-
           {step === 1 && (
             <div>
               <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>Seus dados</h2>
               <p style={{ margin: "0 0 22px", fontSize: 13, color: "#64748B" }}>Usaremos para criar seu acesso e enviar credenciais por WhatsApp</p>
-
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Plano escolhido</label>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -212,17 +188,12 @@ function Checkout({ planoInicial, onVoltar }) {
                   ))}
                 </div>
               </div>
-
               <Inp label="Nome completo *" value={dados.nome} onChange={e => setDados(p => ({ ...p, nome: e.target.value }))} placeholder="João da Silva" />
               <Inp label="E-mail *" type="email" value={dados.email} onChange={e => setDados(p => ({ ...p, email: e.target.value }))} placeholder="seu@email.com" />
               <Inp label="CPF *" value={dados.cpf} onChange={e => setDados(p => ({ ...p, cpf: e.target.value }))} placeholder="000.000.000-00" />
               <Inp label="WhatsApp * (receberá seu acesso aqui)" value={dados.telefone} onChange={e => setDados(p => ({ ...p, telefone: e.target.value }))} placeholder="(44) 99999-0000" />
-
               {erro && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erro}</div>}
-
-              <Btn onClick={() => { if (!dados.nome || !dados.email || !dados.cpf || !dados.telefone) { setErro("Preencha todos os campos"); return; } setErro(""); setStep(2); }} style={{ width: "100%", justifyContent: "center" }}>
-                Continuar para pagamento →
-              </Btn>
+              <Btn onClick={() => { if (!dados.nome || !dados.email || !dados.cpf || !dados.telefone) { setErro("Preencha todos os campos"); return; } setErro(""); setStep(2); }} style={{ width: "100%", justifyContent: "center" }}>Continuar para pagamento →</Btn>
               <div style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: "#94A3B8" }}>🔒 Seus dados são protegidos · 7 dias de garantia ou devolvemos</div>
             </div>
           )}
@@ -231,13 +202,9 @@ function Checkout({ planoInicial, onVoltar }) {
             <div>
               <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>Pagamento</h2>
               <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: "12px 16px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 700, color: "#0F172A" }}>Plano {planoSel.nome}</div>
-                  <div style={{ fontSize: 12, color: "#64748B" }}>{dados.nome} · {dados.email}</div>
-                </div>
+                <div><div style={{ fontWeight: 700, color: "#0F172A" }}>Plano {planoSel.nome}</div><div style={{ fontSize: 12, color: "#64748B" }}>{dados.nome} · {dados.email}</div></div>
                 <div style={{ fontWeight: 900, fontSize: 22, color: "#1E40AF" }}>{(planoSel.valor / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
               </div>
-
               <div style={{ marginBottom: 18 }}>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Forma de pagamento</label>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -249,18 +216,10 @@ function Checkout({ planoInicial, onVoltar }) {
                   ))}
                 </div>
               </div>
-
-              {formaPag === "pix" && (
-                <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "12px 14px", marginBottom: 18, fontSize: 13, color: "#1E3A8A" }}>
-                  💠 Após confirmar, o QR Code Pix aparecerá na tela. Pague e receba seu acesso no WhatsApp em instantes.
-                </div>
-              )}
-
+              {formaPag === "pix" && <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "12px 14px", marginBottom: 18, fontSize: 13, color: "#1E3A8A" }}>💠 Após confirmar, o QR Code Pix aparecerá na tela. Pague e receba seu acesso no WhatsApp em instantes.</div>}
               {formaPag === "cartao" && (
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#166534", fontWeight: 600 }}>
-                    💳 Plano {planoSel.nome}: {planoSel.parcelasLabel} no crédito
-                  </div>
+                  <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#166534", fontWeight: 600 }}>💳 Plano {planoSel.nome}: {planoSel.parcelasLabel} no crédito</div>
                   <Inp label="Número do cartão" value={cartao.numero} onChange={e => setCartao(p => ({ ...p, numero: e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim() }))} placeholder="0000 0000 0000 0000" maxLength={19} />
                   <Inp label="Nome no cartão" value={cartao.nome} onChange={e => setCartao(p => ({ ...p, nome: e.target.value.toUpperCase() }))} placeholder="NOME SOBRENOME" />
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -269,12 +228,8 @@ function Checkout({ planoInicial, onVoltar }) {
                   </div>
                 </div>
               )}
-
               {erro && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erro}</div>}
-
-              <Btn onClick={pagar} disabled={loading} style={{ width: "100%", justifyContent: "center", fontSize: 15, padding: "14px" }}>
-                {loading ? "Processando..." : formaPag === "pix" ? "💠 Gerar QR Code Pix" : "💳 Pagar com cartão"}
-              </Btn>
+              <Btn onClick={pagar} disabled={loading} style={{ width: "100%", justifyContent: "center", fontSize: 15, padding: "14px" }}>{loading ? "Processando..." : formaPag === "pix" ? "💠 Gerar QR Code Pix" : "💳 Pagar com cartão"}</Btn>
               <div style={{ fontSize: 11, color: "#94A3B8", textAlign: "center", marginTop: 10 }}>🔒 Pagamento seguro via Pagar.me (Stone) · 7 dias de garantia</div>
             </div>
           )}
@@ -283,9 +238,7 @@ function Checkout({ planoInicial, onVoltar }) {
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
               <h2 style={{ fontSize: 22, fontWeight: 800, color: "#0F172A", marginBottom: 8 }}>Pedido confirmado!</h2>
-              <p style={{ color: "#64748B", fontSize: 14, marginBottom: 24 }}>
-                Assim que o pagamento for identificado, você receberá seu login e senha no WhatsApp <strong>{dados.telefone}</strong>.
-              </p>
+              <p style={{ color: "#64748B", fontSize: 14, marginBottom: 24 }}>Assim que o pagamento for identificado, você receberá seu login e senha no WhatsApp <strong>{dados.telefone}</strong>.</p>
               {pixCode && (
                 <div style={{ background: "#F8FAFC", borderRadius: 14, padding: 20, marginBottom: 20, border: "1px solid #E2E8F0" }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A", marginBottom: 12 }}>💠 QR Code Pix</div>
@@ -297,9 +250,7 @@ function Checkout({ planoInicial, onVoltar }) {
                   </div>
                 </div>
               )}
-              <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#92400E" }}>
-                ⏳ Aguarde o pagamento ser confirmado. Você receberá login e senha via WhatsApp automaticamente.
-              </div>
+              <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#92400E" }}>⏳ Aguarde o pagamento ser confirmado. Você receberá login e senha via WhatsApp automaticamente.</div>
               <button onClick={onVoltar} style={{ background: "#F1F5F9", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", color: "#374151" }}>Voltar ao login</button>
             </div>
           )}
@@ -309,7 +260,7 @@ function Checkout({ planoInicial, onVoltar }) {
   );
 }
 
-// ─── LOGIN SCREEN ─────────────────────────────────────────────────────────
+// ─── LOGIN ────────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
   const [aba, setAba] = useState("login");
   const [checkout, setCheckout] = useState(false);
@@ -318,8 +269,10 @@ function LoginScreen({ onLogin }) {
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
+  const [recuperando, setRecuperando] = useState(false);
+  const [emailRecuperacao, setEmailRecuperacao] = useState("");
+  const [recuperacaoEnviada, setRecuperacaoEnviada] = useState(false);
 
-  // ── NOVIDADE: lê ?plano= da URL e abre checkout direto ──
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const planoUrl = params.get("plano");
@@ -337,26 +290,57 @@ function LoginScreen({ onLogin }) {
     if (email === "admin@cobrarfacil.com.br" && senha === "admin2026") { onLogin({ isAdmin: true }); return; }
     setLoading(true);
     try {
-      const res = await fetch(BACKEND_URL + "/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha }),
-      });
+      const res = await fetch(BACKEND_URL + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, senha }) });
       const data = await res.json();
       if (data.sucesso) {
         localStorage.setItem("cobrarfacil_token", data.token);
         localStorage.setItem("cobrarfacil_usuario", JSON.stringify(data.usuario));
         onLogin({ isAdmin: false, usuario: data.usuario, token: data.token });
-      } else { setErro(data.erro || "Email ou senha incorretos"); }
-    } catch (e) { setErro("Erro de conexão com o servidor"); }
+      } else setErro(data.erro || "Email ou senha incorretos");
+    } catch { setErro("Erro de conexão com o servidor"); }
+    setLoading(false);
+  };
+
+  const recuperarSenha = async () => {
+    if (!emailRecuperacao) return;
+    setLoading(true);
+    try {
+      await fetch(BACKEND_URL + "/auth/recuperar-senha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: emailRecuperacao }) });
+      setRecuperacaoEnviada(true);
+    } catch {}
     setLoading(false);
   };
 
   const planos = [
-    { key: "mensal",     nome: "Mensal",     preco: "R$147", periodo: "/mês", economia: null,            cor: "#3B82F6" },
+    { key: "mensal",     nome: "Mensal",     preco: "R$147", periodo: "/mês", economia: null,             cor: "#3B82F6" },
     { key: "trimestral", nome: "Trimestral", preco: "R$119", periodo: "/mês", economia: "Economize R$84", cor: "#7C3AED", destaque: true },
     { key: "anual",      nome: "Anual",      preco: "R$97",  periodo: "/mês", economia: "Economize R$600", cor: "#16A34A" },
   ];
+
+  if (recuperando) return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E40AF 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ width: "100%", maxWidth: 420 }}>
+        <div style={{ background: "#fff", borderRadius: 20, padding: 32, boxShadow: "0 25px 80px rgba(0,0,0,0.3)" }}>
+          {recuperacaoEnviada ? (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📱</div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", marginBottom: 8 }}>Senha enviada!</h2>
+              <p style={{ color: "#64748B", fontSize: 14, marginBottom: 24 }}>Se o e-mail estiver cadastrado, você receberá uma nova senha temporária via WhatsApp.</p>
+              <Btn onClick={() => { setRecuperando(false); setRecuperacaoEnviada(false); setEmailRecuperacao(""); }} style={{ width: "100%", justifyContent: "center" }}>← Voltar ao login</Btn>
+            </div>
+          ) : (
+            <div>
+              <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>Recuperar senha</h2>
+              <p style={{ margin: "0 0 20px", fontSize: 13, color: "#64748B" }}>Informe seu e-mail e enviaremos uma nova senha temporária via WhatsApp.</p>
+              <Inp label="E-mail cadastrado" type="email" value={emailRecuperacao} onChange={e => setEmailRecuperacao(e.target.value)} placeholder="seu@email.com" />
+              <Btn onClick={recuperarSenha} disabled={loading || !emailRecuperacao} style={{ width: "100%", justifyContent: "center" }}>{loading ? "Enviando..." : "📱 Enviar nova senha por WhatsApp"}</Btn>
+              <div style={{ textAlign: "center", marginTop: 14 }}><span onClick={() => setRecuperando(false)} style={{ fontSize: 13, color: "#1E40AF", cursor: "pointer", fontWeight: 600 }}>← Voltar ao login</span></div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E40AF 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -384,11 +368,9 @@ function LoginScreen({ onLogin }) {
             <Inp label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" />
             <Inp label="Senha" type="password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && go()} />
             {erro && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erro}</div>}
-            <div style={{ textAlign: "right", marginBottom: 18 }}><span style={{ fontSize: 13, color: "#1E40AF", cursor: "pointer", fontWeight: 600 }}>Esqueci minha senha</span></div>
+            <div style={{ textAlign: "right", marginBottom: 18 }}><span onClick={() => setRecuperando(true)} style={{ fontSize: 13, color: "#1E40AF", cursor: "pointer", fontWeight: 600 }}>Esqueci minha senha</span></div>
             <Btn onClick={go} disabled={loading} style={{ width: "100%", justifyContent: "center" }}>{loading ? "Entrando..." : "Entrar na plataforma →"}</Btn>
-            <div style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "#64748B" }}>
-              Não tem conta? <span onClick={() => setAba("planos")} style={{ color: "#1E40AF", fontWeight: 600, cursor: "pointer" }}>Assinar agora</span>
-            </div>
+            <div style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "#64748B" }}>Não tem conta? <span onClick={() => setAba("planos")} style={{ color: "#1E40AF", fontWeight: 600, cursor: "pointer" }}>Assinar agora</span></div>
           </div>
         )}
 
@@ -401,15 +383,8 @@ function LoginScreen({ onLogin }) {
                   <div style={{ fontWeight: 800, fontSize: 15, color: "#0F172A", marginBottom: 4 }}>{p.nome}</div>
                   <div style={{ fontSize: 26, fontWeight: 900, color: p.cor }}>{p.preco}<span style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>{p.periodo}</span></div>
                   {p.economia && <div style={{ fontSize: 11, color: "#16A34A", fontWeight: 700, marginTop: 3 }}>🎁 {p.economia}</div>}
-                  <ul style={{ margin: "12px 0 0", padding: "0 0 0 14px", fontSize: 12, color: "#374151", lineHeight: 1.9 }}>
-                    <li>Todas as funções</li>
-                    <li>WhatsApp automático</li>
-                    <li>Suporte prioritário</li>
-                    <li>7 dias de garantia</li>
-                  </ul>
-                  <button onClick={() => { setPlanoCheckout(p.key); setCheckout(true); }} style={{ display: "block", width: "100%", marginTop: 14, background: p.cor, color: "#fff", border: "none", borderRadius: 10, padding: "10px", textAlign: "center", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                    Assinar agora
-                  </button>
+                  <ul style={{ margin: "12px 0 0", padding: "0 0 0 14px", fontSize: 12, color: "#374151", lineHeight: 1.9 }}><li>Todas as funções</li><li>WhatsApp automático</li><li>Suporte prioritário</li><li>7 dias de garantia</li></ul>
+                  <button onClick={() => { setPlanoCheckout(p.key); setCheckout(true); }} style={{ display: "block", width: "100%", marginTop: 14, background: p.cor, color: "#fff", border: "none", borderRadius: 10, padding: "10px", textAlign: "center", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Assinar agora</button>
                 </div>
               ))}
             </div>
@@ -425,7 +400,7 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// ─── DADOS MOCK ───────────────────────────────────────────────────────────
+// ─── DADOS DEMO ───────────────────────────────────────────────────────────
 const DB_DEMO = {
   clientes: [
     { id: 1, nome: "João Silva", cpf: "123.456.789-00", telefone: "(44) 99801-2233", email: "joao@email.com", totalDivida: 850, status: "pendente", vencimento: "2026-06-20", parcelas: 3, parcelasPagas: 0, diasAtraso: 0 },
@@ -436,29 +411,42 @@ const DB_DEMO = {
     { id: 6, nome: "Fernanda Alves", cpf: "678.901.234-55", telefone: "(44) 98833-9900", email: "fernanda@email.com", totalDivida: 980, status: "pago", vencimento: "2026-06-12", parcelas: 4, parcelasPagas: 4, diasAtraso: 0 },
   ],
   historico: [
-    { id: 1, clienteId: 2, tipo: "whatsapp", data: "2026-06-18 09:12", mensagem: "Olá Maria, temos uma parcela em aberto de R$300. Clique para regularizar.", status: "entregue" },
-    { id: 2, clienteId: 4, tipo: "whatsapp", data: "2026-06-17 10:30", mensagem: "Ana, sua dívida está em atraso. Entre em contato para evitar restrições.", status: "lido" },
-    { id: 3, clienteId: 1, tipo: "email", data: "2026-06-16 08:00", mensagem: "Lembrete: parcela vence em 4 dias.", status: "entregue" },
+    { id: 1, clienteId: 2, tipo: "whatsapp", data: "2026-06-18 09:12", mensagem: "Olá Maria, temos uma parcela em aberto de R$300.", status: "entregue" },
+    { id: 2, clienteId: 4, tipo: "whatsapp", data: "2026-06-17 10:30", mensagem: "Ana, sua dívida está em atraso. Entre em contato.", status: "lido" },
   ],
 };
 
 // ─── ADMIN PANEL ──────────────────────────────────────────────────────────
-const ADMIN_LOJISTAS = [
-  { id: 1, nome: "Look Up Store", email: "tiago@lookupmoda.com.br", plano: "Pro", status: "ativo", clientes: 6, mrr: 97, vencimento: "2026-07-24", pagamento: "Pix", inadimplente: false, cadastro: "2026-01-10" },
-  { id: 2, nome: "Moda Feminina da Ana", email: "ana@modafeminina.com.br", plano: "Pro", status: "ativo", clientes: 23, mrr: 97, vencimento: "2026-07-15", pagamento: "Cartão", inadimplente: false, cadastro: "2026-02-03" },
-  { id: 3, nome: "Calçados Mendes", email: "carlos@calcadosmendes.com.br", plano: "Starter", status: "ativo", clientes: 8, mrr: 47, vencimento: "2026-07-20", pagamento: "Boleto", inadimplente: false, cadastro: "2026-03-15" },
-  { id: 4, nome: "Pedro Eletro", email: "pedro@pedroeletro.com.br", plano: "Pro", status: "inadimplente", clientes: 14, mrr: 97, vencimento: "2026-06-10", pagamento: "Pix", inadimplente: true, cadastro: "2026-02-28" },
-];
-
 function AdminPanel({ onLogout }) {
-  const mrr = ADMIN_LOJISTAS.filter(l => l.status === "ativo").reduce((a, l) => a + l.mrr, 0);
-  const ativos = ADMIN_LOJISTAS.filter(l => l.status === "ativo");
-  const inadimplentes = ADMIN_LOJISTAS.filter(l => l.inadimplente);
+  const [lojistas, setLojistas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(BACKEND_URL + "/admin/usuarios")
+      .then(r => r.json())
+      .then(d => { if (d.sucesso) setLojistas(d.usuarios); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const mrr = lojistas.filter(l => l.status === "ativo").reduce((a, l) => {
+    if (l.plano === "anual") return a + 97;
+    if (l.plano === "trimestral") return a + 119;
+    return a + 147;
+  }, 0);
+
   const statusBadge = {
-    ativo:        { bg: "#DCFCE7", color: "#16A34A", label: "✅ Ativo" },
-    inadimplente: { bg: "#FEF3C7", color: "#D97706", label: "⚠️ Inadimplente" },
-    cancelado:    { bg: "#FEE2E2", color: "#DC2626", label: "❌ Cancelado" },
+    ativo:    { bg: "#DCFCE7", color: "#16A34A", label: "✅ Ativo" },
+    inativo:  { bg: "#FEF3C7", color: "#D97706", label: "⚠️ Inativo" },
+    cancelado:{ bg: "#FEE2E2", color: "#DC2626", label: "❌ Cancelado" },
   };
+
+  const vencendoEmBreve = lojistas.filter(l => {
+    if (!l.expira_em) return false;
+    const dias = Math.floor((new Date(l.expira_em) - new Date()) / (1000 * 60 * 60 * 24));
+    return dias >= 0 && dias <= 3;
+  });
+
   return (
     <div style={{ minHeight: "100vh", background: "#0F172A", fontFamily: "'Inter', -apple-system, sans-serif" }}>
       <div style={{ background: "#1E293B", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "14px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -472,43 +460,66 @@ function AdminPanel({ onLogout }) {
         </div>
       </div>
       <div style={{ padding: 28 }}>
+        {vencendoEmBreve.length > 0 && (
+          <div style={{ background: "#7C2D12", border: "1px solid #DC2626", borderRadius: 12, padding: "12px 16px", marginBottom: 20, color: "#FCA5A5", fontSize: 13, fontWeight: 600 }}>
+            ⚠️ {vencendoEmBreve.length} assinatura(s) vencendo em até 3 dias: {vencendoEmBreve.map(l => l.nome).join(", ")}
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 24 }}>
-          {[{ label: "MRR", value: fmt(mrr), color: "#22C55E", bg: "#052e16" }, { label: "Clientes ativos", value: ativos.length, color: "#3B82F6", bg: "#0c1a3a" }, { label: "Inadimplentes", value: inadimplentes.length, color: "#F59E0B", bg: "#2a1a00" }].map(c => (
+          {[
+            { label: "MRR", value: fmt(mrr), color: "#22C55E", bg: "#052e16" },
+            { label: "Clientes ativos", value: lojistas.filter(l => l.status === "ativo").length, color: "#3B82F6", bg: "#0c1a3a" },
+            { label: "Inativos", value: lojistas.filter(l => l.status !== "ativo").length, color: "#F59E0B", bg: "#2a1a00" },
+            { label: "Total cadastros", value: lojistas.length, color: "#A78BFA", bg: "#1e1040" },
+          ].map(c => (
             <div key={c.label} style={{ background: c.bg, borderRadius: 14, padding: 18, border: "1px solid rgba(255,255,255,0.06)" }}>
               <div style={{ fontSize: 26, fontWeight: 800, color: c.color }}>{c.value}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0", marginTop: 4 }}>{c.label}</div>
             </div>
           ))}
         </div>
-        <div style={{ background: "#1E293B", borderRadius: 14, border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: "#0F172A" }}>
-                {["Negócio", "Plano", "MRR", "Status"].map(h => (
-                  <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontWeight: 700, color: "#64748B", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ADMIN_LOJISTAS.map((l, i) => {
-                const s = statusBadge[l.status];
-                return (
-                  <tr key={l.id} style={{ background: i % 2 === 0 ? "#1E293B" : "#1a2538" }}>
-                    <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                      <div style={{ fontWeight: 700, color: "#E2E8F0" }}>{l.nome}</div>
-                      <div style={{ fontSize: 11, color: "#64748B" }}>{l.email}</div>
-                    </td>
-                    <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)", color: "#60A5FA", fontWeight: 700 }}>{l.plano}</td>
-                    <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)", fontWeight: 700, color: "#22C55E" }}>{l.mrr > 0 ? fmt(l.mrr) : "—"}</td>
-                    <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                      <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99 }}>{s.label}</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        {loading ? (
+          <div style={{ textAlign: "center", color: "#64748B", padding: 40 }}>Carregando...</div>
+        ) : (
+          <div style={{ background: "#1E293B", borderRadius: 14, border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "#0F172A" }}>
+                  {["Negócio / E-mail", "Plano", "Vence em", "WhatsApp", "Status"].map(h => (
+                    <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontWeight: 700, color: "#64748B", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lojistas.map((l, i) => {
+                  const s = statusBadge[l.status] || statusBadge.inativo;
+                  const expira = l.expira_em ? new Date(l.expira_em).toLocaleDateString("pt-BR") : "—";
+                  const diasExp = l.expira_em ? Math.floor((new Date(l.expira_em) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+                  return (
+                    <tr key={l.id} style={{ background: i % 2 === 0 ? "#1E293B" : "#1a2538" }}>
+                      <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div style={{ fontWeight: 700, color: "#E2E8F0" }}>{l.nome}</div>
+                        <div style={{ fontSize: 11, color: "#64748B" }}>{l.email}</div>
+                      </td>
+                      <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)", color: "#60A5FA", fontWeight: 700 }}>{l.plano}</td>
+                      <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div style={{ color: diasExp !== null && diasExp <= 3 ? "#FCA5A5" : "#94A3B8", fontSize: 12, fontWeight: diasExp !== null && diasExp <= 3 ? 700 : 400 }}>{expira}</div>
+                        {diasExp !== null && diasExp <= 3 && <div style={{ fontSize: 10, color: "#DC2626", fontWeight: 700 }}>⚠️ {diasExp}d</div>}
+                      </td>
+                      <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)", color: "#94A3B8", fontSize: 12 }}>{l.whatsapp || "—"}</td>
+                      <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99 }}>{s.label}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {lojistas.length === 0 && (
+                  <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "#64748B" }}>Nenhum cadastro ainda</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -575,20 +586,61 @@ function Clientes({ clientes, setClientes, onCobranca }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [modalAdd, setModalAdd] = useState(false);
+  const [modalImport, setModalImport] = useState(false);
   const [novo, setNovo] = useState({ nome: "", cpf: "", telefone: "", email: "", totalDivida: "", parcelas: "1", vencimento: "" });
   const [toast, setToast] = useState(null);
+  const [csvPreview, setCsvPreview] = useState([]);
+  const fileRef = useRef();
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+
   const calcDiasAtraso = (vencimento) => { if (!vencimento) return 0; const diff = Math.floor((new Date() - new Date(vencimento)) / (1000 * 60 * 60 * 24)); return diff > 0 ? diff : 0; };
   const filtrados = clientes.filter(c => (filtro === "todos" || c.status === filtro) && c.nome.toLowerCase().includes(busca.toLowerCase()));
+
   const addCliente = () => {
     if (!novo.nome || !novo.telefone || !novo.totalDivida) return;
     const diasAtraso = calcDiasAtraso(novo.vencimento);
-    const status = diasAtraso > 0 ? "atrasado" : "pendente";
-    setClientes(prev => [{ ...novo, id: Date.now(), totalDivida: parseFloat(novo.totalDivida), parcelas: parseInt(novo.parcelas), parcelasPagas: 0, status, diasAtraso }, ...prev]);
+    setClientes(prev => [{ ...novo, id: Date.now(), totalDivida: parseFloat(novo.totalDivida), parcelas: parseInt(novo.parcelas), parcelasPagas: 0, status: diasAtraso > 0 ? "atrasado" : "pendente", diasAtraso }, ...prev]);
     setModalAdd(false);
     setNovo({ nome: "", cpf: "", telefone: "", email: "", totalDivida: "", parcelas: "1", vencimento: "" });
-    showToast("Cliente cadastrado com sucesso!");
+    showToast("Cliente cadastrado!");
   };
+
+  const handleCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      const lines = text.split("\n").filter(l => l.trim());
+      const header = lines[0].toLowerCase().split(/[,;]/);
+      const rows = lines.slice(1).map(line => {
+        const cols = line.split(/[,;]/);
+        const obj = {};
+        header.forEach((h, i) => { obj[h.trim()] = (cols[i] || "").trim().replace(/"/g, ""); });
+        return obj;
+      }).filter(r => r.nome || r.name);
+      setCsvPreview(rows);
+    };
+    reader.readAsText(file);
+  };
+
+  const importarCSV = () => {
+    const novos = csvPreview.map((r, idx) => {
+      const nome = r.nome || r.name || "";
+      const telefone = r.telefone || r.whatsapp || r.celular || r.phone || "";
+      const totalDivida = parseFloat(r.valor || r.divida || r.total || r.amount || "0") || 0;
+      const cpf = r.cpf || r.documento || "";
+      const email = r.email || "";
+      const vencimento = r.vencimento || r.data || "";
+      const diasAtraso = calcDiasAtraso(vencimento);
+      return { id: Date.now() + idx, nome, telefone, cpf, email, totalDivida, vencimento, parcelas: 1, parcelasPagas: 0, status: diasAtraso > 0 ? "atrasado" : "pendente", diasAtraso };
+    }).filter(c => c.nome);
+    setClientes(prev => [...novos, ...prev]);
+    setCsvPreview([]);
+    setModalImport(false);
+    showToast(`${novos.length} clientes importados!`);
+  };
+
   return (
     <div>
       {toast && <ToastMsg {...toast} />}
@@ -597,7 +649,10 @@ function Clientes({ clientes, setClientes, onCobranca }) {
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Clientes</h1>
           <p style={{ margin: "3px 0 0", fontSize: 13, color: "#64748B" }}>{clientes.length} cadastrados · {clientes.filter(c => c.status === "atrasado").length} em atraso</p>
         </div>
-        <Btn onClick={() => setModalAdd(true)}><Ic.plus /> Novo cliente</Btn>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn variant="ghost" onClick={() => setModalImport(true)}><Ic.upload /> Importar CSV</Btn>
+          <Btn onClick={() => setModalAdd(true)}><Ic.plus /> Novo cliente</Btn>
+        </div>
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         <input placeholder="🔍 Buscar..." value={busca} onChange={e => setBusca(e.target.value)} style={{ flex: 1, minWidth: 160, border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "9px 14px", fontSize: 14, outline: "none", background: "#F8FAFC" }} />
@@ -635,6 +690,7 @@ function Clientes({ clientes, setClientes, onCobranca }) {
         ))}
         {filtrados.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}><div style={{ fontSize: 36, marginBottom: 8 }}>🔍</div><div style={{ fontWeight: 600 }}>Nenhum cliente encontrado</div></div>}
       </div>
+
       {modalAdd && (
         <Modal title="Cadastrar Novo Cliente" onClose={() => setModalAdd(false)}>
           <Inp label="Nome completo *" value={novo.nome} onChange={e => setNovo(p => ({ ...p, nome: e.target.value }))} placeholder="João da Silva" />
@@ -652,17 +708,57 @@ function Clientes({ clientes, setClientes, onCobranca }) {
           </div>
         </Modal>
       )}
+
+      {modalImport && (
+        <Modal title="Importar Planilha CSV / Excel" onClose={() => { setModalImport(false); setCsvPreview([]); }} wide>
+          {csvPreview.length === 0 ? (
+            <div>
+              <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: 16, marginBottom: 20, fontSize: 13, color: "#166534" }}>
+                <strong>Colunas reconhecidas automaticamente:</strong><br />
+                nome, telefone (ou whatsapp/celular), valor (ou divida/total), cpf, email, vencimento
+              </div>
+              <div onClick={() => fileRef.current?.click()} style={{ border: "2px dashed #E2E8F0", borderRadius: 12, padding: 40, textAlign: "center", cursor: "pointer", background: "#F8FAFC" }}>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>📊</div>
+                <div style={{ fontWeight: 700, color: "#0F172A", marginBottom: 4 }}>Clique para selecionar o arquivo</div>
+                <div style={{ fontSize: 13, color: "#64748B" }}>CSV ou Excel (.csv, .xlsx)</div>
+              </div>
+              <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleCSV} style={{ display: "none" }} />
+            </div>
+          ) : (
+            <div>
+              <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#1E40AF", fontWeight: 600 }}>
+                ✅ {csvPreview.length} clientes encontrados na planilha
+              </div>
+              <div style={{ maxHeight: 300, overflow: "auto", marginBottom: 16 }}>
+                {csvPreview.slice(0, 10).map((r, i) => (
+                  <div key={i} style={{ padding: "8px 12px", background: i % 2 === 0 ? "#F8FAFC" : "#fff", borderRadius: 8, fontSize: 13, marginBottom: 4 }}>
+                    <strong>{r.nome || r.name}</strong> · {r.telefone || r.whatsapp || r.celular || "—"} · {r.valor || r.divida || "—"}
+                  </div>
+                ))}
+                {csvPreview.length > 10 && <div style={{ fontSize: 12, color: "#64748B", textAlign: "center", padding: 8 }}>... e mais {csvPreview.length - 10} clientes</div>}
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <Btn variant="ghost" onClick={() => setCsvPreview([])} style={{ flex: 1, justifyContent: "center" }}>← Voltar</Btn>
+                <Btn onClick={importarCSV} style={{ flex: 1, justifyContent: "center" }}><Ic.upload /> Importar {csvPreview.length} clientes</Btn>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
 
 // ─── COBRANÇAS ────────────────────────────────────────────────────────────
-function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, setClientePreSelecionado, pixKey }) {
+function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, setClientePreSelecionado, pixKey, instanciaWpp }) {
   const [clienteSel, setClienteSel] = useState(clientePreSelecionado?.id?.toString() || "");
   const [canal, setCanal] = useState("whatsapp");
   const [msg, setMsg] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
+  const [disparandoRegua, setDisparandoRegua] = useState(false);
+  const [resultadoRegua, setResultadoRegua] = useState(null);
+
   const clienteSelecionado = clientes.find(c => c.id.toString() === clienteSel);
   useEffect(() => { if (clientePreSelecionado) { setClienteSel(clientePreSelecionado.id.toString()); setClientePreSelecionado(null); } }, []);
   useEffect(() => {
@@ -671,6 +767,7 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
       setMsg(`Olá ${clienteSelecionado.nome.split(" ")[0]} 😊\n\nIdentificamos uma pendência de *${fmt(clienteSelecionado.totalDivida)}* em aberto.\n\nRegularize agora via Pix:${pix}\n\nQualquer dúvida, é só chamar! 🙏`);
     }
   }, [clienteSel]);
+
   const enviar = () => {
     if (!clienteSel || !msg) return;
     setEnviando(true);
@@ -679,9 +776,51 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
       setEnviando(false); setSucesso(true); setTimeout(() => setSucesso(false), 3000);
     }, 1200);
   };
+
+  const dispararRegua = async () => {
+    if (!instanciaWpp) { alert("Conecte seu WhatsApp primeiro nas Configurações!"); return; }
+    setDisparandoRegua(true);
+    try {
+      const res = await fetch(BACKEND_URL + "/cobranca/regua", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instancia: instanciaWpp, pix_key: pixKey, clientes })
+      });
+      const data = await res.json();
+      setResultadoRegua(data.resultados || []);
+    } catch { setResultadoRegua([]); }
+    setDisparandoRegua(false);
+  };
+
   return (
     <div>
       <div style={{ marginBottom: 20 }}><h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Enviar Cobrança</h1></div>
+
+      {/* Régua automática */}
+      <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 14, padding: 16, marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#1E40AF", marginBottom: 4 }}>🤖 Régua Automática</div>
+            <div style={{ fontSize: 13, color: "#64748B" }}>Dispara cobranças para todos os clientes nos momentos certos: D-3, D0, D+7, D+15, D+30</div>
+          </div>
+          <Btn onClick={dispararRegua} disabled={disparandoRegua} variant="primary">
+            {disparandoRegua ? "Disparando..." : "▶ Disparar régua agora"}
+          </Btn>
+        </div>
+        {resultadoRegua !== null && (
+          <div style={{ marginTop: 12, background: "#fff", borderRadius: 8, padding: 12 }}>
+            {resultadoRegua.length === 0
+              ? <div style={{ fontSize: 13, color: "#64748B" }}>Nenhuma mensagem disparada (sem clientes nos dias certos hoje)</div>
+              : resultadoRegua.map((r, i) => (
+                <div key={i} style={{ fontSize: 12, color: r.status === "enviado" ? "#16A34A" : "#DC2626", marginBottom: 2 }}>
+                  {r.status === "enviado" ? "✅" : "❌"} {r.cliente} — {r.etapa}
+                </div>
+              ))
+            }
+          </div>
+        )}
+      </div>
+
       {sucesso && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 16, color: "#16A34A", fontWeight: 600 }}>✅ Cobrança enviada!</div>}
       <div style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1px solid #F1F5F9" }}>
         <Sel label="Cliente" value={clienteSel} onChange={e => setClienteSel(e.target.value)}>
@@ -712,21 +851,24 @@ function Historico({ historico, setHistorico, clientes, setClientes }) {
   const [toast, setToast] = useState(null);
   const [confirmando, setConfirmando] = useState(null);
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+
   const confirmarPagamento = (h) => {
     setConfirmando(h.id);
     setTimeout(() => {
-      setHistorico(prev => prev.map(x => x.id === h.id ? { ...x, status: "pago_confirmado", dataPagamento: new Date().toLocaleString("pt-BR") } : x));
+      setHistorico(prev => prev.map(x => x.id === h.id ? { ...x, status: "pago_confirmado" } : x));
       setClientes(prev => prev.map(c => c.id === h.clienteId ? { ...c, status: "pago", parcelasPagas: c.parcelas, diasAtraso: 0 } : c));
       setConfirmando(null);
       showToast("✅ Pagamento confirmado!");
     }, 800);
   };
+
   const statusInfo = (status) => ({
     entregue:        { bg: "#F0FDF4", color: "#16A34A", label: "✓ Entregue" },
     lido:            { bg: "#EFF6FF", color: "#1E40AF", label: "✓✓ Lido" },
     pago_confirmado: { bg: "#DCFCE7", color: "#15803D", label: "💰 Pago" },
     nao_pago:        { bg: "#FEE2E2", color: "#DC2626", label: "✗ Não pagou" },
   }[status] || { bg: "#F1F5F9", color: "#64748B", label: status });
+
   return (
     <div>
       {toast && <ToastMsg {...toast} />}
@@ -749,9 +891,7 @@ function Historico({ historico, setHistorico, clientes, setClientes }) {
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
                   <span style={{ background: s.bg, color: s.color, fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{s.label}</span>
                   {h.status !== "pago_confirmado" && h.status !== "nao_pago" && c?.status !== "pago" && (
-                    <Btn small variant="green" onClick={() => confirmarPagamento(h)} disabled={confirmando === h.id}>
-                      {confirmando === h.id ? "..." : <><Ic.check /> Confirmar pago</>}
-                    </Btn>
+                    <Btn small variant="green" onClick={() => confirmarPagamento(h)} disabled={confirmando === h.id}>{confirmando === h.id ? "..." : <><Ic.check /> Confirmar pago</>}</Btn>
                   )}
                 </div>
               </div>
@@ -765,36 +905,152 @@ function Historico({ historico, setHistorico, clientes, setClientes }) {
 }
 
 // ─── CONFIGURAÇÕES ────────────────────────────────────────────────────────
-function Configuracoes({ usuario, pixKey, setPixKey }) {
+function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaWpp }) {
   const [pixInput, setPixInput] = useState(pixKey || "");
   const [pixSalvo, setPixSalvo] = useState(!!pixKey);
   const [toast, setToast] = useState(null);
+  const [qrCode, setQrCode] = useState(null);
+  const [wppStatus, setWppStatus] = useState(null);
+  const [loadingQr, setLoadingQr] = useState(false);
+  const [instanciaInput, setInstanciaInput] = useState(instanciaWpp || "");
+  const [renovando, setRenovando] = useState(false);
+  const [planoRenovar, setPlanoRenovar] = useState("trimestral");
+  const [formaPagRenovar, setFormaPagRenovar] = useState("pix");
+  const [cartaoRenovar, setCartaoRenovar] = useState({ numero: "", nome: "", validade: "", cvv: "" });
+  const [resultadoRenovacao, setResultadoRenovacao] = useState(null);
+  const [erroRenovacao, setErroRenovacao] = useState("");
+
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2000); };
+
   const salvarPix = () => { if (!pixInput.trim()) return; setPixKey(pixInput.trim()); setPixSalvo(true); showToast("Chave Pix salva!"); };
+
+  const conectarWpp = async () => {
+    if (!instanciaInput.trim()) return;
+    setLoadingQr(true);
+    setInstanciaWpp(instanciaInput.trim());
+    try {
+      // Tenta criar instância primeiro
+      await fetch(BACKEND_URL + "/whatsapp/criar-instancia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instancia: instanciaInput.trim() }) }).catch(() => {});
+      // Pega QR Code
+      const res = await fetch(BACKEND_URL + "/whatsapp/qrcode/" + instanciaInput.trim());
+      const data = await res.json();
+      if (data.sucesso) {
+        const qr = data.dados?.base64 || data.dados?.qrcode?.base64;
+        if (qr) setQrCode(qr);
+        else setWppStatus("Instância já conectada ou aguardando...");
+      }
+    } catch { setWppStatus("Erro ao conectar. Tente novamente."); }
+    setLoadingQr(false);
+  };
+
+  const verificarStatus = async () => {
+    if (!instanciaInput.trim()) return;
+    try {
+      const res = await fetch(BACKEND_URL + "/whatsapp/status/" + instanciaInput.trim());
+      const data = await res.json();
+      if (data.conectado) { setWppStatus("✅ WhatsApp conectado!"); setQrCode(null); setInstanciaWpp(instanciaInput.trim()); }
+      else setWppStatus("⏳ Aguardando leitura do QR Code...");
+    } catch { setWppStatus("Erro ao verificar status."); }
+  };
+
+  const renovarPlano = async () => {
+    setErroRenovacao("");
+    setResultadoRenovacao(null);
+    if (formaPagRenovar === "cartao" && (!cartaoRenovar.numero || !cartaoRenovar.nome || !cartaoRenovar.validade || !cartaoRenovar.cvv)) { setErroRenovacao("Preencha todos os dados do cartão"); return; }
+    setRenovando(true);
+    try {
+      const res = await fetch(BACKEND_URL + "/pagamento/renovar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: usuario?.email, plano: planoRenovar, forma_pagamento: formaPagRenovar, card_number: cartaoRenovar.numero, card_name: cartaoRenovar.nome, card_expiry: cartaoRenovar.validade, card_cvv: cartaoRenovar.cvv })
+      });
+      const data = await res.json();
+      if (data.sucesso) setResultadoRenovacao(data.dados);
+      else setErroRenovacao(data.erro?.message || data.erro || "Erro ao renovar");
+    } catch { setErroRenovacao("Erro de conexão"); }
+    setRenovando(false);
+  };
+
+  const expiraEm = usuario?.expira_em ? new Date(usuario.expira_em).toLocaleDateString("pt-BR") : "—";
+  const diasRestantes = usuario?.expira_em ? Math.floor((new Date(usuario.expira_em) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+  const pixQrRenovacao = resultadoRenovacao?.charges?.[0]?.last_transaction?.qr_code_url;
+  const pixCodeRenovacao = resultadoRenovacao?.charges?.[0]?.last_transaction?.qr_code;
+
   return (
     <div>
       {toast && <ToastMsg {...toast} />}
       <h1 style={{ margin: "0 0 20px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Configurações</h1>
-      <div style={{ display: "grid", gap: 18, maxWidth: 580 }}>
+      <div style={{ display: "grid", gap: 18, maxWidth: 620 }}>
+
+        {/* Perfil */}
         <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>Meu Perfil</h3>
-          <div style={{ display: "grid", gap: 10 }}>
-            {[["Nome", usuario?.nome], ["E-mail", usuario?.email], ["Plano", usuario?.plano]].map(([k, v]) => (
-              <div key={k} style={{ background: "#F8FAFC", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, color: "#64748B" }}>{k}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>{v || "—"}</span>
-              </div>
-            ))}
-          </div>
+          {[["Nome", usuario?.nome], ["E-mail", usuario?.email], ["Plano", usuario?.plano], ["Válido até", expiraEm]].map(([k, v]) => (
+            <div key={k} style={{ background: "#F8FAFC", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontSize: 13, color: "#64748B" }}>{k}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>{v || "—"}</span>
+            </div>
+          ))}
+          {diasRestantes !== null && diasRestantes <= 7 && (
+            <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#92400E", fontWeight: 600, marginTop: 8 }}>
+              ⚠️ Seu plano vence em {diasRestantes} dia(s). Renove agora!
+            </div>
+          )}
         </div>
+
+        {/* Renovar plano */}
+        <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>🔄 Renovar Plano</h3>
+          {resultadoRenovacao ? (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
+              <div style={{ fontWeight: 700, color: "#16A34A", marginBottom: 8 }}>Renovação iniciada!</div>
+              {pixQrRenovacao && <img src={pixQrRenovacao} alt="QR Pix" style={{ width: 160, height: 160, borderRadius: 8, marginBottom: 8 }} />}
+              {pixCodeRenovacao && (
+                <div>
+                  <div style={{ fontSize: 10, fontFamily: "monospace", background: "#F8FAFC", borderRadius: 8, padding: 8, wordBreak: "break-all", marginBottom: 8 }}>{pixCodeRenovacao}</div>
+                  <button onClick={() => navigator.clipboard?.writeText(pixCodeRenovacao)} style={{ background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📋 Copiar código Pix</button>
+                </div>
+              )}
+              <button onClick={() => setResultadoRenovacao(null)} style={{ display: "block", margin: "12px auto 0", background: "#F1F5F9", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, cursor: "pointer" }}>Fechar</button>
+            </div>
+          ) : (
+            <div>
+              <Sel label="Plano" value={planoRenovar} onChange={e => setPlanoRenovar(e.target.value)}>
+                <option value="mensal">Mensal — R$147/mês</option>
+                <option value="trimestral">Trimestral — R$119/mês (R$357)</option>
+                <option value="anual">Anual — R$97/mês (R$1.164)</option>
+              </Sel>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Forma de pagamento</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[["pix", "💠 Pix"], ["cartao", "💳 Cartão"]].map(([k, l]) => (
+                    <button key={k} onClick={() => setFormaPagRenovar(k)} style={{ flex: 1, background: formaPagRenovar === k ? "#EFF6FF" : "#F8FAFC", border: "2px solid " + (formaPagRenovar === k ? "#1E40AF" : "#E2E8F0"), borderRadius: 10, padding: "9px", cursor: "pointer", fontSize: 13, fontWeight: 600, color: formaPagRenovar === k ? "#1E40AF" : "#64748B" }}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              {formaPagRenovar === "cartao" && (
+                <div>
+                  <Inp label="Número do cartão" value={cartaoRenovar.numero} onChange={e => setCartaoRenovar(p => ({ ...p, numero: e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim() }))} placeholder="0000 0000 0000 0000" maxLength={19} />
+                  <Inp label="Nome no cartão" value={cartaoRenovar.nome} onChange={e => setCartaoRenovar(p => ({ ...p, nome: e.target.value.toUpperCase() }))} placeholder="NOME SOBRENOME" />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <Inp label="Validade" value={cartaoRenovar.validade} onChange={e => { let v = e.target.value.replace(/\D/g, ''); if (v.length >= 2) v = v.slice(0,2) + '/' + v.slice(2,4); setCartaoRenovar(p => ({ ...p, validade: v })); }} placeholder="MM/AA" maxLength={5} />
+                    <Inp label="CVV" value={cartaoRenovar.cvv} onChange={e => setCartaoRenovar(p => ({ ...p, cvv: e.target.value.replace(/\D/g, '') }))} placeholder="123" maxLength={4} />
+                  </div>
+                </div>
+              )}
+              {erroRenovacao && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erroRenovacao}</div>}
+              <Btn onClick={renovarPlano} disabled={renovando} style={{ width: "100%", justifyContent: "center" }}>{renovando ? "Processando..." : "🔄 Renovar agora"}</Btn>
+            </div>
+          )}
+        </div>
+
+        {/* Chave Pix */}
         <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>⚡ Chave Pix</h3>
           {pixSalvo ? (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F0FDF4", borderRadius: 10, padding: "12px 16px", border: "1px solid #86EFAC" }}>
-              <div>
-                <div style={{ fontSize: 12, color: "#64748B", marginBottom: 2 }}>Chave cadastrada</div>
-                <div style={{ fontWeight: 800, fontFamily: "monospace", fontSize: 15 }}>{pixKey}</div>
-              </div>
+              <div><div style={{ fontSize: 12, color: "#64748B", marginBottom: 2 }}>Chave cadastrada</div><div style={{ fontWeight: 800, fontFamily: "monospace", fontSize: 15 }}>{pixKey}</div></div>
               <Btn small variant="ghost" onClick={() => setPixSalvo(false)}>✏️ Alterar</Btn>
             </div>
           ) : (
@@ -804,6 +1060,41 @@ function Configuracoes({ usuario, pixKey, setPixKey }) {
             </div>
           )}
         </div>
+
+        {/* Conectar WhatsApp */}
+        <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
+          <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700 }}>📱 Conectar WhatsApp</h3>
+          <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Conecte o número do seu negócio para enviar cobranças automáticas</p>
+
+          {instanciaWpp && !qrCode && (
+            <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div><div style={{ fontSize: 12, color: "#64748B" }}>Instância ativa</div><div style={{ fontWeight: 700, color: "#16A34A" }}>✅ {instanciaWpp}</div></div>
+              <Btn small variant="ghost" onClick={() => { setInstanciaWpp(""); setInstanciaInput(""); setQrCode(null); setWppStatus(null); }}>Desconectar</Btn>
+            </div>
+          )}
+
+          <Inp label="Nome da instância (ex: minha-loja)" value={instanciaInput} onChange={e => setInstanciaInput(e.target.value.replace(/\s/g, "-").toLowerCase())} placeholder="minha-loja" />
+
+          {qrCode ? (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 13, color: "#64748B", marginBottom: 12 }}>Escaneie o QR Code com seu WhatsApp Business:</div>
+              <img src={"data:image/png;base64," + qrCode} alt="QR Code WhatsApp" style={{ width: 200, height: 200, borderRadius: 8, border: "2px solid #E2E8F0" }} />
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12 }}>
+                <Btn small onClick={verificarStatus}><Ic.refresh /> Verificar conexão</Btn>
+                <Btn small variant="ghost" onClick={() => { setQrCode(null); setWppStatus(null); }}>Cancelar</Btn>
+              </div>
+              {wppStatus && <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: wppStatus.includes("✅") ? "#16A34A" : "#D97706" }}>{wppStatus}</div>}
+            </div>
+          ) : (
+            <div>
+              <Btn onClick={conectarWpp} disabled={loadingQr || !instanciaInput.trim()} style={{ width: "100%", justifyContent: "center" }}>
+                {loadingQr ? "Gerando QR Code..." : <><Ic.qr /> Gerar QR Code para conectar</>}
+              </Btn>
+              {wppStatus && <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: wppStatus.includes("✅") ? "#16A34A" : "#D97706" }}>{wppStatus}</div>}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );
@@ -818,18 +1109,20 @@ export default function CobrarFacil() {
   const [historico, setHistorico] = useState(DB_DEMO.historico);
   const [clienteParaCobrar, setClienteParaCobrar] = useState(null);
   const [pixKey, setPixKey] = useState(() => { try { return localStorage.getItem("cobrarfacil_pix") || ""; } catch { return ""; } });
+  const [instanciaWpp, setInstanciaWpp] = useState(() => { try { return localStorage.getItem("cobrarfacil_instancia") || ""; } catch { return ""; } });
 
   useEffect(() => {
     try {
       const token = localStorage.getItem("cobrarfacil_token");
       const usuario = localStorage.getItem("cobrarfacil_usuario");
-      if (token && usuario) { setSessao({ isAdmin: false, usuario: JSON.parse(usuario), token }); }
+      if (token && usuario) setSessao({ isAdmin: false, usuario: JSON.parse(usuario), token });
     } catch {}
   }, []);
 
   const salvarPixKey = (key) => { try { localStorage.setItem("cobrarfacil_pix", key); } catch {} setPixKey(key); };
+  const salvarInstancia = (inst) => { try { localStorage.setItem("cobrarfacil_instancia", inst); } catch {} setInstanciaWpp(inst); };
   const logout = () => { try { localStorage.removeItem("cobrarfacil_token"); localStorage.removeItem("cobrarfacil_usuario"); } catch {} setSessao(null); setTrocandoSenha(false); };
-  const onLogin = (dados) => { setSessao(dados); if (!dados.isAdmin && dados.usuario?.primeiro_acesso) { setTrocandoSenha(true); } };
+  const onLogin = (dados) => { setSessao(dados); if (!dados.isAdmin && dados.usuario?.primeiro_acesso) setTrocandoSenha(true); };
 
   if (!sessao) return <LoginScreen onLogin={onLogin} />;
   if (sessao.isAdmin) return <AdminPanel onLogout={logout} />;
@@ -851,10 +1144,7 @@ export default function CobrarFacil() {
         <div style={{ padding: "18px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 34, height: 34, background: "linear-gradient(135deg, #22C55E, #0D9488)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "#fff" }}>C$</div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>CobrarFácil</div>
-              <div style={{ fontSize: 10, color: "#475569" }}>SISTEMA DE COBRANÇA</div>
-            </div>
+            <div><div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>CobrarFácil</div><div style={{ fontSize: 10, color: "#475569" }}>SISTEMA DE COBRANÇA</div></div>
           </div>
         </div>
         <nav style={{ flex: 1, padding: "14px 10px", overflowY: "auto" }}>
@@ -862,16 +1152,14 @@ export default function CobrarFacil() {
             <button key={n.key} onClick={() => setTela(n.key)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "10px 12px", borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 3, background: tela === n.key ? "rgba(59,130,246,0.15)" : "transparent", color: tela === n.key ? "#60A5FA" : "#64748B", fontSize: 13, fontWeight: tela === n.key ? 700 : 500, textAlign: "left" }}>
               {n.icon} {n.label}
               {n.key === "clientes" && atrasadosCount > 0 && <span style={{ marginLeft: "auto", background: "#DC2626", color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "1px 6px" }}>{atrasadosCount}</span>}
+              {n.key === "config" && !instanciaWpp && <span style={{ marginLeft: "auto", background: "#D97706", color: "#fff", borderRadius: 99, fontSize: 9, fontWeight: 700, padding: "1px 5px" }}>!</span>}
             </button>
           ))}
         </nav>
         <div style={{ padding: "14px 16px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #1E40AF, #3B82F6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#fff" }}>{sessao.usuario?.nome?.charAt(0) || "U"}</div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0" }}>{sessao.usuario?.nome?.split(" ")[0] || "Usuário"}</div>
-              <div style={{ fontSize: 10, color: "#475569" }}>Plano {sessao.usuario?.plano || "Pro"}</div>
-            </div>
+            <div><div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0" }}>{sessao.usuario?.nome?.split(" ")[0] || "Usuário"}</div><div style={{ fontSize: 10, color: "#475569" }}>Plano {sessao.usuario?.plano || "Pro"}</div></div>
           </div>
           <button onClick={logout} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "7px", color: "#94A3B8", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>Sair</button>
         </div>
@@ -879,14 +1167,17 @@ export default function CobrarFacil() {
       <div style={{ flex: 1, marginLeft: 220, minWidth: 0 }}>
         <div style={{ background: "#fff", borderBottom: "1px solid #F1F5F9", padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
           <span style={{ fontSize: 13, color: "#64748B", fontWeight: 600 }}>Bem-vindo, {sessao.usuario?.nome?.split(" ")[0] || ""}!</span>
-          {atrasadosCount > 0 && <div style={{ display: "flex", alignItems: "center", gap: 5, background: "#FEF2F2", color: "#DC2626", padding: "5px 10px", borderRadius: 99, fontSize: 12, fontWeight: 700 }}><Ic.bell /> {atrasadosCount} em atraso</div>}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {!instanciaWpp && <div onClick={() => setTela("config")} style={{ background: "#FEF3C7", color: "#92400E", padding: "4px 10px", borderRadius: 99, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>⚠️ Conecte seu WhatsApp</div>}
+            {atrasadosCount > 0 && <div style={{ display: "flex", alignItems: "center", gap: 5, background: "#FEF2F2", color: "#DC2626", padding: "5px 10px", borderRadius: 99, fontSize: 12, fontWeight: 700 }}><Ic.bell /> {atrasadosCount} em atraso</div>}
+          </div>
         </div>
         <div style={{ padding: "20px 16px" }}>
           {tela === "dashboard" && <Dashboard clientes={clientes} />}
           {tela === "clientes"  && <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} />}
-          {tela === "cobrancas" && <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} pixKey={pixKey} />}
+          {tela === "cobrancas" && <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} pixKey={pixKey} instanciaWpp={instanciaWpp} />}
           {tela === "historico" && <Historico historico={historico} setHistorico={setHistorico} clientes={clientes} setClientes={setClientes} />}
-          {tela === "config"    && <Configuracoes usuario={sessao.usuario} pixKey={pixKey} setPixKey={salvarPixKey} />}
+          {tela === "config"    && <Configuracoes usuario={sessao.usuario} pixKey={pixKey} setPixKey={salvarPixKey} instanciaWpp={instanciaWpp} setInstanciaWpp={salvarInstancia} />}
         </div>
       </div>
     </div>
