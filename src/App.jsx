@@ -937,14 +937,14 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
       const token = localStorage.getItem("cobrarfacil_token") || "";
       const res = await fetch(BACKEND_URL + "/whatsapp/qrcode", { headers: { "Authorization": "Bearer " + token } });
       const data = await res.json();
+      console.log("QR Data:", JSON.stringify(data).substring(0, 200));
       if (data.base64) {
-        setQrCode(data.base64);
-      } else if (data.qrcode?.base64) {
-        setQrCode(data.qrcode.base64);
+        setQrCode("data:image/png;base64," + data.base64);
       } else if (data.code) {
-        setQrCode(data.code);
+        // code é string do QR Code — gera via API pública
+        setQrCode("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(data.code));
       } else {
-        setWppStatus("Instância já conectada ou aguardando...");
+        setWppStatus("Aguardando QR Code... tente novamente em 5 segundos.");
       }
     } catch { setWppStatus("Erro ao conectar. Tente novamente."); }
     setLoadingQr(false);
@@ -1056,7 +1056,7 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
           {qrCode ? (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 13, color: "#64748B", marginBottom: 12 }}>Escaneie o QR Code com seu WhatsApp Business:</div>
-              <img src={"data:image/png;base64," + qrCode} alt="QR Code WhatsApp" style={{ width: 200, height: 200, borderRadius: 8, border: "2px solid #E2E8F0" }} />
+              <img src={qrCode.startsWith("data:") ? qrCode : qrCode.startsWith("2@") || qrCode.length > 100 ? "data:image/png;base64," + qrCode : qrCode} alt="QR Code WhatsApp" style={{ width: 220, height: 220, borderRadius: 8, border: "2px solid #E2E8F0" }} onError={(e) => { e.target.style.display='none'; }} />
               <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12 }}>
                 <Btn small onClick={verificarStatus}><Ic.refresh /> Verificar conexão</Btn>
                 <Btn small variant="ghost" onClick={() => { setQrCode(null); setWppStatus(null); }}>Cancelar</Btn>
