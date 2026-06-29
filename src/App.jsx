@@ -1076,8 +1076,9 @@ export default function CobrarFacil() {
   const [sessao, setSessao] = useState(null);
   const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [tela, setTela] = useState("dashboard");
-  const [clientes, setClientes] = useState(DB_DEMO.clientes);
-  const [historico, setHistorico] = useState(DB_DEMO.historico);
+  const emailSalvo = (() => { try { const u = localStorage.getItem("cobrarfacil_usuario"); return u ? JSON.parse(u).email : ""; } catch { return ""; } })();
+  const [clientes, setClientes] = useState(emailSalvo === "tiago@lookupmoda.com.br" ? DB_DEMO.clientes : []);
+  const [historico, setHistorico] = useState(emailSalvo === "tiago@lookupmoda.com.br" ? DB_DEMO.historico : []);
   const [clienteParaCobrar, setClienteParaCobrar] = useState(null);
   const [pixKey, setPixKey] = useState(() => { try { return localStorage.getItem("cobrarfacil_pix") || ""; } catch { return ""; } });
   const [instanciaWpp, setInstanciaWpp] = useState(() => { try { return localStorage.getItem("cobrarfacil_instancia") || ""; } catch { return ""; } });
