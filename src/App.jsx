@@ -728,11 +728,17 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
   const [modalAdd, setModalAdd] = useState(false);
   const [modalImport, setModalImport] = useState(false);
   const [modalRegua, setModalRegua] = useState(null);
+  const [modalEditar, setModalEditar] = useState(null);
+  const [modalProrrogar, setModalProrrogar] = useState(null);
+  const [editando, setEditando] = useState({ nome: "", cpf: "", telefone: "", email: "", total_divida: "", parcelas: "1", vencimento: "" });
+  const [novaData, setNovaData] = useState("");
   const [novo, setNovo] = useState({ nome: "", cpf: "", telefone: "", email: "", total_divida: "", parcelas: "1", vencimento: "" });
   const [toast, setToast] = useState(null);
   const [csvPreview, setCsvPreview] = useState([]);
   const fileRef = useRef();
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+
+  useEffect(() => { if (modalEditar) setEditando({ ...modalEditar }); }, [modalEditar]);
 
   const filtrados = clientes.filter(c => (filtro === "todos" || c.status === filtro) && c.nome.toLowerCase().includes(busca.toLowerCase()));
 
@@ -745,6 +751,27 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
       setNovo({ nome: "", cpf: "", telefone: "", email: "", total_divida: "", parcelas: "1", vencimento: "" });
       showToast("Cliente cadastrado!");
     } else showToast(data.erro || "Erro ao cadastrar", "error");
+  };
+
+  const salvarEdicao = async () => {
+    const data = await api("/clientes/" + editando.id, { method: "PUT", body: JSON.stringify(editando) }, token);
+    if (data.id) {
+      setClientes(prev => prev.map(x => x.id === editando.id ? data : x));
+      setModalEditar(null);
+      showToast("Cliente atualizado!");
+    } else showToast(data.erro || "Erro ao atualizar", "error");
+  };
+
+  const prorrogarDivida = async () => {
+    if (!novaData) return;
+    const c = modalProrrogar;
+    const data = await api("/clientes/" + c.id, { method: "PUT", body: JSON.stringify({ ...c, vencimento: novaData, prorrogado: true, status: "pendente" }) }, token);
+    if (data.id) {
+      setClientes(prev => prev.map(x => x.id === c.id ? { ...data, prorrogado: true } : x));
+      setModalProrrogar(null);
+      setNovaData("");
+      showToast("Data prorrogada para " + new Date(novaData).toLocaleDateString("pt-BR") + "!");
+    } else showToast(data.erro || "Erro", "error");
   };
 
   const marcarPago = async (c) => {
@@ -839,12 +866,15 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Badge status={c.status} />
+                  {c.prorrogado && <span style={{ background: "#FEF3C7", color: "#D97706", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>📅 Prorrogado</span>}
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: c.status === "atrasado" ? "#DC2626" : c.status === "pago" ? "#16A34A" : "#0F172A", marginBottom: 8 }}>{fmt(c.total_divida)}</div>
                 <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
                   <Btn small variant="outline" onClick={() => setModalRegua(c)}><Ic.regua /> Régua</Btn>
+                  <Btn small variant="ghost" onClick={() => setModalEditar(c)}><Ic.edit /> Editar</Btn>
+                  {c.status !== "pago" && <Btn small onClick={() => setModalProrrogar(c)} style={{ background: "#F59E0B", color: "#fff", border: "none" }}>📅 Prorrogar</Btn>}
                   {c.status !== "pago" && <Btn small variant="green" onClick={() => onCobranca(c)}><Ic.send /> Cobrar</Btn>}
                   {c.status !== "pago" && <Btn small variant="ghost" onClick={() => marcarPago(c)}><Ic.check /> Pago</Btn>}
                   <Btn small variant="danger" onClick={() => deletarCliente(c.id)}><Ic.trash /></Btn>
@@ -870,6 +900,44 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
           <div style={{ display: "flex", gap: 10 }}>
             <Btn variant="ghost" onClick={() => setModalAdd(false)} style={{ flex: 1, justifyContent: "center" }}>Cancelar</Btn>
             <Btn onClick={addCliente} disabled={!novo.nome || !novo.telefone || !novo.total_divida} style={{ flex: 1, justifyContent: "center" }}><Ic.plus /> Cadastrar</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {modalEditar && (
+        <Modal title={"Editar — " + modalEditar.nome} onClose={() => setModalEditar(null)}>
+          <Inp label="Nome completo *" value={editando.nome || ""} onChange={e => setEditando(p => ({ ...p, nome: e.target.value }))} placeholder="Nome completo" />
+          <Inp label="CPF" value={editando.cpf || ""} onChange={e => setEditando(p => ({ ...p, cpf: e.target.value }))} placeholder="000.000.000-00" />
+          <Inp label="WhatsApp *" value={editando.telefone || ""} onChange={e => setEditando(p => ({ ...p, telefone: e.target.value }))} placeholder="(44) 99999-0000" />
+          <Inp label="E-mail" value={editando.email || ""} onChange={e => setEditando(p => ({ ...p, email: e.target.value }))} placeholder="email@exemplo.com" />
+          <Inp label="Valor total (R$) *" type="number" value={editando.total_divida || ""} onChange={e => setEditando(p => ({ ...p, total_divida: e.target.value }))} placeholder="0,00" />
+          <Inp label="Data de vencimento" type="date" value={editando.vencimento ? editando.vencimento.split("T")[0] : ""} onChange={e => setEditando(p => ({ ...p, vencimento: e.target.value }))} />
+          <Sel label="Status" value={editando.status || "pendente"} onChange={e => setEditando(p => ({ ...p, status: e.target.value }))}>
+            <option value="pendente">Pendente</option>
+            <option value="atrasado">Atrasado</option>
+            <option value="pago">Pago</option>
+          </Sel>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn variant="ghost" onClick={() => setModalEditar(null)} style={{ flex: 1, justifyContent: "center" }}>Cancelar</Btn>
+            <Btn onClick={salvarEdicao} style={{ flex: 1, justifyContent: "center" }}>💾 Salvar</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {modalProrrogar && (
+        <Modal title={"Prorrogar — " + modalProrrogar.nome} onClose={() => { setModalProrrogar(null); setNovaData(""); }}>
+          <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 14px", marginBottom: 20, fontSize: 13, color: "#92400E" }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Situação atual:</div>
+            <div>Valor: <strong>{fmt(modalProrrogar.total_divida)}</strong></div>
+            <div>Vencimento atual: <strong>{modalProrrogar.vencimento ? new Date(modalProrrogar.vencimento).toLocaleDateString("pt-BR") : "Sem data"}</strong></div>
+          </div>
+          <Inp label="Nova data de vencimento *" type="date" value={novaData} onChange={e => setNovaData(e.target.value)} style={{ fontSize: 15 }} />
+          <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#1E40AF" }}>
+            💡 Ao prorrogar, as etapas da régua serão resetadas para a nova data e o cliente ficará marcado como "Prorrogado".
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn variant="ghost" onClick={() => { setModalProrrogar(null); setNovaData(""); }} style={{ flex: 1, justifyContent: "center" }}>Cancelar</Btn>
+            <Btn onClick={prorrogarDivida} disabled={!novaData} style={{ flex: 1, justifyContent: "center", background: "#F59E0B" }}>📅 Confirmar prorrogação</Btn>
           </div>
         </Modal>
       )}
