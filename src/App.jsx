@@ -939,10 +939,8 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
       const data = await res.json();
       console.log("QR Data:", JSON.stringify(data).substring(0, 200));
       if (data.base64) {
-        setQrCode("data:image/png;base64," + data.base64);
-      } else if (data.code) {
-        // code é string do QR Code — gera via API pública
-        setQrCode("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(data.code));
+        const src = data.base64.startsWith("data:") ? data.base64 : "data:image/png;base64," + data.base64;
+        setQrCode(src);
       } else {
         setWppStatus("Aguardando QR Code... tente novamente em 5 segundos.");
       }
@@ -1056,7 +1054,7 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
           {qrCode ? (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 13, color: "#64748B", marginBottom: 12 }}>Escaneie o QR Code com seu WhatsApp Business:</div>
-              <img src={"data:image/png;base64," + qrCode} alt="QR Code WhatsApp" style={{ width: 220, height: 220, borderRadius: 8, border: "2px solid #E2E8F0" }} />
+              <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 220, height: 220, borderRadius: 8, border: "2px solid #E2E8F0" }} />
               <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12 }}>
                 <Btn small onClick={verificarStatus}><Ic.refresh /> Verificar conexão</Btn>
                 <Btn small variant="ghost" onClick={() => { setQrCode(null); setWppStatus(null); }}>Cancelar</Btn>
