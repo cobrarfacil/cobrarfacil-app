@@ -1056,7 +1056,7 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
           {qrCode ? (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 13, color: "#64748B", marginBottom: 12 }}>Escaneie o QR Code com seu WhatsApp Business:</div>
-              <img src={qrCode.startsWith("data:") ? qrCode : "data:image/png;base64," + qrCode} alt="QR Code WhatsApp" style={{ width: 220, height: 220, borderRadius: 8, border: "2px solid #E2E8F0" }} />
+              <img src={"data:image/png;base64," + qrCode} alt="QR Code WhatsApp" style={{ width: 220, height: 220, borderRadius: 8, border: "2px solid #E2E8F0" }} />
               <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12 }}>
                 <Btn small onClick={verificarStatus}><Ic.refresh /> Verificar conexão</Btn>
                 <Btn small variant="ghost" onClick={() => { setQrCode(null); setWppStatus(null); }}>Cancelar</Btn>
