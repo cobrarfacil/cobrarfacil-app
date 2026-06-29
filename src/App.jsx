@@ -930,16 +930,19 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
   const salvarPix = () => { if (!pixInput.trim()) return; setPixKey(pixInput.trim()); setPixSalvo(true); showToast("Chave Pix salva!"); };
 
   const conectarWpp = async () => {
-    if (!instanciaInput.trim()) return;
     setLoadingQr(true);
-    setInstanciaWpp(instanciaInput.trim());
+    setQrCode(null);
+    setWppStatus(null);
     try {
       const token = localStorage.getItem("cobrarfacil_token") || "";
-      await fetch(BACKEND_URL + "/whatsapp/criar-instancia", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify({ instancia: instanciaInput.trim() }) }).catch(() => {});
       const res = await fetch(BACKEND_URL + "/whatsapp/qrcode", { headers: { "Authorization": "Bearer " + token } });
       const data = await res.json();
-      if (data.base64 || data.qrcode?.base64) {
-        setQrCode(data.base64 || data.qrcode?.base64);
+      if (data.base64) {
+        setQrCode(data.base64);
+      } else if (data.qrcode?.base64) {
+        setQrCode(data.qrcode.base64);
+      } else if (data.code) {
+        setQrCode(data.code);
       } else {
         setWppStatus("Instância já conectada ou aguardando...");
       }
@@ -948,13 +951,17 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
   };
 
   const verificarStatus = async () => {
-    if (!instanciaInput.trim()) return;
     try {
       const token = localStorage.getItem("cobrarfacil_token") || "";
       const res = await fetch(BACKEND_URL + "/whatsapp/status", { headers: { "Authorization": "Bearer " + token } });
       const data = await res.json();
-      if (data.state === "open") { setWppStatus("✅ WhatsApp conectado!"); setQrCode(null); setInstanciaWpp(instanciaInput.trim()); }
-      else setWppStatus("⏳ Aguardando leitura do QR Code...");
+      if (data.state === "open" || data.instance?.state === "open") {
+        setWppStatus("✅ WhatsApp conectado!");
+        setQrCode(null);
+        setInstanciaWpp("conectado");
+      } else {
+        setWppStatus("⏳ Aguardando leitura do QR Code...");
+      }
     } catch { setWppStatus("Erro ao verificar status."); }
   };
 
@@ -1046,7 +1053,6 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
               <Btn small variant="ghost" onClick={() => { setInstanciaWpp(""); setInstanciaInput(""); setQrCode(null); setWppStatus(null); }}>Desconectar</Btn>
             </div>
           )}
-          <Inp label="Nome da instância (ex: minha-loja)" value={instanciaInput} onChange={e => setInstanciaInput(e.target.value.replace(/\s/g, "-").toLowerCase())} placeholder="minha-loja" />
           {qrCode ? (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 13, color: "#64748B", marginBottom: 12 }}>Escaneie o QR Code com seu WhatsApp Business:</div>
@@ -1059,7 +1065,7 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
             </div>
           ) : (
             <div>
-              <Btn onClick={conectarWpp} disabled={loadingQr || !instanciaInput.trim()} style={{ width: "100%", justifyContent: "center" }}>
+              <Btn onClick={conectarWpp} disabled={loadingQr} style={{ width: "100%", justifyContent: "center" }}>
                 {loadingQr ? "Gerando QR Code..." : <><Ic.qr /> Gerar QR Code para conectar</>}
               </Btn>
               {wppStatus && <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: wppStatus.includes("✅") ? "#16A34A" : "#D97706" }}>{wppStatus}</div>}
