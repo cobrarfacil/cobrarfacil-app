@@ -729,8 +729,17 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
   const addCliente = async () => {
     if (!novo.nome || !novo.telefone || !novo.total_divida) return;
     const data = await api("/clientes", { method: "POST", body: JSON.stringify(novo) }, token);
-    if (data.id) { setClientes(prev => [data, ...prev]); setModalAdd(false); setNovo({ nome: "", cpf: "", telefone: "", email: "", total_divida: "", parcelas: "1", vencimento: "" }); showToast("Cliente cadastrado!"); }
-    else showToast(data.erro || "Erro", "error");
+    if (data.id) {
+      setClientes(prev => [data, ...prev]);
+      setModalAdd(false);
+      setNovo({ nome: "", cpf: "", telefone: "", email: "", total_divida: "", parcelas: "1", vencimento: "" });
+      showToast("Cliente cadastrado!");
+    } else if (data.criados) {
+      setClientes(prev => [...data.criados, ...prev]);
+      setModalAdd(false);
+      setNovo({ nome: "", cpf: "", telefone: "", email: "", total_divida: "", parcelas: "1", vencimento: "" });
+      showToast(data.total + " parcelas criadas com sucesso!");
+    } else showToast(data.erro || "Erro", "error");
   };
 
   const salvarEdicao = async () => {
@@ -857,9 +866,27 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
           <Sel label="Parcelas" value={novo.parcelas} onChange={e => setNovo(p => ({ ...p, parcelas: e.target.value }))}>
             {[1,2,3,4,6,8,10,12].map(n => <option key={n} value={n}>{n}x</option>)}
           </Sel>
+          {parseInt(novo.parcelas) > 1 && novo.total_divida && novo.vencimento && (
+            <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "12px 14px", marginBottom: 14, fontSize: 13, color: "#1E40AF" }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>📅 Parcelas que serão criadas:</div>
+              {Array.from({ length: parseInt(novo.parcelas) }, (_, i) => {
+                const base = new Date(novo.vencimento + "T12:00:00");
+                base.setMonth(base.getMonth() + i);
+                const valor = (parseFloat(novo.total_divida) / parseInt(novo.parcelas)).toFixed(2);
+                return (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: i < parseInt(novo.parcelas) - 1 ? "1px solid #BFDBFE" : "none" }}>
+                    <span>Parcela {i + 1}/{novo.parcelas}</span>
+                    <span><strong>R$ {valor}</strong> — {base.toLocaleDateString("pt-BR")}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 10 }}>
             <Btn variant="ghost" onClick={() => setModalAdd(false)} style={{ flex: 1, justifyContent: "center" }}>Cancelar</Btn>
-            <Btn onClick={addCliente} disabled={!novo.nome || !novo.telefone || !novo.total_divida} style={{ flex: 1, justifyContent: "center" }}>Cadastrar</Btn>
+            <Btn onClick={addCliente} disabled={!novo.nome || !novo.telefone || !novo.total_divida} style={{ flex: 1, justifyContent: "center" }}>
+              {parseInt(novo.parcelas) > 1 ? "Criar " + novo.parcelas + " parcelas" : "Cadastrar"}
+            </Btn>
           </div>
         </Modal>
       )}
