@@ -12,21 +12,19 @@ const statusColor = {
 };
 
 const ETAPAS_INFO = {
-  "d-10": { label: "10 dias antes", tom: "Amigável",  cor: "#3B82F6" },
-  "d-7":  { label: "7 dias antes",  tom: "Amigável",  cor: "#6366F1" },
-  "d-3":  { label: "3 dias antes",  tom: "Urgente",   cor: "#F59E0B" },
+  "d-3":  { label: "3 dias antes",  tom: "Amigável",  cor: "#3B82F6" },
   "d0":   { label: "No dia",        tom: "Urgente",   cor: "#EF4444" },
-  "d+7":  { label: "7 dias após",   tom: "Firme",     cor: "#DC2626" },
+  "d+3":  { label: "3 dias após",   tom: "Cordial",   cor: "#F59E0B" },
+  "d+15": { label: "15 dias após",  tom: "Firme",     cor: "#DC2626" },
   "d+30": { label: "30 dias após",  tom: "Final",     cor: "#7F1D1D" },
 };
 
 const MENSAGENS_PADRAO = {
-  "d-10": (n, v) => "Olá " + n.split(" ")[0] + "! 😊 Passando para lembrar que sua conta vence em 10 dias. Valor: *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "*. Qualquer dúvida é só chamar!",
-  "d-7":  (n, v) => "Oi " + n.split(" ")[0] + "! Faltam 7 dias para o vencimento do seu débito de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "*. Conte conosco! 🙏",
-  "d-3":  (n, v) => "Atenção " + n.split(" ")[0] + "! ⚠️ Sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* vence em 3 dias. Não deixe para a última hora!",
+  "d-3":  (n, v) => "Olá " + n.split(" ")[0] + "! 😊 Sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* vence em 3 dias. Qualquer dúvida é só chamar!",
   "d0":   (n, v) => "🔔 " + n.split(" ")[0] + ", hoje é o dia! Sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* vence hoje. Pague agora e fique em dia!",
-  "d+7":  (n, v) => n.split(" ")[0] + ", sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* está em atraso há 7 dias. Vamos resolver? 📞",
-  "d+30": (n, v) => "AVISO: " + n.split(" ")[0] + ", seu débito de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* está há 30 dias em atraso. Entre em contato imediatamente.",
+  "d+3":  (n, v) => "Olá " + n.split(" ")[0] + "! Notamos que sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* ainda está em aberto. Podemos resolver juntos? 🤝",
+  "d+15": (n, v) => n.split(" ")[0] + ", sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* está em atraso há 15 dias. Vamos resolver? 📞",
+  "d+30": (n, v) => "AVISO: " + n.split(" ")[0] + ", seu débito de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* está há 30 dias em atraso. Entre em contato urgente.",
 };
 
 // Hook para detectar mobile
