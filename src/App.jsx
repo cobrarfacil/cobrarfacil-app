@@ -28,6 +28,8 @@ const Ic = {
   upload:   () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
   qr:       () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3"/></svg>,
   refresh:  () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
+  eye:      () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  eyeOff:   () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
 };
 
 const Badge = ({ status }) => {
@@ -70,7 +72,21 @@ const ToastMsg = ({ msg, type }) => (
   <div style={{ position: "fixed", top: 20, right: 20, background: type === "success" ? "#16A34A" : "#DC2626", color: "#fff", borderRadius: 12, padding: "12px 20px", fontSize: 14, fontWeight: 600, zIndex: 3000, boxShadow: "0 4px 20px rgba(0,0,0,0.2)", maxWidth: 320 }}>{msg}</div>
 );
 
-// ─── TROCAR SENHA ─────────────────────────────────────────────────────────
+const SenhaInput = ({ label, value, onChange, placeholder, onKeyDown }) => {
+  const [mostrar, setMostrar] = useState(false);
+  return (
+    <div style={{ marginBottom: 14 }}>
+      {label && <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>{label}</label>}
+      <div style={{ position: "relative" }}>
+        <input type={mostrar ? "text" : "password"} value={value} onChange={onChange} placeholder={placeholder} onKeyDown={onKeyDown} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 44px 10px 14px", fontSize: 14, color: "#0F172A", outline: "none", boxSizing: "border-box", background: "#F8FAFC" }} />
+        <button type="button" onClick={() => setMostrar(p => !p)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94A3B8", display: "flex", alignItems: "center", padding: 0 }}>
+          {mostrar ? <Ic.eyeOff /> : <Ic.eye />}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 function TrocarSenha({ email, onSucesso }) {
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
@@ -84,7 +100,8 @@ function TrocarSenha({ email, onSucesso }) {
     if (novaSenha !== confirmar) { setErro("As senhas não coincidem"); return; }
     setLoading(true);
     try {
-      const res = await fetch(BACKEND_URL + "/auth/trocar-senha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, senha_atual: senhaAtual, nova_senha: novaSenha }) });
+      const token = localStorage.getItem("cobrarfacil_token") || "";
+      const res = await fetch(BACKEND_URL + "/auth/trocar-senha", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify({ email, senha_atual: senhaAtual, senha_nova: novaSenha }) });
       const data = await res.json();
       if (data.sucesso) onSucesso(); else setErro(data.erro || "Erro ao trocar senha");
     } catch { setErro("Erro de conexão"); }
@@ -101,9 +118,9 @@ function TrocarSenha({ email, onSucesso }) {
         </div>
         <div style={{ background: "#fff", borderRadius: 20, padding: 32, boxShadow: "0 25px 80px rgba(0,0,0,0.3)" }}>
           <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 10, padding: "10px 14px", marginBottom: 20, fontSize: 13, color: "#92400E" }}>⚠️ Use a senha temporária que recebeu no WhatsApp como senha atual</div>
-          <Inp label="Senha atual (temporária)" type="password" value={senhaAtual} onChange={e => setSenhaAtual(e.target.value)} placeholder="Senha recebida no WhatsApp" />
-          <Inp label="Nova senha" type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
-          <Inp label="Confirmar nova senha" type="password" value={confirmar} onChange={e => setConfirmar(e.target.value)} placeholder="Repita a nova senha" />
+          <SenhaInput label="Senha atual (temporária)" value={senhaAtual} onChange={e => setSenhaAtual(e.target.value)} placeholder="Senha recebida no WhatsApp" />
+          <SenhaInput label="Nova senha" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+          <SenhaInput label="Confirmar nova senha" value={confirmar} onChange={e => setConfirmar(e.target.value)} placeholder="Repita a nova senha" />
           {erro && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erro}</div>}
           <Btn onClick={trocar} disabled={loading || !senhaAtual || !novaSenha || !confirmar} style={{ width: "100%", justifyContent: "center" }}>{loading ? "Salvando..." : "🔑 Definir nova senha"}</Btn>
         </div>
@@ -112,7 +129,6 @@ function TrocarSenha({ email, onSucesso }) {
   );
 }
 
-// ─── CHECKOUT ─────────────────────────────────────────────────────────────
 function Checkout({ planoInicial, onVoltar }) {
   const [step, setStep] = useState(1);
   const [plano, setPlano] = useState(planoInicial || "trimestral");
@@ -124,8 +140,8 @@ function Checkout({ planoInicial, onVoltar }) {
   const [resultado, setResultado] = useState(null);
 
   const planos = {
-    mensal:     { nome: "Mensal",     valor: 14700,  label: "R$147/mês",  economia: null,             parcelas: 1, parcelasLabel: "à vista" },
-    trimestral: { nome: "Trimestral", valor: 35700,  label: "R$119/mês",  economia: "Economize R$84", parcelas: 2, parcelasLabel: "em até 2x" },
+    mensal:     { nome: "Mensal",     valor: 14700,  label: "R$147/mês",  economia: null,              parcelas: 1, parcelasLabel: "à vista" },
+    trimestral: { nome: "Trimestral", valor: 35700,  label: "R$119/mês",  economia: "Economize R$84",  parcelas: 2, parcelasLabel: "em até 2x" },
     anual:      { nome: "Anual",      valor: 116400, label: "R$97/mês",   economia: "Economize R$600", parcelas: 3, parcelasLabel: "em até 3x" },
   };
   const planoSel = planos[plano];
@@ -260,7 +276,6 @@ function Checkout({ planoInicial, onVoltar }) {
   );
 }
 
-// ─── LOGIN ────────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
   const [aba, setAba] = useState("login");
   const [checkout, setCheckout] = useState(false);
@@ -287,16 +302,21 @@ function LoginScreen({ onLogin }) {
   const go = async () => {
     setErro("");
     if (!email || !senha) { setErro("Preencha e-mail e senha"); return; }
-    if (email === "admin@cobrarfacil.com.br" && senha === "admin2026") { onLogin({ isAdmin: true }); return; }
     setLoading(true);
     try {
       const res = await fetch(BACKEND_URL + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, senha }) });
       const data = await res.json();
-      if (data.sucesso) {
+      if (data.token) {
         localStorage.setItem("cobrarfacil_token", data.token);
         localStorage.setItem("cobrarfacil_usuario", JSON.stringify(data.usuario));
-        onLogin({ isAdmin: false, usuario: data.usuario, token: data.token });
-      } else setErro(data.erro || "Email ou senha incorretos");
+        if (data.usuario?.plano === "admin") {
+          onLogin({ isAdmin: true });
+        } else {
+          onLogin({ isAdmin: false, usuario: data.usuario, token: data.token });
+        }
+      } else {
+        setErro(data.erro || "Email ou senha incorretos");
+      }
     } catch { setErro("Erro de conexão com o servidor"); }
     setLoading(false);
   };
@@ -312,8 +332,8 @@ function LoginScreen({ onLogin }) {
   };
 
   const planos = [
-    { key: "mensal",     nome: "Mensal",     preco: "R$147", periodo: "/mês", economia: null,             cor: "#3B82F6" },
-    { key: "trimestral", nome: "Trimestral", preco: "R$119", periodo: "/mês", economia: "Economize R$84", cor: "#7C3AED", destaque: true },
+    { key: "mensal",     nome: "Mensal",     preco: "R$147", periodo: "/mês", economia: null,              cor: "#3B82F6" },
+    { key: "trimestral", nome: "Trimestral", preco: "R$119", periodo: "/mês", economia: "Economize R$84",  cor: "#7C3AED", destaque: true },
     { key: "anual",      nome: "Anual",      preco: "R$97",  periodo: "/mês", economia: "Economize R$600", cor: "#16A34A" },
   ];
 
@@ -366,7 +386,7 @@ function LoginScreen({ onLogin }) {
           <div style={{ background: "#fff", borderRadius: 20, padding: 32, boxShadow: "0 25px 80px rgba(0,0,0,0.3)" }}>
             <h2 style={{ margin: "0 0 22px", fontSize: 20, fontWeight: 700, color: "#0F172A" }}>Entrar na plataforma</h2>
             <Inp label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" />
-            <Inp label="Senha" type="password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && go()} />
+            <SenhaInput label="Senha" value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && go()} />
             {erro && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erro}</div>}
             <div style={{ textAlign: "right", marginBottom: 18 }}><span onClick={() => setRecuperando(true)} style={{ fontSize: 13, color: "#1E40AF", cursor: "pointer", fontWeight: 600 }}>Esqueci minha senha</span></div>
             <Btn onClick={go} disabled={loading} style={{ width: "100%", justifyContent: "center" }}>{loading ? "Entrando..." : "Entrar na plataforma →"}</Btn>
@@ -400,7 +420,6 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// ─── DADOS DEMO ───────────────────────────────────────────────────────────
 const DB_DEMO = {
   clientes: [
     { id: 1, nome: "João Silva", cpf: "123.456.789-00", telefone: "(44) 99801-2233", email: "joao@email.com", totalDivida: 850, status: "pendente", vencimento: "2026-06-20", parcelas: 3, parcelasPagas: 0, diasAtraso: 0 },
@@ -416,15 +435,15 @@ const DB_DEMO = {
   ],
 };
 
-// ─── ADMIN PANEL ──────────────────────────────────────────────────────────
 function AdminPanel({ onLogout }) {
   const [lojistas, setLojistas] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(BACKEND_URL + "/admin/usuarios")
+    const token = localStorage.getItem("cobrarfacil_token") || "";
+    fetch(BACKEND_URL + "/admin/usuarios", { headers: { "Authorization": "Bearer " + token } })
       .then(r => r.json())
-      .then(d => { if (d.sucesso) setLojistas(d.usuarios); })
+      .then(d => { if (Array.isArray(d)) setLojistas(d); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -436,9 +455,9 @@ function AdminPanel({ onLogout }) {
   }, 0);
 
   const statusBadge = {
-    ativo:    { bg: "#DCFCE7", color: "#16A34A", label: "✅ Ativo" },
-    inativo:  { bg: "#FEF3C7", color: "#D97706", label: "⚠️ Inativo" },
-    cancelado:{ bg: "#FEE2E2", color: "#DC2626", label: "❌ Cancelado" },
+    ativo:     { bg: "#DCFCE7", color: "#16A34A", label: "✅ Ativo" },
+    inativo:   { bg: "#FEF3C7", color: "#D97706", label: "⚠️ Inativo" },
+    cancelado: { bg: "#FEE2E2", color: "#DC2626", label: "❌ Cancelado" },
   };
 
   const vencendoEmBreve = lojistas.filter(l => {
@@ -525,7 +544,6 @@ function AdminPanel({ onLogout }) {
   );
 }
 
-// ─── DASHBOARD ────────────────────────────────────────────────────────────
 function Dashboard({ clientes }) {
   const total = clientes.reduce((a, c) => a + c.totalDivida, 0);
   const atrasados = clientes.filter(c => c.status === "atrasado");
@@ -581,7 +599,6 @@ function Dashboard({ clientes }) {
   );
 }
 
-// ─── CLIENTES ─────────────────────────────────────────────────────────────
 function Clientes({ clientes, setClientes, onCobranca }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
@@ -638,7 +655,7 @@ function Clientes({ clientes, setClientes, onCobranca }) {
     setClientes(prev => [...novos, ...prev]);
     setCsvPreview([]);
     setModalImport(false);
-    showToast(`${novos.length} clientes importados!`);
+    showToast(novos.length + " clientes importados!");
   };
 
   return (
@@ -749,7 +766,6 @@ function Clientes({ clientes, setClientes, onCobranca }) {
   );
 }
 
-// ─── COBRANÇAS ────────────────────────────────────────────────────────────
 function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, setClientePreSelecionado, pixKey, instanciaWpp }) {
   const [clienteSel, setClienteSel] = useState(clientePreSelecionado?.id?.toString() || "");
   const [canal, setCanal] = useState("whatsapp");
@@ -764,7 +780,7 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   useEffect(() => {
     if (clienteSelecionado) {
       const pix = pixKey ? "\n💳 Pix: *" + pixKey + "* | Valor: *" + fmt(clienteSelecionado.totalDivida) + "*" : "";
-      setMsg(`Olá ${clienteSelecionado.nome.split(" ")[0]} 😊\n\nIdentificamos uma pendência de *${fmt(clienteSelecionado.totalDivida)}* em aberto.\n\nRegularize agora via Pix:${pix}\n\nQualquer dúvida, é só chamar! 🙏`);
+      setMsg("Olá " + clienteSelecionado.nome.split(" ")[0] + " 😊\n\nIdentificamos uma pendência de *" + fmt(clienteSelecionado.totalDivida) + "* em aberto.\n\nRegularize agora via Pix:" + pix + "\n\nQualquer dúvida, é só chamar! 🙏");
     }
   }, [clienteSel]);
 
@@ -781,42 +797,34 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
     if (!instanciaWpp) { alert("Conecte seu WhatsApp primeiro nas Configurações!"); return; }
     setDisparandoRegua(true);
     try {
-      const res = await fetch(BACKEND_URL + "/cobranca/regua", {
+      const token = localStorage.getItem("cobrarfacil_token") || "";
+      const res = await fetch(BACKEND_URL + "/cobrancas/disparar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instancia: instanciaWpp, pix_key: pixKey, clientes })
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({ devedores: clientes.filter(c => c.status !== "pago").map(c => ({ nome: c.nome, whatsapp: c.telefone, valor: c.totalDivida })), nomeLojista: "nossa loja" })
       });
       const data = await res.json();
-      setResultadoRegua(data.resultados || []);
-    } catch { setResultadoRegua([]); }
+      setResultadoRegua(data.mensagem || "Disparo iniciado!");
+    } catch { setResultadoRegua("Erro ao disparar."); }
     setDisparandoRegua(false);
   };
 
   return (
     <div>
       <div style={{ marginBottom: 20 }}><h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Enviar Cobrança</h1></div>
-
-      {/* Régua automática */}
       <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 14, padding: 16, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 14, color: "#1E40AF", marginBottom: 4 }}>🤖 Régua Automática</div>
-            <div style={{ fontSize: 13, color: "#64748B" }}>Dispara cobranças para todos os clientes nos momentos certos: D-3, D0, D+7, D+15, D+30</div>
+            <div style={{ fontSize: 13, color: "#64748B" }}>Dispara cobranças para todos os clientes pendentes com intervalos de segurança entre mensagens</div>
           </div>
           <Btn onClick={dispararRegua} disabled={disparandoRegua} variant="primary">
             {disparandoRegua ? "Disparando..." : "▶ Disparar régua agora"}
           </Btn>
         </div>
-        {resultadoRegua !== null && (
-          <div style={{ marginTop: 12, background: "#fff", borderRadius: 8, padding: 12 }}>
-            {resultadoRegua.length === 0
-              ? <div style={{ fontSize: 13, color: "#64748B" }}>Nenhuma mensagem disparada (sem clientes nos dias certos hoje)</div>
-              : resultadoRegua.map((r, i) => (
-                <div key={i} style={{ fontSize: 12, color: r.status === "enviado" ? "#16A34A" : "#DC2626", marginBottom: 2 }}>
-                  {r.status === "enviado" ? "✅" : "❌"} {r.cliente} — {r.etapa}
-                </div>
-              ))
-            }
+        {resultadoRegua && (
+          <div style={{ marginTop: 12, background: "#fff", borderRadius: 8, padding: 12, fontSize: 13, color: "#1E40AF", fontWeight: 600 }}>
+            {resultadoRegua}
           </div>
         )}
       </div>
@@ -845,7 +853,6 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   );
 }
 
-// ─── HISTÓRICO ────────────────────────────────────────────────────────────
 function Historico({ historico, setHistorico, clientes, setClientes }) {
   const get = (id) => clientes.find(c => c.id === id);
   const [toast, setToast] = useState(null);
@@ -904,7 +911,6 @@ function Historico({ historico, setHistorico, clientes, setClientes }) {
   );
 }
 
-// ─── CONFIGURAÇÕES ────────────────────────────────────────────────────────
 function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaWpp }) {
   const [pixInput, setPixInput] = useState(pixKey || "");
   const [pixSalvo, setPixSalvo] = useState(!!pixKey);
@@ -921,7 +927,6 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
   const [erroRenovacao, setErroRenovacao] = useState("");
 
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2000); };
-
   const salvarPix = () => { if (!pixInput.trim()) return; setPixKey(pixInput.trim()); setPixSalvo(true); showToast("Chave Pix salva!"); };
 
   const conectarWpp = async () => {
@@ -929,15 +934,14 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
     setLoadingQr(true);
     setInstanciaWpp(instanciaInput.trim());
     try {
-      // Tenta criar instância primeiro
-      await fetch(BACKEND_URL + "/whatsapp/criar-instancia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instancia: instanciaInput.trim() }) }).catch(() => {});
-      // Pega QR Code
-      const res = await fetch(BACKEND_URL + "/whatsapp/qrcode/" + instanciaInput.trim());
+      const token = localStorage.getItem("cobrarfacil_token") || "";
+      await fetch(BACKEND_URL + "/whatsapp/criar-instancia", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify({ instancia: instanciaInput.trim() }) }).catch(() => {});
+      const res = await fetch(BACKEND_URL + "/whatsapp/qrcode", { headers: { "Authorization": "Bearer " + token } });
       const data = await res.json();
-      if (data.sucesso) {
-        const qr = data.dados?.base64 || data.dados?.qrcode?.base64;
-        if (qr) setQrCode(qr);
-        else setWppStatus("Instância já conectada ou aguardando...");
+      if (data.base64 || data.qrcode?.base64) {
+        setQrCode(data.base64 || data.qrcode?.base64);
+      } else {
+        setWppStatus("Instância já conectada ou aguardando...");
       }
     } catch { setWppStatus("Erro ao conectar. Tente novamente."); }
     setLoadingQr(false);
@@ -946,9 +950,10 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
   const verificarStatus = async () => {
     if (!instanciaInput.trim()) return;
     try {
-      const res = await fetch(BACKEND_URL + "/whatsapp/status/" + instanciaInput.trim());
+      const token = localStorage.getItem("cobrarfacil_token") || "";
+      const res = await fetch(BACKEND_URL + "/whatsapp/status", { headers: { "Authorization": "Bearer " + token } });
       const data = await res.json();
-      if (data.conectado) { setWppStatus("✅ WhatsApp conectado!"); setQrCode(null); setInstanciaWpp(instanciaInput.trim()); }
+      if (data.state === "open") { setWppStatus("✅ WhatsApp conectado!"); setQrCode(null); setInstanciaWpp(instanciaInput.trim()); }
       else setWppStatus("⏳ Aguardando leitura do QR Code...");
     } catch { setWppStatus("Erro ao verificar status."); }
   };
@@ -959,22 +964,21 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
     if (formaPagRenovar === "cartao" && (!cartaoRenovar.numero || !cartaoRenovar.nome || !cartaoRenovar.validade || !cartaoRenovar.cvv)) { setErroRenovacao("Preencha todos os dados do cartão"); return; }
     setRenovando(true);
     try {
-      const res = await fetch(BACKEND_URL + "/pagamento/renovar", {
+      const token = localStorage.getItem("cobrarfacil_token") || "";
+      const res = await fetch(BACKEND_URL + "/usuarios/renovar-plano", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: usuario?.email, plano: planoRenovar, forma_pagamento: formaPagRenovar, card_number: cartaoRenovar.numero, card_name: cartaoRenovar.nome, card_expiry: cartaoRenovar.validade, card_cvv: cartaoRenovar.cvv })
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({ plano: planoRenovar })
       });
       const data = await res.json();
-      if (data.sucesso) setResultadoRenovacao(data.dados);
-      else setErroRenovacao(data.erro?.message || data.erro || "Erro ao renovar");
+      if (data.sucesso) setResultadoRenovacao(data);
+      else setErroRenovacao(data.erro || "Erro ao renovar");
     } catch { setErroRenovacao("Erro de conexão"); }
     setRenovando(false);
   };
 
   const expiraEm = usuario?.expira_em ? new Date(usuario.expira_em).toLocaleDateString("pt-BR") : "—";
   const diasRestantes = usuario?.expira_em ? Math.floor((new Date(usuario.expira_em) - new Date()) / (1000 * 60 * 60 * 24)) : null;
-  const pixQrRenovacao = resultadoRenovacao?.charges?.[0]?.last_transaction?.qr_code_url;
-  const pixCodeRenovacao = resultadoRenovacao?.charges?.[0]?.last_transaction?.qr_code;
 
   return (
     <div>
@@ -982,7 +986,6 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
       <h1 style={{ margin: "0 0 20px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Configurações</h1>
       <div style={{ display: "grid", gap: 18, maxWidth: 620 }}>
 
-        {/* Perfil */}
         <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>Meu Perfil</h3>
           {[["Nome", usuario?.nome], ["E-mail", usuario?.email], ["Plano", usuario?.plano], ["Válido até", expiraEm]].map(([k, v]) => (
@@ -998,21 +1001,13 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
           )}
         </div>
 
-        {/* Renovar plano */}
         <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>🔄 Renovar Plano</h3>
           {resultadoRenovacao ? (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
-              <div style={{ fontWeight: 700, color: "#16A34A", marginBottom: 8 }}>Renovação iniciada!</div>
-              {pixQrRenovacao && <img src={pixQrRenovacao} alt="QR Pix" style={{ width: 160, height: 160, borderRadius: 8, marginBottom: 8 }} />}
-              {pixCodeRenovacao && (
-                <div>
-                  <div style={{ fontSize: 10, fontFamily: "monospace", background: "#F8FAFC", borderRadius: 8, padding: 8, wordBreak: "break-all", marginBottom: 8 }}>{pixCodeRenovacao}</div>
-                  <button onClick={() => navigator.clipboard?.writeText(pixCodeRenovacao)} style={{ background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📋 Copiar código Pix</button>
-                </div>
-              )}
-              <button onClick={() => setResultadoRenovacao(null)} style={{ display: "block", margin: "12px auto 0", background: "#F1F5F9", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, cursor: "pointer" }}>Fechar</button>
+              <div style={{ fontWeight: 700, color: "#16A34A", marginBottom: 8 }}>Plano renovado com sucesso!</div>
+              <button onClick={() => setResultadoRenovacao(null)} style={{ background: "#F1F5F9", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, cursor: "pointer" }}>Fechar</button>
             </div>
           ) : (
             <div>
@@ -1021,31 +1016,12 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
                 <option value="trimestral">Trimestral — R$119/mês (R$357)</option>
                 <option value="anual">Anual — R$97/mês (R$1.164)</option>
               </Sel>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Forma de pagamento</label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {[["pix", "💠 Pix"], ["cartao", "💳 Cartão"]].map(([k, l]) => (
-                    <button key={k} onClick={() => setFormaPagRenovar(k)} style={{ flex: 1, background: formaPagRenovar === k ? "#EFF6FF" : "#F8FAFC", border: "2px solid " + (formaPagRenovar === k ? "#1E40AF" : "#E2E8F0"), borderRadius: 10, padding: "9px", cursor: "pointer", fontSize: 13, fontWeight: 600, color: formaPagRenovar === k ? "#1E40AF" : "#64748B" }}>{l}</button>
-                  ))}
-                </div>
-              </div>
-              {formaPagRenovar === "cartao" && (
-                <div>
-                  <Inp label="Número do cartão" value={cartaoRenovar.numero} onChange={e => setCartaoRenovar(p => ({ ...p, numero: e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim() }))} placeholder="0000 0000 0000 0000" maxLength={19} />
-                  <Inp label="Nome no cartão" value={cartaoRenovar.nome} onChange={e => setCartaoRenovar(p => ({ ...p, nome: e.target.value.toUpperCase() }))} placeholder="NOME SOBRENOME" />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <Inp label="Validade" value={cartaoRenovar.validade} onChange={e => { let v = e.target.value.replace(/\D/g, ''); if (v.length >= 2) v = v.slice(0,2) + '/' + v.slice(2,4); setCartaoRenovar(p => ({ ...p, validade: v })); }} placeholder="MM/AA" maxLength={5} />
-                    <Inp label="CVV" value={cartaoRenovar.cvv} onChange={e => setCartaoRenovar(p => ({ ...p, cvv: e.target.value.replace(/\D/g, '') }))} placeholder="123" maxLength={4} />
-                  </div>
-                </div>
-              )}
               {erroRenovacao && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erroRenovacao}</div>}
               <Btn onClick={renovarPlano} disabled={renovando} style={{ width: "100%", justifyContent: "center" }}>{renovando ? "Processando..." : "🔄 Renovar agora"}</Btn>
             </div>
           )}
         </div>
 
-        {/* Chave Pix */}
         <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>⚡ Chave Pix</h3>
           {pixSalvo ? (
@@ -1061,20 +1037,16 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
           )}
         </div>
 
-        {/* Conectar WhatsApp */}
         <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
           <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700 }}>📱 Conectar WhatsApp</h3>
           <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Conecte o número do seu negócio para enviar cobranças automáticas</p>
-
           {instanciaWpp && !qrCode && (
             <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div><div style={{ fontSize: 12, color: "#64748B" }}>Instância ativa</div><div style={{ fontWeight: 700, color: "#16A34A" }}>✅ {instanciaWpp}</div></div>
               <Btn small variant="ghost" onClick={() => { setInstanciaWpp(""); setInstanciaInput(""); setQrCode(null); setWppStatus(null); }}>Desconectar</Btn>
             </div>
           )}
-
           <Inp label="Nome da instância (ex: minha-loja)" value={instanciaInput} onChange={e => setInstanciaInput(e.target.value.replace(/\s/g, "-").toLowerCase())} placeholder="minha-loja" />
-
           {qrCode ? (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 13, color: "#64748B", marginBottom: 12 }}>Escaneie o QR Code com seu WhatsApp Business:</div>
@@ -1100,7 +1072,6 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
   );
 }
 
-// ─── APP PRINCIPAL ────────────────────────────────────────────────────────
 export default function CobrarFacil() {
   const [sessao, setSessao] = useState(null);
   const [trocandoSenha, setTrocandoSenha] = useState(false);
@@ -1115,7 +1086,10 @@ export default function CobrarFacil() {
     try {
       const token = localStorage.getItem("cobrarfacil_token");
       const usuario = localStorage.getItem("cobrarfacil_usuario");
-      if (token && usuario) setSessao({ isAdmin: false, usuario: JSON.parse(usuario), token });
+      if (token && usuario) {
+        const u = JSON.parse(usuario);
+        setSessao({ isAdmin: u.plano === "admin", usuario: u, token });
+      }
     } catch {}
   }, []);
 
