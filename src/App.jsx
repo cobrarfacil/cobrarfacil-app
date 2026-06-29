@@ -9,6 +9,15 @@ const statusColor = {
   pago:     { bg: "#DCFCE7", text: "#16A34A", label: "Pago" },
 };
 
+const ETAPAS_INFO = {
+  "d-10": { label: "10 dias antes",     tom: "Amigável",  cor: "#3B82F6" },
+  "d-7":  { label: "7 dias antes",      tom: "Amigável",  cor: "#6366F1" },
+  "d-3":  { label: "3 dias antes",      tom: "Urgente",   cor: "#F59E0B" },
+  "d0":   { label: "No dia",            tom: "Urgente",   cor: "#EF4444" },
+  "d+7":  { label: "7 dias após",       tom: "Firme",     cor: "#DC2626" },
+  "d+30": { label: "30 dias após",      tom: "Final",     cor: "#7F1D1D" },
+};
+
 const Ic = {
   dash:     () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
   clients:  () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
@@ -30,6 +39,9 @@ const Ic = {
   refresh:  () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
   eye:      () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
   eyeOff:   () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
+  regua:    () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>,
+  edit:     () => <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  trash:    () => <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>,
 };
 
 const Badge = ({ status }) => {
@@ -87,8 +99,15 @@ const SenhaInput = ({ label, value, onChange, placeholder, onKeyDown }) => {
   );
 };
 
-function TrocarSenha({ email, onSucesso }) {
-  const [senhaAtual, setSenhaAtual] = useState("");
+function api(path, options = {}, token = "") {
+  return fetch(BACKEND_URL + path, {
+    ...options,
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token, ...(options.headers || {}) }
+  }).then(r => r.json());
+}
+
+// ─── TELA TROCAR SENHA ────────────────────────────────────────────────────────
+function TrocarSenha({ token, onSucesso }) {
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [loading, setLoading] = useState(false);
@@ -96,15 +115,12 @@ function TrocarSenha({ email, onSucesso }) {
 
   const trocar = async () => {
     setErro("");
-    if (novaSenha.length < 6) { setErro("A nova senha deve ter pelo menos 6 caracteres"); return; }
-    if (novaSenha !== confirmar) { setErro("As senhas não coincidem"); return; }
+    if (novaSenha.length < 6) { setErro("Mínimo 6 caracteres"); return; }
+    if (novaSenha !== confirmar) { setErro("Senhas não coincidem"); return; }
     setLoading(true);
-    try {
-      const token = localStorage.getItem("cobrarfacil_token") || "";
-      const res = await fetch(BACKEND_URL + "/auth/trocar-senha", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify({ email, senha_atual: senhaAtual, senha_nova: novaSenha }) });
-      const data = await res.json();
-      if (data.sucesso) onSucesso(); else setErro(data.erro || "Erro ao trocar senha");
-    } catch { setErro("Erro de conexão"); }
+    const data = await api("/auth/trocar-senha", { method: "POST", body: JSON.stringify({ senha_nova: novaSenha }) }, token);
+    if (data.sucesso) onSucesso();
+    else setErro(data.erro || "Erro ao trocar senha");
     setLoading(false);
   };
 
@@ -114,21 +130,20 @@ function TrocarSenha({ email, onSucesso }) {
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ width: 56, height: 56, background: "linear-gradient(135deg, #F59E0B, #D97706)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>🔑</div>
           <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 800, margin: "0 0 8px" }}>Crie sua senha</h2>
-          <p style={{ color: "#94A3B8", fontSize: 14, margin: 0 }}>Por segurança, troque a senha temporária antes de continuar</p>
+          <p style={{ color: "#94A3B8", fontSize: 14, margin: 0 }}>Por segurança, defina sua senha antes de continuar</p>
         </div>
         <div style={{ background: "#fff", borderRadius: 20, padding: 32, boxShadow: "0 25px 80px rgba(0,0,0,0.3)" }}>
-          <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 10, padding: "10px 14px", marginBottom: 20, fontSize: 13, color: "#92400E" }}>⚠️ Use a senha temporária que recebeu no WhatsApp como senha atual</div>
-          <SenhaInput label="Senha atual (temporária)" value={senhaAtual} onChange={e => setSenhaAtual(e.target.value)} placeholder="Senha recebida no WhatsApp" />
           <SenhaInput label="Nova senha" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
-          <SenhaInput label="Confirmar nova senha" value={confirmar} onChange={e => setConfirmar(e.target.value)} placeholder="Repita a nova senha" />
+          <SenhaInput label="Confirmar nova senha" value={confirmar} onChange={e => setConfirmar(e.target.value)} placeholder="Repita a nova senha" onKeyDown={e => e.key === "Enter" && trocar()} />
           {erro && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erro}</div>}
-          <Btn onClick={trocar} disabled={loading || !senhaAtual || !novaSenha || !confirmar} style={{ width: "100%", justifyContent: "center" }}>{loading ? "Salvando..." : "🔑 Definir nova senha"}</Btn>
+          <Btn onClick={trocar} disabled={loading || !novaSenha || !confirmar} style={{ width: "100%", justifyContent: "center" }}>{loading ? "Salvando..." : "🔑 Definir senha e entrar"}</Btn>
         </div>
       </div>
     </div>
   );
 }
 
+// ─── CHECKOUT ─────────────────────────────────────────────────────────────────
 function Checkout({ planoInicial, onVoltar }) {
   const [step, setStep] = useState(1);
   const [plano, setPlano] = useState(planoInicial || "trimestral");
@@ -148,14 +163,13 @@ function Checkout({ planoInicial, onVoltar }) {
 
   const pagar = async () => {
     setErro("");
-    if (formaPag === "cartao" && (!cartao.numero || !cartao.nome || !cartao.validade || !cartao.cvv)) { setErro("Preencha todos os dados do cartão"); return; }
     setLoading(true);
     try {
-      const res = await fetch(BACKEND_URL + "/pagamento/criar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...dados, plano, forma_pagamento: formaPag, card_number: cartao.numero, card_name: cartao.nome, card_expiry: cartao.validade, card_cvv: cartao.cvv }) });
+      const res = await fetch(BACKEND_URL + "/checkout/criar-pedido", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...dados, plano, metodo_pagamento: formaPag, parcelas: planoSel.parcelas }) });
       const data = await res.json();
-      if (data.sucesso) { setResultado(data.dados); setStep(3); }
-      else setErro(data.erro?.message || data.erro || "Erro ao processar pagamento");
-    } catch { setErro("Erro de conexão com o servidor"); }
+      if (data.id) { setResultado(data); setStep(3); }
+      else setErro(data.erro || "Erro ao processar pagamento");
+    } catch { setErro("Erro de conexão"); }
     setLoading(false);
   };
 
@@ -167,31 +181,12 @@ function Checkout({ planoInicial, onVoltar }) {
       <div style={{ width: "100%", maxWidth: 520 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
           <button onClick={onVoltar} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, width: 34, height: 34, cursor: "pointer", color: "#fff", fontSize: 18 }}>←</button>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, background: "linear-gradient(135deg, #22C55E, #0D9488)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "#fff" }}>C$</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>CobrarFácil</div>
-          </div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>CobrarFácil</div>
         </div>
-
-        {step < 3 && (
-          <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
-            {[["1", "Seus dados"], ["2", "Pagamento"]].map((s, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 26, height: 26, borderRadius: "50%", background: step > i + 1 ? "#22C55E" : step === i + 1 ? "#fff" : "rgba(255,255,255,0.2)", color: step === i + 1 ? "#1E40AF" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>{step > i + 1 ? "✓" : s[0]}</div>
-                  <span style={{ fontSize: 13, fontWeight: step === i + 1 ? 700 : 400, color: step === i + 1 ? "#fff" : "rgba(255,255,255,0.5)" }}>{s[1]}</span>
-                </div>
-                {i === 0 && <div style={{ flex: 1, height: 2, background: step > 1 ? "#22C55E" : "rgba(255,255,255,0.2)", margin: "0 12px" }} />}
-              </div>
-            ))}
-          </div>
-        )}
-
         <div style={{ background: "#fff", borderRadius: 20, padding: 28, boxShadow: "0 25px 80px rgba(0,0,0,0.3)" }}>
           {step === 1 && (
             <div>
-              <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>Seus dados</h2>
-              <p style={{ margin: "0 0 22px", fontSize: 13, color: "#64748B" }}>Usaremos para criar seu acesso e enviar credenciais por WhatsApp</p>
+              <h2 style={{ margin: "0 0 20px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>Seus dados</h2>
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Plano escolhido</label>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -207,35 +202,25 @@ function Checkout({ planoInicial, onVoltar }) {
               <Inp label="Nome completo *" value={dados.nome} onChange={e => setDados(p => ({ ...p, nome: e.target.value }))} placeholder="João da Silva" />
               <Inp label="E-mail *" type="email" value={dados.email} onChange={e => setDados(p => ({ ...p, email: e.target.value }))} placeholder="seu@email.com" />
               <Inp label="CPF *" value={dados.cpf} onChange={e => setDados(p => ({ ...p, cpf: e.target.value }))} placeholder="000.000.000-00" />
-              <Inp label="WhatsApp * (receberá seu acesso aqui)" value={dados.telefone} onChange={e => setDados(p => ({ ...p, telefone: e.target.value }))} placeholder="(44) 99999-0000" />
+              <Inp label="WhatsApp *" value={dados.telefone} onChange={e => setDados(p => ({ ...p, telefone: e.target.value }))} placeholder="(44) 99999-0000" />
               {erro && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erro}</div>}
-              <Btn onClick={() => { if (!dados.nome || !dados.email || !dados.cpf || !dados.telefone) { setErro("Preencha todos os campos"); return; } setErro(""); setStep(2); }} style={{ width: "100%", justifyContent: "center" }}>Continuar para pagamento →</Btn>
-              <div style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: "#94A3B8" }}>🔒 Seus dados são protegidos · 7 dias de garantia ou devolvemos</div>
+              <Btn onClick={() => { if (!dados.nome || !dados.email || !dados.cpf || !dados.telefone) { setErro("Preencha todos os campos"); return; } setErro(""); setStep(2); }} style={{ width: "100%", justifyContent: "center" }}>Continuar →</Btn>
             </div>
           )}
-
           {step === 2 && (
             <div>
-              <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>Pagamento</h2>
+              <h2 style={{ margin: "0 0 20px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>Pagamento</h2>
               <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: "12px 16px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div><div style={{ fontWeight: 700, color: "#0F172A" }}>Plano {planoSel.nome}</div><div style={{ fontSize: 12, color: "#64748B" }}>{dados.nome} · {dados.email}</div></div>
+                <div style={{ fontWeight: 700, color: "#0F172A" }}>Plano {planoSel.nome}</div>
                 <div style={{ fontWeight: 900, fontSize: 22, color: "#1E40AF" }}>{(planoSel.valor / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
               </div>
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Forma de pagamento</label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {[["pix", "💠 Pix", "Aprovação imediata"], ["cartao", "💳 Cartão", "Crédito " + planoSel.parcelasLabel]].map(([k, l, sub]) => (
-                    <div key={k} onClick={() => setFormaPag(k)} style={{ flex: 1, background: formaPag === k ? "#EFF6FF" : "#F8FAFC", border: "2px solid " + (formaPag === k ? "#1E40AF" : "#E2E8F0"), borderRadius: 10, padding: "12px", textAlign: "center", cursor: "pointer" }}>
-                      <div style={{ fontSize: 18, marginBottom: 4 }}>{l}</div>
-                      <div style={{ fontSize: 11, color: "#64748B" }}>{sub}</div>
-                    </div>
-                  ))}
-                </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+                {[["pix", "💠 Pix"], ["cartao", "💳 Cartão"]].map(([k, l]) => (
+                  <div key={k} onClick={() => setFormaPag(k)} style={{ flex: 1, background: formaPag === k ? "#EFF6FF" : "#F8FAFC", border: "2px solid " + (formaPag === k ? "#1E40AF" : "#E2E8F0"), borderRadius: 10, padding: "12px", textAlign: "center", cursor: "pointer", fontSize: 14, fontWeight: 600, color: formaPag === k ? "#1E40AF" : "#64748B" }}>{l}</div>
+                ))}
               </div>
-              {formaPag === "pix" && <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "12px 14px", marginBottom: 18, fontSize: 13, color: "#1E3A8A" }}>💠 Após confirmar, o QR Code Pix aparecerá na tela. Pague e receba seu acesso no WhatsApp em instantes.</div>}
               {formaPag === "cartao" && (
-                <div style={{ marginBottom: 18 }}>
-                  <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#166534", fontWeight: 600 }}>💳 Plano {planoSel.nome}: {planoSel.parcelasLabel} no crédito</div>
+                <div>
                   <Inp label="Número do cartão" value={cartao.numero} onChange={e => setCartao(p => ({ ...p, numero: e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim() }))} placeholder="0000 0000 0000 0000" maxLength={19} />
                   <Inp label="Nome no cartão" value={cartao.nome} onChange={e => setCartao(p => ({ ...p, nome: e.target.value.toUpperCase() }))} placeholder="NOME SOBRENOME" />
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -246,27 +231,21 @@ function Checkout({ planoInicial, onVoltar }) {
               )}
               {erro && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erro}</div>}
               <Btn onClick={pagar} disabled={loading} style={{ width: "100%", justifyContent: "center", fontSize: 15, padding: "14px" }}>{loading ? "Processando..." : formaPag === "pix" ? "💠 Gerar QR Code Pix" : "💳 Pagar com cartão"}</Btn>
-              <div style={{ fontSize: 11, color: "#94A3B8", textAlign: "center", marginTop: 10 }}>🔒 Pagamento seguro via Pagar.me (Stone) · 7 dias de garantia</div>
             </div>
           )}
-
           {step === 3 && (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
               <h2 style={{ fontSize: 22, fontWeight: 800, color: "#0F172A", marginBottom: 8 }}>Pedido confirmado!</h2>
-              <p style={{ color: "#64748B", fontSize: 14, marginBottom: 24 }}>Assim que o pagamento for identificado, você receberá seu login e senha no WhatsApp <strong>{dados.telefone}</strong>.</p>
+              <p style={{ color: "#64748B", fontSize: 14, marginBottom: 24 }}>Você receberá seu login via WhatsApp em instantes.</p>
               {pixCode && (
                 <div style={{ background: "#F8FAFC", borderRadius: 14, padding: 20, marginBottom: 20, border: "1px solid #E2E8F0" }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A", marginBottom: 12 }}>💠 QR Code Pix</div>
                   {pixUrl && <img src={pixUrl} alt="QR Code Pix" style={{ width: 180, height: 180, borderRadius: 8 }} />}
-                  <div style={{ marginTop: 12 }}>
-                    <div style={{ fontSize: 12, color: "#64748B", marginBottom: 8 }}>Ou copie o código abaixo:</div>
-                    <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 12px", fontFamily: "monospace", fontSize: 10, wordBreak: "break-all", color: "#374151" }}>{pixCode}</div>
-                    <button onClick={() => navigator.clipboard?.writeText(pixCode)} style={{ marginTop: 8, background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📋 Copiar código Pix</button>
-                  </div>
+                  <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 12px", fontFamily: "monospace", fontSize: 10, wordBreak: "break-all", color: "#374151", marginTop: 12 }}>{pixCode}</div>
+                  <button onClick={() => navigator.clipboard?.writeText(pixCode)} style={{ marginTop: 8, background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📋 Copiar código Pix</button>
                 </div>
               )}
-              <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#92400E" }}>⏳ Aguarde o pagamento ser confirmado. Você receberá login e senha via WhatsApp automaticamente.</div>
               <button onClick={onVoltar} style={{ background: "#F1F5F9", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", color: "#374151" }}>Voltar ao login</button>
             </div>
           )}
@@ -276,6 +255,7 @@ function Checkout({ planoInicial, onVoltar }) {
   );
 }
 
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
   const [aba, setAba] = useState("login");
   const [checkout, setCheckout] = useState(false);
@@ -291,10 +271,7 @@ function LoginScreen({ onLogin }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const planoUrl = params.get("plano");
-    if (planoUrl && ["mensal", "trimestral", "anual"].includes(planoUrl)) {
-      setPlanoCheckout(planoUrl);
-      setCheckout(true);
-    }
+    if (planoUrl && ["mensal", "trimestral", "anual"].includes(planoUrl)) { setPlanoCheckout(planoUrl); setCheckout(true); }
   }, []);
 
   if (checkout) return <Checkout planoInicial={planoCheckout} onVoltar={() => setCheckout(false)} />;
@@ -309,25 +286,17 @@ function LoginScreen({ onLogin }) {
       if (data.token) {
         localStorage.setItem("cobrarfacil_token", data.token);
         localStorage.setItem("cobrarfacil_usuario", JSON.stringify(data.usuario));
-        if (data.usuario?.plano === "admin") {
-          onLogin({ isAdmin: true });
-        } else {
-          onLogin({ isAdmin: false, usuario: data.usuario, token: data.token });
-        }
-      } else {
-        setErro(data.erro || "Email ou senha incorretos");
-      }
-    } catch { setErro("Erro de conexão com o servidor"); }
+        onLogin({ isAdmin: data.usuario?.plano === "admin", usuario: data.usuario, token: data.token });
+      } else setErro(data.erro || "Email ou senha incorretos");
+    } catch { setErro("Erro de conexão"); }
     setLoading(false);
   };
 
   const recuperarSenha = async () => {
     if (!emailRecuperacao) return;
     setLoading(true);
-    try {
-      await fetch(BACKEND_URL + "/auth/recuperar-senha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: emailRecuperacao }) });
-      setRecuperacaoEnviada(true);
-    } catch {}
+    await fetch(BACKEND_URL + "/auth/recuperar-senha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: emailRecuperacao }) });
+    setRecuperacaoEnviada(true);
     setLoading(false);
   };
 
@@ -345,16 +314,16 @@ function LoginScreen({ onLogin }) {
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>📱</div>
               <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", marginBottom: 8 }}>Senha enviada!</h2>
-              <p style={{ color: "#64748B", fontSize: 14, marginBottom: 24 }}>Se o e-mail estiver cadastrado, você receberá uma nova senha temporária via WhatsApp.</p>
+              <p style={{ color: "#64748B", fontSize: 14, marginBottom: 24 }}>Se o e-mail estiver cadastrado, você receberá uma nova senha via WhatsApp.</p>
               <Btn onClick={() => { setRecuperando(false); setRecuperacaoEnviada(false); setEmailRecuperacao(""); }} style={{ width: "100%", justifyContent: "center" }}>← Voltar ao login</Btn>
             </div>
           ) : (
             <div>
-              <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>Recuperar senha</h2>
-              <p style={{ margin: "0 0 20px", fontSize: 13, color: "#64748B" }}>Informe seu e-mail e enviaremos uma nova senha temporária via WhatsApp.</p>
+              <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800 }}>Recuperar senha</h2>
+              <p style={{ margin: "0 0 20px", fontSize: 13, color: "#64748B" }}>Informe seu e-mail e enviaremos uma nova senha via WhatsApp.</p>
               <Inp label="E-mail cadastrado" type="email" value={emailRecuperacao} onChange={e => setEmailRecuperacao(e.target.value)} placeholder="seu@email.com" />
-              <Btn onClick={recuperarSenha} disabled={loading || !emailRecuperacao} style={{ width: "100%", justifyContent: "center" }}>{loading ? "Enviando..." : "📱 Enviar nova senha por WhatsApp"}</Btn>
-              <div style={{ textAlign: "center", marginTop: 14 }}><span onClick={() => setRecuperando(false)} style={{ fontSize: 13, color: "#1E40AF", cursor: "pointer", fontWeight: 600 }}>← Voltar ao login</span></div>
+              <Btn onClick={recuperarSenha} disabled={loading || !emailRecuperacao} style={{ width: "100%", justifyContent: "center" }}>{loading ? "Enviando..." : "📱 Enviar nova senha"}</Btn>
+              <div style={{ textAlign: "center", marginTop: 14 }}><span onClick={() => setRecuperando(false)} style={{ fontSize: 13, color: "#1E40AF", cursor: "pointer", fontWeight: 600 }}>← Voltar</span></div>
             </div>
           )}
         </div>
@@ -375,13 +344,11 @@ function LoginScreen({ onLogin }) {
           </div>
           <p style={{ color: "#94A3B8", fontSize: 14, margin: 0 }}>Seus clientes pagam. Você recebe.</p>
         </div>
-
         <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: 4, marginBottom: 20 }}>
           {[["login", "Entrar"], ["planos", "Assinar"]].map(([k, l]) => (
             <button key={k} onClick={() => setAba(k)} style={{ flex: 1, background: aba === k ? "#fff" : "transparent", color: aba === k ? "#1E40AF" : "#94A3B8", border: "none", borderRadius: 9, padding: "9px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{l}</button>
           ))}
         </div>
-
         {aba === "login" && (
           <div style={{ background: "#fff", borderRadius: 20, padding: 32, boxShadow: "0 25px 80px rgba(0,0,0,0.3)" }}>
             <h2 style={{ margin: "0 0 22px", fontSize: 20, fontWeight: 700, color: "#0F172A" }}>Entrar na plataforma</h2>
@@ -393,7 +360,6 @@ function LoginScreen({ onLogin }) {
             <div style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "#64748B" }}>Não tem conta? <span onClick={() => setAba("planos")} style={{ color: "#1E40AF", fontWeight: 600, cursor: "pointer" }}>Assinar agora</span></div>
           </div>
         )}
-
         {aba === "planos" && (
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
@@ -403,15 +369,14 @@ function LoginScreen({ onLogin }) {
                   <div style={{ fontWeight: 800, fontSize: 15, color: "#0F172A", marginBottom: 4 }}>{p.nome}</div>
                   <div style={{ fontSize: 26, fontWeight: 900, color: p.cor }}>{p.preco}<span style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>{p.periodo}</span></div>
                   {p.economia && <div style={{ fontSize: 11, color: "#16A34A", fontWeight: 700, marginTop: 3 }}>🎁 {p.economia}</div>}
-                  <ul style={{ margin: "12px 0 0", padding: "0 0 0 14px", fontSize: 12, color: "#374151", lineHeight: 1.9 }}><li>Todas as funções</li><li>WhatsApp automático</li><li>Suporte prioritário</li><li>7 dias de garantia</li></ul>
+                  <ul style={{ margin: "12px 0 0", padding: "0 0 0 14px", fontSize: 12, color: "#374151", lineHeight: 1.9 }}><li>Clientes ilimitados*</li><li>WhatsApp automático</li><li>Régua de cobrança</li><li>7 dias de garantia</li></ul>
                   <button onClick={() => { setPlanoCheckout(p.key); setCheckout(true); }} style={{ display: "block", width: "100%", marginTop: 14, background: p.cor, color: "#fff", border: "none", borderRadius: 10, padding: "10px", textAlign: "center", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Assinar agora</button>
                 </div>
               ))}
             </div>
-            <div style={{ textAlign: "center", fontSize: 12, color: "#94A3B8" }}>🔒 Pagamento seguro · 7 dias de garantia ou devolvemos · Cancele quando quiser</div>
+            <div style={{ textAlign: "center", fontSize: 12, color: "#94A3B8" }}>🔒 Pagamento seguro · 7 dias de garantia · Cancele quando quiser</div>
           </div>
         )}
-
         <div style={{ display: "flex", gap: 16, marginTop: 24, justifyContent: "center", flexWrap: "wrap" }}>
           {["✅ 7 dias de garantia", "📱 WhatsApp automático", "💳 Pix ou Cartão"].map(f => <div key={f} style={{ fontSize: 12, color: "#94A3B8", fontWeight: 500 }}>{f}</div>)}
         </div>
@@ -420,83 +385,110 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-const DB_DEMO = {
-  clientes: [
-    { id: 1, nome: "João Silva", cpf: "123.456.789-00", telefone: "(44) 99801-2233", email: "joao@email.com", totalDivida: 850, status: "pendente", vencimento: "2026-06-20", parcelas: 3, parcelasPagas: 0, diasAtraso: 0 },
-    { id: 2, nome: "Maria Fernanda", cpf: "234.567.890-11", telefone: "(44) 98712-5544", email: "maria@email.com", totalDivida: 1200, status: "atrasado", vencimento: "2026-06-10", parcelas: 4, parcelasPagas: 1, diasAtraso: 14 },
-    { id: 3, nome: "Carlos Mendes", cpf: "345.678.901-22", telefone: "(44) 99654-8821", email: "carlos@email.com", totalDivida: 430, status: "pago", vencimento: "2026-06-15", parcelas: 2, parcelasPagas: 2, diasAtraso: 0 },
-    { id: 4, nome: "Ana Paula Costa", cpf: "456.789.012-33", telefone: "(44) 98523-6677", email: "ana@email.com", totalDivida: 2100, status: "atrasado", vencimento: "2026-06-05", parcelas: 6, parcelasPagas: 2, diasAtraso: 19 },
-    { id: 5, nome: "Roberto Lima", cpf: "567.890.123-44", telefone: "(44) 99741-3312", email: "roberto@email.com", totalDivida: 660, status: "pendente", vencimento: "2026-06-30", parcelas: 3, parcelasPagas: 0, diasAtraso: 0 },
-    { id: 6, nome: "Fernanda Alves", cpf: "678.901.234-55", telefone: "(44) 98833-9900", email: "fernanda@email.com", totalDivida: 980, status: "pago", vencimento: "2026-06-12", parcelas: 4, parcelasPagas: 4, diasAtraso: 0 },
-  ],
-  historico: [
-    { id: 1, clienteId: 2, tipo: "whatsapp", data: "2026-06-18 09:12", mensagem: "Olá Maria, temos uma parcela em aberto de R$300.", status: "entregue" },
-    { id: 2, clienteId: 4, tipo: "whatsapp", data: "2026-06-17 10:30", mensagem: "Ana, sua dívida está em atraso. Entre em contato.", status: "lido" },
-  ],
-};
-
-function AdminPanel({ onLogout }) {
+// ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
+function AdminPanel({ onLogout, token }) {
   const [lojistas, setLojistas] = useState([]);
+  const [metricas, setMetricas] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [modalCriar, setModalCriar] = useState(false);
+  const [modalEditar, setModalEditar] = useState(null);
+  const [novoUsuario, setNovoUsuario] = useState({ nome: "", email: "", senha: "", plano: "mensal", whatsapp: "", dias: 30 });
+  const [toast, setToast] = useState(null);
+  const [busca, setBusca] = useState("");
 
-  useEffect(() => {
-    const token = localStorage.getItem("cobrarfacil_token") || "";
-    fetch(BACKEND_URL + "/admin/usuarios", { headers: { "Authorization": "Bearer " + token } })
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setLojistas(d); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
-  const mrr = lojistas.filter(l => l.status === "ativo").reduce((a, l) => {
-    if (l.plano === "anual") return a + 97;
-    if (l.plano === "trimestral") return a + 119;
-    return a + 147;
-  }, 0);
-
-  const statusBadge = {
-    ativo:     { bg: "#DCFCE7", color: "#16A34A", label: "✅ Ativo" },
-    inativo:   { bg: "#FEF3C7", color: "#D97706", label: "⚠️ Inativo" },
-    cancelado: { bg: "#FEE2E2", color: "#DC2626", label: "❌ Cancelado" },
+  const carregar = async () => {
+    setLoading(true);
+    const [u, m] = await Promise.all([
+      api("/admin/usuarios", {}, token),
+      api("/admin/metricas", {}, token)
+    ]);
+    if (Array.isArray(u)) setLojistas(u);
+    if (m.mrr !== undefined) setMetricas(m);
+    setLoading(false);
   };
 
+  useEffect(() => { carregar(); }, []);
+
+  const criarUsuario = async () => {
+    const data = await api("/admin/usuarios", { method: "POST", body: JSON.stringify(novoUsuario) }, token);
+    if (data.sucesso) { showToast("Usuário criado!"); setModalCriar(false); carregar(); }
+    else showToast(data.erro || "Erro", "error");
+  };
+
+  const resetarSenha = async (email) => {
+    const nova = prompt("Nova senha para " + email + ":");
+    if (!nova) return;
+    const data = await api("/admin/reset-senha", { method: "POST", body: JSON.stringify({ email, senha_nova: nova }) }, token);
+    if (data.sucesso) showToast("Senha resetada!");
+    else showToast(data.erro || "Erro", "error");
+  };
+
+  const alterarStatus = async (id, status) => {
+    await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ status }) }, token);
+    showToast("Status atualizado!");
+    carregar();
+  };
+
+  const adicionarDias = async (id, dias) => {
+    await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ dias_adicionais: dias }) }, token);
+    showToast(dias + " dias adicionados!");
+    carregar();
+  };
+
+  const lojFiltrados = lojistas.filter(l => l.nome?.toLowerCase().includes(busca.toLowerCase()) || l.email?.toLowerCase().includes(busca.toLowerCase()));
+
   const vencendoEmBreve = lojistas.filter(l => {
-    if (!l.expira_em) return false;
+    if (!l.expira_em || l.plano === 'admin') return false;
     const dias = Math.floor((new Date(l.expira_em) - new Date()) / (1000 * 60 * 60 * 24));
-    return dias >= 0 && dias <= 3;
+    return dias >= 0 && dias <= 7;
   });
 
   return (
     <div style={{ minHeight: "100vh", background: "#0F172A", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+      {toast && <ToastMsg {...toast} />}
       <div style={{ background: "#1E293B", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "14px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #22C55E, #0D9488)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff" }}>C$</div>
           <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>CobrarFácil Admin</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 99 }}>MRR: {fmt(mrr)}</div>
+          {metricas && <div style={{ background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 99 }}>MRR: {fmt(metricas.mrr)}</div>}
+          <Btn small variant="primary" onClick={() => setModalCriar(true)}><Ic.plus /> Novo cliente</Btn>
           <Btn small variant="ghost" onClick={onLogout}>Sair</Btn>
         </div>
       </div>
+
       <div style={{ padding: 28 }}>
         {vencendoEmBreve.length > 0 && (
           <div style={{ background: "#7C2D12", border: "1px solid #DC2626", borderRadius: 12, padding: "12px 16px", marginBottom: 20, color: "#FCA5A5", fontSize: 13, fontWeight: 600 }}>
-            ⚠️ {vencendoEmBreve.length} assinatura(s) vencendo em até 3 dias: {vencendoEmBreve.map(l => l.nome).join(", ")}
+            ⚠️ {vencendoEmBreve.length} assinatura(s) vencendo em até 7 dias: {vencendoEmBreve.map(l => l.nome).join(", ")}
           </div>
         )}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginBottom: 24 }}>
-          {[
-            { label: "MRR", value: fmt(mrr), color: "#22C55E", bg: "#052e16" },
-            { label: "Clientes ativos", value: lojistas.filter(l => l.status === "ativo").length, color: "#3B82F6", bg: "#0c1a3a" },
-            { label: "Inativos", value: lojistas.filter(l => l.status !== "ativo").length, color: "#F59E0B", bg: "#2a1a00" },
-            { label: "Total cadastros", value: lojistas.length, color: "#A78BFA", bg: "#1e1040" },
-          ].map(c => (
-            <div key={c.label} style={{ background: c.bg, borderRadius: 14, padding: 18, border: "1px solid rgba(255,255,255,0.06)" }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: c.color }}>{c.value}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0", marginTop: 4 }}>{c.label}</div>
-            </div>
-          ))}
+
+        {metricas && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 24 }}>
+            {[
+              { label: "MRR", value: fmt(metricas.mrr), color: "#22C55E", bg: "#052e16" },
+              { label: "Clientes ativos", value: lojistas.filter(l => l.status === "ativo" && l.plano !== "admin").length, color: "#3B82F6", bg: "#0c1a3a" },
+              { label: "Novos hoje", value: metricas.novos_hoje, color: "#A78BFA", bg: "#1e1040" },
+              { label: "Vencendo em 7d", value: metricas.vencendo_em_7_dias, color: "#F59E0B", bg: "#2a1a00" },
+              { label: "Total devedores", value: metricas.total_clientes, color: "#06B6D4", bg: "#0a2030" },
+              { label: "Cobranças enviadas", value: metricas.total_cobrancas, color: "#EC4899", bg: "#2d0a1a" },
+            ].map(c => (
+              <div key={c.label} style={{ background: c.bg, borderRadius: 14, padding: 18, border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: c.color }}>{c.value}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0", marginTop: 4 }}>{c.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ marginBottom: 16 }}>
+          <input placeholder="🔍 Buscar por nome ou email..." value={busca} onChange={e => setBusca(e.target.value)} style={{ width: "100%", maxWidth: 400, border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "9px 14px", fontSize: 14, background: "#1E293B", color: "#fff", outline: "none", boxSizing: "border-box" }} />
         </div>
+
         {loading ? (
           <div style={{ textAlign: "center", color: "#64748B", padding: 40 }}>Carregando...</div>
         ) : (
@@ -504,58 +496,90 @@ function AdminPanel({ onLogout }) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#0F172A" }}>
-                  {["Negócio / E-mail", "Plano", "Vence em", "WhatsApp", "Status"].map(h => (
-                    <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontWeight: 700, color: "#64748B", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{h}</th>
+                  {["Cliente", "Plano", "Vence em", "Devedores", "Últ. acesso", "Status", "Ações"].map(h => (
+                    <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontWeight: 700, color: "#64748B", borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {lojistas.map((l, i) => {
-                  const s = statusBadge[l.status] || statusBadge.inativo;
+                {lojFiltrados.filter(l => l.plano !== "admin").map((l, i) => {
                   const expira = l.expira_em ? new Date(l.expira_em).toLocaleDateString("pt-BR") : "—";
                   const diasExp = l.expira_em ? Math.floor((new Date(l.expira_em) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+                  const ultimoAcesso = l.ultimo_acesso ? new Date(l.ultimo_acesso).toLocaleDateString("pt-BR") : "Nunca";
+                  const statusBadge = { ativo: { bg: "#DCFCE7", color: "#16A34A", label: "✅ Ativo" }, inativo: { bg: "#FEF3C7", color: "#D97706", label: "⚠️ Inativo" }, cancelado: { bg: "#FEE2E2", color: "#DC2626", label: "❌ Cancelado" } };
+                  const s = statusBadge[l.status] || statusBadge.inativo;
                   return (
                     <tr key={l.id} style={{ background: i % 2 === 0 ? "#1E293B" : "#1a2538" }}>
                       <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                         <div style={{ fontWeight: 700, color: "#E2E8F0" }}>{l.nome}</div>
                         <div style={{ fontSize: 11, color: "#64748B" }}>{l.email}</div>
+                        {l.whatsapp && <div style={{ fontSize: 11, color: "#22C55E" }}>📱 {l.whatsapp}</div>}
                       </td>
                       <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)", color: "#60A5FA", fontWeight: 700 }}>{l.plano}</td>
                       <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                        <div style={{ color: diasExp !== null && diasExp <= 3 ? "#FCA5A5" : "#94A3B8", fontSize: 12, fontWeight: diasExp !== null && diasExp <= 3 ? 700 : 400 }}>{expira}</div>
-                        {diasExp !== null && diasExp <= 3 && <div style={{ fontSize: 10, color: "#DC2626", fontWeight: 700 }}>⚠️ {diasExp}d</div>}
+                        <div style={{ color: diasExp !== null && diasExp <= 7 ? "#FCA5A5" : "#94A3B8", fontSize: 12 }}>{expira}</div>
+                        {diasExp !== null && diasExp <= 7 && <div style={{ fontSize: 10, color: "#DC2626", fontWeight: 700 }}>⚠️ {diasExp}d</div>}
                       </td>
-                      <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)", color: "#94A3B8", fontSize: 12 }}>{l.whatsapp || "—"}</td>
+                      <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)", color: "#94A3B8", fontSize: 12 }}>
+                        <div>{l.total_clientes || 0} total</div>
+                        <div style={{ color: "#DC2626" }}>{l.clientes_atrasados || 0} atrasados</div>
+                      </td>
+                      <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)", color: "#64748B", fontSize: 12 }}>{ultimoAcesso}</td>
                       <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                         <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99 }}>{s.label}</span>
+                      </td>
+                      <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                          <button onClick={() => resetarSenha(l.email)} style={{ background: "#1E40AF", color: "#fff", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}>🔑 Senha</button>
+                          <button onClick={() => adicionarDias(l.id, 30)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}>+30d</button>
+                          {l.status === "ativo"
+                            ? <button onClick={() => alterarStatus(l.id, "inativo")} style={{ background: "#D97706", color: "#fff", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}>Bloquear</button>
+                            : <button onClick={() => alterarStatus(l.id, "ativo")} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}>Ativar</button>
+                          }
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
-                {lojistas.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "#64748B" }}>Nenhum cadastro ainda</td></tr>
+                {lojFiltrados.filter(l => l.plano !== "admin").length === 0 && (
+                  <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#64748B" }}>Nenhum cliente ainda</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {modalCriar && (
+        <Modal title="Criar Novo Cliente" onClose={() => setModalCriar(false)}>
+          <Inp label="Nome *" value={novoUsuario.nome} onChange={e => setNovoUsuario(p => ({ ...p, nome: e.target.value }))} placeholder="Nome completo" />
+          <Inp label="E-mail *" type="email" value={novoUsuario.email} onChange={e => setNovoUsuario(p => ({ ...p, email: e.target.value }))} placeholder="email@exemplo.com" />
+          <SenhaInput label="Senha inicial *" value={novoUsuario.senha} onChange={e => setNovoUsuario(p => ({ ...p, senha: e.target.value }))} placeholder="Mínimo 6 caracteres" />
+          <Inp label="WhatsApp" value={novoUsuario.whatsapp} onChange={e => setNovoUsuario(p => ({ ...p, whatsapp: e.target.value }))} placeholder="5544999990000" />
+          <Sel label="Plano" value={novoUsuario.plano} onChange={e => setNovoUsuario(p => ({ ...p, plano: e.target.value }))}>
+            <option value="mensal">Mensal</option>
+            <option value="trimestral">Trimestral</option>
+            <option value="anual">Anual</option>
+          </Sel>
+          <Inp label="Dias de acesso" type="number" value={novoUsuario.dias} onChange={e => setNovoUsuario(p => ({ ...p, dias: e.target.value }))} placeholder="30" />
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn variant="ghost" onClick={() => setModalCriar(false)} style={{ flex: 1, justifyContent: "center" }}>Cancelar</Btn>
+            <Btn onClick={criarUsuario} disabled={!novoUsuario.nome || !novoUsuario.email || !novoUsuario.senha} style={{ flex: 1, justifyContent: "center" }}>Criar cliente</Btn>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
-function Dashboard({ clientes }) {
-  const total = clientes.reduce((a, c) => a + c.totalDivida, 0);
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function Dashboard({ clientes, token }) {
+  const total = clientes.reduce((a, c) => a + parseFloat(c.total_divida || 0), 0);
   const atrasados = clientes.filter(c => c.status === "atrasado");
   const pagos = clientes.filter(c => c.status === "pago");
-  const totalRecebido = pagos.reduce((a, c) => a + c.totalDivida, 0);
-  const totalEmRisco = atrasados.reduce((a, c) => a + c.totalDivida, 0);
-  const cards = [
-    { label: "Total em cobrança", value: fmt(total), icon: <Ic.money />, color: "#1E40AF", bg: "#EFF6FF" },
-    { label: "Já recebido", value: fmt(totalRecebido), icon: <Ic.trend />, color: "#16A34A", bg: "#F0FDF4" },
-    { label: "Em risco", value: fmt(totalEmRisco), icon: <Ic.alert />, color: "#DC2626", bg: "#FEF2F2" },
-    { label: "Clientes", value: clientes.length, icon: <Ic.users />, color: "#7C3AED", bg: "#F5F3FF" },
-  ];
+  const totalRecebido = pagos.reduce((a, c) => a + parseFloat(c.total_divida || 0), 0);
+  const totalEmRisco = atrasados.reduce((a, c) => a + parseFloat(c.total_divida || 0), 0);
+
   return (
     <div>
       <div style={{ marginBottom: 22 }}>
@@ -563,7 +587,12 @@ function Dashboard({ clientes }) {
         <p style={{ margin: "4px 0 0", color: "#64748B", fontSize: 14 }}>{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 20 }}>
-        {cards.map(c => (
+        {[
+          { label: "Total em cobrança", value: fmt(total), icon: <Ic.money />, color: "#1E40AF", bg: "#EFF6FF" },
+          { label: "Já recebido", value: fmt(totalRecebido), icon: <Ic.trend />, color: "#16A34A", bg: "#F0FDF4" },
+          { label: "Em risco", value: fmt(totalEmRisco), icon: <Ic.alert />, color: "#DC2626", bg: "#FEF2F2" },
+          { label: "Clientes", value: clientes.length, icon: <Ic.users />, color: "#7C3AED", bg: "#F5F3FF" },
+        ].map(c => (
           <div key={c.label} style={{ background: "#fff", borderRadius: 14, padding: 16, border: "1px solid #F1F5F9", boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
             <div style={{ width: 36, height: 36, background: c.bg, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: c.color, marginBottom: 10 }}>{c.icon}</div>
             <div style={{ fontSize: 20, fontWeight: 800, color: "#0F172A" }}>{c.value}</div>
@@ -599,27 +628,136 @@ function Dashboard({ clientes }) {
   );
 }
 
-function Clientes({ clientes, setClientes, onCobranca }) {
+// ─── MODAL RÉGUA ─────────────────────────────────────────────────────────────
+function ModalRegua({ cliente, token, onClose }) {
+  const [etapas, setEtapas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editando, setEditando] = useState(null);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2000); };
+
+  useEffect(() => {
+    api("/clientes/" + cliente.id + "/regua", {}, token).then(data => {
+      if (data.etapas) setEtapas(data.etapas);
+      setLoading(false);
+    });
+  }, []);
+
+  const toggleEtapa = async (etapa, ativo) => {
+    await api("/clientes/" + cliente.id + "/regua/" + etapa, { method: "PUT", body: JSON.stringify({ ativo }) }, token);
+    setEtapas(prev => prev.map(e => e.etapa === etapa ? { ...e, ativo } : e));
+    showToast(ativo ? "Etapa ativada!" : "Etapa desativada!");
+  };
+
+  const salvarMensagem = async (etapa, mensagem) => {
+    await api("/clientes/" + cliente.id + "/regua/" + etapa, { method: "PUT", body: JSON.stringify({ ativo: true, mensagem_personalizada: mensagem }) }, token);
+    setEtapas(prev => prev.map(e => e.etapa === etapa ? { ...e, mensagem_personalizada: mensagem } : e));
+    setEditando(null);
+    showToast("Mensagem salva!");
+  };
+
+  return (
+    <Modal title={"Régua de Cobrança — " + cliente.nome} onClose={onClose} wide>
+      {toast && <ToastMsg {...toast} />}
+      {loading ? <div style={{ textAlign: "center", padding: 40, color: "#64748B" }}>Carregando...</div> : (
+        <div>
+          <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 10, padding: "10px 14px", marginBottom: 20, fontSize: 13, color: "#1E40AF" }}>
+            💡 A régua dispara automaticamente todo dia às 8h. Você pode desativar etapas ou personalizar mensagens por cliente.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {etapas.map(e => {
+              const info = ETAPAS_INFO[e.etapa] || {};
+              return (
+                <div key={e.etapa} style={{ background: e.ativo ? "#F8FAFC" : "#F1F5F9", borderRadius: 12, padding: 16, border: "1.5px solid " + (e.ativo ? info.cor || "#E2E8F0" : "#E2E8F0"), opacity: e.ativo ? 1 : 0.6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: e.ativo ? 10 : 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: info.cor || "#94A3B8" }} />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{info.label || e.etapa}</div>
+                        <div style={{ fontSize: 12, color: "#64748B" }}>Tom: {info.tom || "Padrão"} {e.enviado && "· ✅ Já enviado"}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      {e.ativo && !e.enviado && (
+                        <button onClick={() => setEditando(editando === e.etapa ? null : e.etapa)} style={{ background: "#EFF6FF", color: "#1E40AF", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+                          {editando === e.etapa ? "Fechar" : "✏️ Personalizar"}
+                        </button>
+                      )}
+                      <div onClick={() => toggleEtapa(e.etapa, !e.ativo)} style={{ width: 44, height: 24, borderRadius: 99, background: e.ativo ? info.cor || "#1E40AF" : "#CBD5E1", cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
+                        <div style={{ position: "absolute", top: 2, left: e.ativo ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                      </div>
+                    </div>
+                  </div>
+                  {editando === e.etapa && (
+                    <MensagemEditor
+                      etapa={e.etapa}
+                      mensagemAtual={e.mensagem_personalizada}
+                      cliente={cliente}
+                      onSalvar={(msg) => salvarMensagem(e.etapa, msg)}
+                      onLimpar={() => salvarMensagem(e.etapa, null)}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function MensagemEditor({ etapa, mensagemAtual, cliente, onSalvar, onLimpar }) {
+  const [msg, setMsg] = useState(mensagemAtual || "");
+  return (
+    <div style={{ marginTop: 12, background: "#fff", borderRadius: 8, padding: 12, border: "1px solid #E2E8F0" }}>
+      <div style={{ fontSize: 12, color: "#64748B", marginBottom: 8 }}>Mensagem personalizada (deixe vazio para usar a padrão com variação automática):</div>
+      <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={4} placeholder={"Mensagem para " + cliente.nome + " na etapa " + etapa + "..."} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <Btn small onClick={() => onSalvar(msg)} style={{ flex: 1, justifyContent: "center" }}>💾 Salvar mensagem</Btn>
+        {mensagemAtual && <Btn small variant="ghost" onClick={onLimpar}>Usar padrão</Btn>}
+      </div>
+    </div>
+  );
+}
+
+// ─── CLIENTES ─────────────────────────────────────────────────────────────────
+function Clientes({ clientes, setClientes, onCobranca, token }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [modalAdd, setModalAdd] = useState(false);
   const [modalImport, setModalImport] = useState(false);
-  const [novo, setNovo] = useState({ nome: "", cpf: "", telefone: "", email: "", totalDivida: "", parcelas: "1", vencimento: "" });
+  const [modalRegua, setModalRegua] = useState(null);
+  const [novo, setNovo] = useState({ nome: "", cpf: "", telefone: "", email: "", total_divida: "", parcelas: "1", vencimento: "" });
   const [toast, setToast] = useState(null);
   const [csvPreview, setCsvPreview] = useState([]);
   const fileRef = useRef();
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
-  const calcDiasAtraso = (vencimento) => { if (!vencimento) return 0; const diff = Math.floor((new Date() - new Date(vencimento)) / (1000 * 60 * 60 * 24)); return diff > 0 ? diff : 0; };
   const filtrados = clientes.filter(c => (filtro === "todos" || c.status === filtro) && c.nome.toLowerCase().includes(busca.toLowerCase()));
 
-  const addCliente = () => {
-    if (!novo.nome || !novo.telefone || !novo.totalDivida) return;
-    const diasAtraso = calcDiasAtraso(novo.vencimento);
-    setClientes(prev => [{ ...novo, id: Date.now(), totalDivida: parseFloat(novo.totalDivida), parcelas: parseInt(novo.parcelas), parcelasPagas: 0, status: diasAtraso > 0 ? "atrasado" : "pendente", diasAtraso }, ...prev]);
-    setModalAdd(false);
-    setNovo({ nome: "", cpf: "", telefone: "", email: "", totalDivida: "", parcelas: "1", vencimento: "" });
-    showToast("Cliente cadastrado!");
+  const addCliente = async () => {
+    if (!novo.nome || !novo.telefone || !novo.total_divida) return;
+    const data = await api("/clientes", { method: "POST", body: JSON.stringify(novo) }, token);
+    if (data.id) {
+      setClientes(prev => [data, ...prev]);
+      setModalAdd(false);
+      setNovo({ nome: "", cpf: "", telefone: "", email: "", total_divida: "", parcelas: "1", vencimento: "" });
+      showToast("Cliente cadastrado!");
+    } else showToast(data.erro || "Erro ao cadastrar", "error");
+  };
+
+  const marcarPago = async (c) => {
+    await api("/clientes/" + c.id, { method: "PUT", body: JSON.stringify({ ...c, status: "pago" }) }, token);
+    setClientes(prev => prev.map(x => x.id === c.id ? { ...x, status: "pago" } : x));
+    showToast("Marcado como pago! ✅");
+  };
+
+  const deletarCliente = async (id) => {
+    if (!confirm("Remover este cliente?")) return;
+    await api("/clientes/" + id, { method: "DELETE" }, token);
+    setClientes(prev => prev.filter(x => x.id !== id));
+    showToast("Cliente removido!");
   };
 
   const handleCSV = (e) => {
@@ -627,8 +765,7 @@ function Clientes({ clientes, setClientes, onCobranca }) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const text = ev.target.result;
-      const lines = text.split("\n").filter(l => l.trim());
+      const lines = ev.target.result.split("\n").filter(l => l.trim());
       const header = lines[0].toLowerCase().split(/[,;]/);
       const rows = lines.slice(1).map(line => {
         const cols = line.split(/[,;]/);
@@ -641,26 +778,32 @@ function Clientes({ clientes, setClientes, onCobranca }) {
     reader.readAsText(file);
   };
 
-  const importarCSV = () => {
-    const novos = csvPreview.map((r, idx) => {
-      const nome = r.nome || r.name || "";
-      const telefone = r.telefone || r.whatsapp || r.celular || r.phone || "";
-      const totalDivida = parseFloat(r.valor || r.divida || r.total || r.amount || "0") || 0;
-      const cpf = r.cpf || r.documento || "";
-      const email = r.email || "";
-      const vencimento = r.vencimento || r.data || "";
-      const diasAtraso = calcDiasAtraso(vencimento);
-      return { id: Date.now() + idx, nome, telefone, cpf, email, totalDivida, vencimento, parcelas: 1, parcelasPagas: 0, status: diasAtraso > 0 ? "atrasado" : "pendente", diasAtraso };
-    }).filter(c => c.nome);
-    setClientes(prev => [...novos, ...prev]);
-    setCsvPreview([]);
-    setModalImport(false);
-    showToast(novos.length + " clientes importados!");
+  const importarCSV = async () => {
+    const para_importar = csvPreview.map(r => ({
+      nome: r.nome || r.name || "",
+      telefone: r.telefone || r.whatsapp || r.celular || r.phone || "",
+      total_divida: parseFloat(r.valor || r.divida || r.total || "0") || 0,
+      cpf: r.cpf || r.documento || "",
+      email: r.email || "",
+      vencimento: r.vencimento || r.data || null,
+      parcelas: 1,
+    })).filter(c => c.nome && c.telefone);
+
+    const data = await api("/clientes/importar", { method: "POST", body: JSON.stringify({ clientes: para_importar }) }, token);
+    if (data.sucesso) {
+      const novos = await api("/clientes", {}, token);
+      if (Array.isArray(novos)) setClientes(novos);
+      setCsvPreview([]);
+      setModalImport(false);
+      showToast(data.importados + " clientes importados!");
+    } else showToast(data.erro || "Erro ao importar", "error");
   };
 
   return (
     <div>
       {toast && <ToastMsg {...toast} />}
+      {modalRegua && <ModalRegua cliente={modalRegua} token={token} onClose={() => setModalRegua(null)} />}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Clientes</h1>
@@ -671,6 +814,7 @@ function Clientes({ clientes, setClientes, onCobranca }) {
           <Btn onClick={() => setModalAdd(true)}><Ic.plus /> Novo cliente</Btn>
         </div>
       </div>
+
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         <input placeholder="🔍 Buscar..." value={busca} onChange={e => setBusca(e.target.value)} style={{ flex: 1, minWidth: 160, border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "9px 14px", fontSize: 14, outline: "none", background: "#F8FAFC" }} />
         {["todos", "pendente", "atrasado", "pago"].map(f => (
@@ -679,33 +823,37 @@ function Clientes({ clientes, setClientes, onCobranca }) {
           </button>
         ))}
       </div>
+
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {filtrados.map(c => (
-          <div key={c.id} style={{ background: "#fff", borderRadius: 14, border: "1px solid " + (c.status === "atrasado" ? "#FECACA" : "#F1F5F9"), padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                <div style={{ width: 36, height: 36, background: "linear-gradient(135deg, #DBEAFE, #BFDBFE)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#1E40AF" }}>{c.nome.charAt(0)}</div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: "#0F172A" }}>{c.nome}</div>
-                  <div style={{ fontSize: 12, color: "#94A3B8" }}>{c.cpf || "—"} · {c.telefone}</div>
+          <div key={c.id} style={{ background: "#fff", borderRadius: 14, border: "1px solid " + (c.status === "atrasado" ? "#FECACA" : "#F1F5F9"), padding: "14px 18px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                  <div style={{ width: 36, height: 36, background: "linear-gradient(135deg, #DBEAFE, #BFDBFE)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#1E40AF" }}>{c.nome.charAt(0)}</div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: "#0F172A" }}>{c.nome}</div>
+                    <div style={{ fontSize: 12, color: "#94A3B8" }}>{c.cpf || "—"} · {c.telefone}</div>
+                    {c.vencimento && <div style={{ fontSize: 12, color: "#64748B" }}>Vence: {new Date(c.vencimento).toLocaleDateString("pt-BR")}</div>}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <Badge status={c.status} />
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Badge status={c.status} />
-                {c.diasAtraso > 0 && <span style={{ fontSize: 12, color: "#DC2626", fontWeight: 600, background: "#FEF2F2", padding: "2px 8px", borderRadius: 99 }}>⚠️ {c.diasAtraso} dias em atraso</span>}
-              </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: c.status === "atrasado" ? "#DC2626" : c.status === "pago" ? "#16A34A" : "#0F172A", marginBottom: 8 }}>{fmt(c.totalDivida)}</div>
-              <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                {c.status !== "pago" && <Btn small variant="green" onClick={() => onCobranca(c)}><Ic.send /> Cobrar</Btn>}
-                {c.status !== "pago" && <Btn small variant="ghost" onClick={() => { setClientes(prev => prev.map(x => x.id === c.id ? { ...x, status: "pago", parcelasPagas: x.parcelas, diasAtraso: 0 } : x)); showToast("Marcado como pago! ✅"); }}><Ic.check /> Pago</Btn>}
-                {c.status === "pago" && <span style={{ fontSize: 12, color: "#16A34A", fontWeight: 600 }}>✅ Recebido</span>}
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: c.status === "atrasado" ? "#DC2626" : c.status === "pago" ? "#16A34A" : "#0F172A", marginBottom: 8 }}>{fmt(c.total_divida)}</div>
+                <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                  <Btn small variant="outline" onClick={() => setModalRegua(c)}><Ic.regua /> Régua</Btn>
+                  {c.status !== "pago" && <Btn small variant="green" onClick={() => onCobranca(c)}><Ic.send /> Cobrar</Btn>}
+                  {c.status !== "pago" && <Btn small variant="ghost" onClick={() => marcarPago(c)}><Ic.check /> Pago</Btn>}
+                  <Btn small variant="danger" onClick={() => deletarCliente(c.id)}><Ic.trash /></Btn>
+                </div>
               </div>
             </div>
           </div>
         ))}
-        {filtrados.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}><div style={{ fontSize: 36, marginBottom: 8 }}>🔍</div><div style={{ fontWeight: 600 }}>Nenhum cliente encontrado</div></div>}
+        {filtrados.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}><div style={{ fontSize: 36, marginBottom: 8 }}>👥</div><div style={{ fontWeight: 600 }}>Nenhum cliente encontrado</div><div style={{ fontSize: 13, marginTop: 8 }}>Cadastre seu primeiro cliente ou importe uma planilha</div></div>}
       </div>
 
       {modalAdd && (
@@ -714,49 +862,46 @@ function Clientes({ clientes, setClientes, onCobranca }) {
           <Inp label="CPF" value={novo.cpf} onChange={e => setNovo(p => ({ ...p, cpf: e.target.value }))} placeholder="000.000.000-00" />
           <Inp label="WhatsApp *" value={novo.telefone} onChange={e => setNovo(p => ({ ...p, telefone: e.target.value }))} placeholder="(44) 99999-0000" />
           <Inp label="E-mail" value={novo.email} onChange={e => setNovo(p => ({ ...p, email: e.target.value }))} placeholder="joao@email.com" />
-          <Inp label="Valor total (R$) *" type="number" value={novo.totalDivida} onChange={e => setNovo(p => ({ ...p, totalDivida: e.target.value }))} placeholder="0,00" />
+          <Inp label="Valor total (R$) *" type="number" value={novo.total_divida} onChange={e => setNovo(p => ({ ...p, total_divida: e.target.value }))} placeholder="0,00" />
           <Inp label="Data de vencimento" type="date" value={novo.vencimento} onChange={e => setNovo(p => ({ ...p, vencimento: e.target.value }))} />
           <Sel label="Parcelas" value={novo.parcelas} onChange={e => setNovo(p => ({ ...p, parcelas: e.target.value }))}>
             {[1,2,3,4,6,8,10,12].map(n => <option key={n} value={n}>{n}x</option>)}
           </Sel>
           <div style={{ display: "flex", gap: 10 }}>
             <Btn variant="ghost" onClick={() => setModalAdd(false)} style={{ flex: 1, justifyContent: "center" }}>Cancelar</Btn>
-            <Btn onClick={addCliente} disabled={!novo.nome || !novo.telefone || !novo.totalDivida} style={{ flex: 1, justifyContent: "center" }}><Ic.plus /> Cadastrar</Btn>
+            <Btn onClick={addCliente} disabled={!novo.nome || !novo.telefone || !novo.total_divida} style={{ flex: 1, justifyContent: "center" }}><Ic.plus /> Cadastrar</Btn>
           </div>
         </Modal>
       )}
 
       {modalImport && (
-        <Modal title="Importar Planilha CSV / Excel" onClose={() => { setModalImport(false); setCsvPreview([]); }} wide>
+        <Modal title="Importar Planilha CSV" onClose={() => { setModalImport(false); setCsvPreview([]); }} wide>
           {csvPreview.length === 0 ? (
             <div>
               <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: 16, marginBottom: 20, fontSize: 13, color: "#166534" }}>
-                <strong>Colunas reconhecidas automaticamente:</strong><br />
-                nome, telefone (ou whatsapp/celular), valor (ou divida/total), cpf, email, vencimento
+                <strong>Colunas reconhecidas:</strong> nome, telefone (ou whatsapp/celular), valor (ou divida/total), cpf, email, vencimento
               </div>
               <div onClick={() => fileRef.current?.click()} style={{ border: "2px dashed #E2E8F0", borderRadius: 12, padding: 40, textAlign: "center", cursor: "pointer", background: "#F8FAFC" }}>
                 <div style={{ fontSize: 36, marginBottom: 8 }}>📊</div>
-                <div style={{ fontWeight: 700, color: "#0F172A", marginBottom: 4 }}>Clique para selecionar o arquivo</div>
-                <div style={{ fontSize: 13, color: "#64748B" }}>CSV ou Excel (.csv, .xlsx)</div>
+                <div style={{ fontWeight: 700, color: "#0F172A" }}>Clique para selecionar o arquivo</div>
+                <div style={{ fontSize: 13, color: "#64748B" }}>CSV (.csv)</div>
               </div>
               <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleCSV} style={{ display: "none" }} />
             </div>
           ) : (
             <div>
-              <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#1E40AF", fontWeight: 600 }}>
-                ✅ {csvPreview.length} clientes encontrados na planilha
-              </div>
+              <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#1E40AF", fontWeight: 600 }}>✅ {csvPreview.length} clientes encontrados</div>
               <div style={{ maxHeight: 300, overflow: "auto", marginBottom: 16 }}>
                 {csvPreview.slice(0, 10).map((r, i) => (
                   <div key={i} style={{ padding: "8px 12px", background: i % 2 === 0 ? "#F8FAFC" : "#fff", borderRadius: 8, fontSize: 13, marginBottom: 4 }}>
-                    <strong>{r.nome || r.name}</strong> · {r.telefone || r.whatsapp || r.celular || "—"} · {r.valor || r.divida || "—"}
+                    <strong>{r.nome || r.name}</strong> · {r.telefone || r.whatsapp || "—"} · {r.valor || r.divida || "—"}
                   </div>
                 ))}
-                {csvPreview.length > 10 && <div style={{ fontSize: 12, color: "#64748B", textAlign: "center", padding: 8 }}>... e mais {csvPreview.length - 10} clientes</div>}
+                {csvPreview.length > 10 && <div style={{ fontSize: 12, color: "#64748B", textAlign: "center", padding: 8 }}>... e mais {csvPreview.length - 10}</div>}
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <Btn variant="ghost" onClick={() => setCsvPreview([])} style={{ flex: 1, justifyContent: "center" }}>← Voltar</Btn>
-                <Btn onClick={importarCSV} style={{ flex: 1, justifyContent: "center" }}><Ic.upload /> Importar {csvPreview.length} clientes</Btn>
+                <Btn onClick={importarCSV} style={{ flex: 1, justifyContent: "center" }}><Ic.upload /> Importar {csvPreview.length}</Btn>
               </div>
             </div>
           )}
@@ -766,224 +911,170 @@ function Clientes({ clientes, setClientes, onCobranca }) {
   );
 }
 
-function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, setClientePreSelecionado, pixKey, instanciaWpp }) {
+// ─── COBRANÇAS ────────────────────────────────────────────────────────────────
+function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, setClientePreSelecionado, token }) {
   const [clienteSel, setClienteSel] = useState(clientePreSelecionado?.id?.toString() || "");
-  const [canal, setCanal] = useState("whatsapp");
   const [msg, setMsg] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [disparandoRegua, setDisparandoRegua] = useState(false);
   const [resultadoRegua, setResultadoRegua] = useState(null);
 
-  const clienteSelecionado = clientes.find(c => c.id.toString() === clienteSel);
   useEffect(() => { if (clientePreSelecionado) { setClienteSel(clientePreSelecionado.id.toString()); setClientePreSelecionado(null); } }, []);
-  useEffect(() => {
-    if (clienteSelecionado) {
-      const pix = pixKey ? "\n💳 Pix: *" + pixKey + "* | Valor: *" + fmt(clienteSelecionado.totalDivida) + "*" : "";
-      setMsg("Olá " + clienteSelecionado.nome.split(" ")[0] + " 😊\n\nIdentificamos uma pendência de *" + fmt(clienteSelecionado.totalDivida) + "* em aberto.\n\nRegularize agora via Pix:" + pix + "\n\nQualquer dúvida, é só chamar! 🙏");
-    }
-  }, [clienteSel]);
 
-  const enviar = () => {
+  const clienteSelecionado = clientes.find(c => c.id.toString() === clienteSel);
+
+  const enviar = async () => {
     if (!clienteSel || !msg) return;
     setEnviando(true);
-    setTimeout(() => {
-      setHistorico(prev => [{ id: Date.now(), clienteId: parseInt(clienteSel), tipo: canal, data: new Date().toLocaleString("pt-BR"), mensagem: msg, status: "entregue" }, ...prev]);
-      setEnviando(false); setSucesso(true); setTimeout(() => setSucesso(false), 3000);
-    }, 1200);
+    const data = await api("/cobrancas/disparar", { method: "POST", body: JSON.stringify({ cliente_id: parseInt(clienteSel), mensagem: msg }) }, token);
+    if (data.sucesso) {
+      setSucesso(true);
+      setTimeout(() => setSucesso(false), 3000);
+      const h = await api("/cobrancas/historico", {}, token);
+      if (Array.isArray(h)) setHistorico(h);
+    }
+    setEnviando(false);
   };
 
   const dispararRegua = async () => {
-    if (!instanciaWpp) { alert("Conecte seu WhatsApp primeiro nas Configurações!"); return; }
     setDisparandoRegua(true);
-    try {
-      const token = localStorage.getItem("cobrarfacil_token") || "";
-      const res = await fetch(BACKEND_URL + "/cobrancas/disparar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-        body: JSON.stringify({ devedores: clientes.filter(c => c.status !== "pago").map(c => ({ nome: c.nome, whatsapp: c.telefone, valor: c.totalDivida })), nomeLojista: "nossa loja" })
-      });
-      const data = await res.json();
-      setResultadoRegua(data.mensagem || "Disparo iniciado!");
-    } catch { setResultadoRegua("Erro ao disparar."); }
+    setResultadoRegua(null);
+    const data = await api("/cobrancas/regua", { method: "POST", body: JSON.stringify({}) }, token);
+    setResultadoRegua(data.mensagem || "Régua iniciada!");
     setDisparandoRegua(false);
   };
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}><h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Enviar Cobrança</h1></div>
-      <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 14, padding: 16, marginBottom: 20 }}>
+      <div style={{ marginBottom: 20 }}><h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Cobranças</h1></div>
+
+      <div style={{ background: "linear-gradient(135deg, #EFF6FF, #F0FDF4)", border: "1px solid #BFDBFE", borderRadius: 14, padding: 20, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#1E40AF", marginBottom: 4 }}>🤖 Régua Automática</div>
-            <div style={{ fontSize: 13, color: "#64748B" }}>Dispara cobranças para todos os clientes pendentes com intervalos de segurança entre mensagens</div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#1E40AF", marginBottom: 6 }}>🤖 Régua Automática</div>
+            <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
+              Dispara automaticamente todo dia às 8h para todos os clientes.<br />
+              Etapas: <strong>D-10 · D-7 · D-3 · D0 · D+7 · D+30</strong> com variação de mensagens.<br />
+              Configure etapas individuais clicando em <strong>"Régua"</strong> em cada cliente.
+            </div>
           </div>
-          <Btn onClick={dispararRegua} disabled={disparandoRegua} variant="primary">
-            {disparandoRegua ? "Disparando..." : "▶ Disparar régua agora"}
+          <Btn onClick={dispararRegua} disabled={disparandoRegua} variant="primary" style={{ minWidth: 180, justifyContent: "center" }}>
+            {disparandoRegua ? "⏳ Disparando..." : "▶ Disparar agora"}
           </Btn>
         </div>
         {resultadoRegua && (
-          <div style={{ marginTop: 12, background: "#fff", borderRadius: 8, padding: 12, fontSize: 13, color: "#1E40AF", fontWeight: 600 }}>
-            {resultadoRegua}
-          </div>
+          <div style={{ marginTop: 12, background: "#fff", borderRadius: 8, padding: 10, fontSize: 13, color: "#16A34A", fontWeight: 600 }}>✅ {resultadoRegua}</div>
         )}
       </div>
 
       {sucesso && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 16, color: "#16A34A", fontWeight: 600 }}>✅ Cobrança enviada!</div>}
+
       <div style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1px solid #F1F5F9" }}>
+        <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>Enviar cobrança avulsa</h3>
         <Sel label="Cliente" value={clienteSel} onChange={e => setClienteSel(e.target.value)}>
-          <option value="">Selecione...</option>
-          {clientes.filter(c => c.status !== "pago").map(c => <option key={c.id} value={c.id}>{c.nome} — {fmt(c.totalDivida)}</option>)}
+          <option value="">Selecione um cliente...</option>
+          {clientes.filter(c => c.status !== "pago").map(c => <option key={c.id} value={c.id}>{c.nome} — {fmt(c.total_divida)}</option>)}
         </Sel>
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Canal</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            {[{ k: "whatsapp", l: "WhatsApp" }, { k: "email", l: "E-mail" }].map(ch => (
-              <button key={ch.k} onClick={() => setCanal(ch.k)} style={{ flex: 1, background: canal === ch.k ? "#EFF6FF" : "#F8FAFC", border: "2px solid " + (canal === ch.k ? "#1E40AF" : "#E2E8F0"), borderRadius: 10, padding: "9px", cursor: "pointer", fontSize: 13, fontWeight: 600, color: canal === ch.k ? "#1E40AF" : "#64748B" }}>{ch.l}</button>
-            ))}
-          </div>
-        </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>Mensagem</label>
-          <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={5} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 12px", fontSize: 13, outline: "none", background: "#F8FAFC", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+          <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={4} placeholder={clienteSelecionado ? "Digite a mensagem para " + clienteSelecionado.nome + "..." : "Selecione um cliente primeiro..."} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 12px", fontSize: 13, outline: "none", background: "#F8FAFC", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
         </div>
-        <Btn onClick={enviar} style={{ width: "100%", justifyContent: "center" }}>{enviando ? "Enviando..." : <><Ic.send /> Enviar Cobrança</>}</Btn>
+        <Btn onClick={enviar} disabled={enviando || !clienteSel || !msg} style={{ width: "100%", justifyContent: "center" }}>{enviando ? "Enviando..." : <><Ic.send /> Enviar via WhatsApp</>}</Btn>
       </div>
     </div>
   );
 }
 
-function Historico({ historico, setHistorico, clientes, setClientes }) {
-  const get = (id) => clientes.find(c => c.id === id);
-  const [toast, setToast] = useState(null);
-  const [confirmando, setConfirmando] = useState(null);
-  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
-
-  const confirmarPagamento = (h) => {
-    setConfirmando(h.id);
-    setTimeout(() => {
-      setHistorico(prev => prev.map(x => x.id === h.id ? { ...x, status: "pago_confirmado" } : x));
-      setClientes(prev => prev.map(c => c.id === h.clienteId ? { ...c, status: "pago", parcelasPagas: c.parcelas, diasAtraso: 0 } : c));
-      setConfirmando(null);
-      showToast("✅ Pagamento confirmado!");
-    }, 800);
-  };
-
-  const statusInfo = (status) => ({
-    entregue:        { bg: "#F0FDF4", color: "#16A34A", label: "✓ Entregue" },
-    lido:            { bg: "#EFF6FF", color: "#1E40AF", label: "✓✓ Lido" },
-    pago_confirmado: { bg: "#DCFCE7", color: "#15803D", label: "💰 Pago" },
-    nao_pago:        { bg: "#FEE2E2", color: "#DC2626", label: "✗ Não pagou" },
-  }[status] || { bg: "#F1F5F9", color: "#64748B", label: status });
-
+// ─── HISTÓRICO ────────────────────────────────────────────────────────────────
+function Historico({ historico }) {
+  const etapaLabel = { "d-10": "D-10", "d-7": "D-7", "d-3": "D-3", "d0": "D0", "d+7": "D+7", "d+30": "D+30" };
   return (
     <div>
-      {toast && <ToastMsg {...toast} />}
-      <div style={{ marginBottom: 20 }}><h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Histórico</h1><p style={{ margin: "4px 0 0", color: "#64748B", fontSize: 14 }}>{historico.length} mensagens</p></div>
+      <div style={{ marginBottom: 20 }}><h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Histórico</h1><p style={{ margin: "4px 0 0", color: "#64748B", fontSize: 14 }}>{historico.length} mensagens enviadas</p></div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {historico.map(h => {
-          const c = get(h.clienteId);
-          const s = statusInfo(h.status);
-          return (
-            <div key={h.id} style={{ background: "#fff", borderRadius: 14, padding: "14px 18px", border: "1px solid #F1F5F9" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <div style={{ width: 34, height: 34, background: "#F0FDF4", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#16A34A", flexShrink: 0 }}><Ic.whatsapp /></div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{c?.nome || "—"}</div>
-                    <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 4 }}>{h.data}</div>
-                    <div style={{ fontSize: 12, color: "#374151", background: "#F8FAFC", borderRadius: 8, padding: "6px 10px" }}>{h.mensagem.substring(0, 80)}...</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                  <span style={{ background: s.bg, color: s.color, fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>{s.label}</span>
-                  {h.status !== "pago_confirmado" && h.status !== "nao_pago" && c?.status !== "pago" && (
-                    <Btn small variant="green" onClick={() => confirmarPagamento(h)} disabled={confirmando === h.id}>{confirmando === h.id ? "..." : <><Ic.check /> Confirmar pago</>}</Btn>
-                  )}
+        {historico.map(h => (
+          <div key={h.id} style={{ background: "#fff", borderRadius: 14, padding: "14px 18px", border: "1px solid #F1F5F9" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ display: "flex", gap: 10 }}>
+                <div style={{ width: 34, height: 34, background: "#F0FDF4", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#16A34A", flexShrink: 0 }}><Ic.whatsapp /></div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{h.cliente_nome || "—"}</div>
+                  <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 4 }}>{new Date(h.criado_em).toLocaleString("pt-BR")} {h.etapa && <span style={{ background: "#EFF6FF", color: "#1E40AF", padding: "1px 6px", borderRadius: 99, fontSize: 10, fontWeight: 700, marginLeft: 4 }}>{etapaLabel[h.etapa] || h.etapa}</span>}</div>
+                  <div style={{ fontSize: 12, color: "#374151", background: "#F8FAFC", borderRadius: 8, padding: "6px 10px" }}>{h.mensagem?.substring(0, 100)}...</div>
                 </div>
               </div>
+              <span style={{ background: "#DCFCE7", color: "#16A34A", fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>✓ Enviado</span>
             </div>
-          );
-        })}
-        {historico.length === 0 && <div style={{ textAlign: "center", padding: 60, color: "#94A3B8" }}><div style={{ fontSize: 40, marginBottom: 8 }}>📭</div><div style={{ fontWeight: 600 }}>Sem cobranças enviadas</div></div>}
+          </div>
+        ))}
+        {historico.length === 0 && <div style={{ textAlign: "center", padding: 60, color: "#94A3B8" }}><div style={{ fontSize: 40, marginBottom: 8 }}>📭</div><div style={{ fontWeight: 600 }}>Nenhuma cobrança enviada ainda</div></div>}
       </div>
     </div>
   );
 }
 
-function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaWpp }) {
-  const [pixInput, setPixInput] = useState(pixKey || "");
-  const [pixSalvo, setPixSalvo] = useState(!!pixKey);
+// ─── CONFIGURAÇÕES ────────────────────────────────────────────────────────────
+function Configuracoes({ usuario, token }) {
+  const [pixInput, setPixInput] = useState("");
+  const [pixSalvo, setPixSalvo] = useState(false);
   const [toast, setToast] = useState(null);
   const [qrCode, setQrCode] = useState(null);
   const [wppStatus, setWppStatus] = useState(null);
   const [loadingQr, setLoadingQr] = useState(false);
-  const [instanciaInput, setInstanciaInput] = useState(instanciaWpp || "");
-  const [renovando, setRenovando] = useState(false);
-  const [planoRenovar, setPlanoRenovar] = useState("trimestral");
-  const [formaPagRenovar, setFormaPagRenovar] = useState("pix");
-  const [cartaoRenovar, setCartaoRenovar] = useState({ numero: "", nome: "", validade: "", cvv: "" });
-  const [resultadoRenovacao, setResultadoRenovacao] = useState(null);
-  const [erroRenovacao, setErroRenovacao] = useState("");
+  const [instanciaWpp, setInstanciaWpp] = useState(() => { try { return localStorage.getItem("cobrarfacil_instancia") || ""; } catch { return ""; } });
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmaSenha, setConfirmaSenha] = useState("");
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
 
-  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2000); };
-  const salvarPix = () => { if (!pixInput.trim()) return; setPixKey(pixInput.trim()); setPixSalvo(true); showToast("Chave Pix salva!"); };
+  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500); };
+
+  const expiraEm = usuario?.expira_em ? new Date(usuario.expira_em).toLocaleDateString("pt-BR") : "—";
+  const diasRestantes = usuario?.expira_em ? Math.floor((new Date(usuario.expira_em) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+
+  const salvarPix = async () => {
+    if (!pixInput.trim()) return;
+    await api("/usuarios/me", { method: "PATCH", body: JSON.stringify({ pix_key: pixInput.trim() }) }, token).catch(() => {});
+    localStorage.setItem("cobrarfacil_pix", pixInput.trim());
+    setPixSalvo(true);
+    showToast("Chave Pix salva!");
+  };
 
   const conectarWpp = async () => {
     setLoadingQr(true);
     setQrCode(null);
     setWppStatus(null);
-    try {
-      const token = localStorage.getItem("cobrarfacil_token") || "";
-      const res = await fetch(BACKEND_URL + "/whatsapp/qrcode", { headers: { "Authorization": "Bearer " + token } });
-      const data = await res.json();
-      console.log("QR Data:", JSON.stringify(data).substring(0, 200));
-      if (data.base64) {
-        const src = data.base64.startsWith("data:") ? data.base64 : "data:image/png;base64," + data.base64;
-        setQrCode(src);
-      } else {
-        setWppStatus("Aguardando QR Code... tente novamente em 5 segundos.");
-      }
-    } catch { setWppStatus("Erro ao conectar. Tente novamente."); }
+    const data = await api("/whatsapp/qrcode", {}, token);
+    if (data.base64) {
+      const src = data.base64.startsWith("data:") ? data.base64 : "data:image/png;base64," + data.base64;
+      setQrCode(src);
+    } else {
+      setWppStatus("Erro ao gerar QR Code. Tente novamente.");
+    }
     setLoadingQr(false);
   };
 
   const verificarStatus = async () => {
-    try {
-      const token = localStorage.getItem("cobrarfacil_token") || "";
-      const res = await fetch(BACKEND_URL + "/whatsapp/status", { headers: { "Authorization": "Bearer " + token } });
-      const data = await res.json();
-      if (data.state === "open" || data.instance?.state === "open") {
-        setWppStatus("✅ WhatsApp conectado!");
-        setQrCode(null);
-        setInstanciaWpp("conectado");
-      } else {
-        setWppStatus("⏳ Aguardando leitura do QR Code...");
-      }
-    } catch { setWppStatus("Erro ao verificar status."); }
+    const data = await api("/whatsapp/status", {}, token);
+    if (data.state === "open" || data.instance?.state === "open") {
+      setWppStatus("✅ WhatsApp conectado!");
+      setQrCode(null);
+      setInstanciaWpp("conectado");
+      localStorage.setItem("cobrarfacil_instancia", "conectado");
+    } else {
+      setWppStatus("⏳ Aguardando leitura do QR Code...");
+    }
   };
 
-  const renovarPlano = async () => {
-    setErroRenovacao("");
-    setResultadoRenovacao(null);
-    if (formaPagRenovar === "cartao" && (!cartaoRenovar.numero || !cartaoRenovar.nome || !cartaoRenovar.validade || !cartaoRenovar.cvv)) { setErroRenovacao("Preencha todos os dados do cartão"); return; }
-    setRenovando(true);
-    try {
-      const token = localStorage.getItem("cobrarfacil_token") || "";
-      const res = await fetch(BACKEND_URL + "/usuarios/renovar-plano", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-        body: JSON.stringify({ plano: planoRenovar })
-      });
-      const data = await res.json();
-      if (data.sucesso) setResultadoRenovacao(data);
-      else setErroRenovacao(data.erro || "Erro ao renovar");
-    } catch { setErroRenovacao("Erro de conexão"); }
-    setRenovando(false);
+  const trocarSenha = async () => {
+    if (novaSenha.length < 6) { showToast("Mínimo 6 caracteres", "error"); return; }
+    if (novaSenha !== confirmaSenha) { showToast("Senhas não coincidem", "error"); return; }
+    setTrocandoSenha(true);
+    const data = await api("/auth/trocar-senha", { method: "POST", body: JSON.stringify({ senha_nova: novaSenha }) }, token);
+    if (data.sucesso) { showToast("Senha alterada com sucesso!"); setNovaSenha(""); setConfirmaSenha(""); }
+    else showToast(data.erro || "Erro", "error");
+    setTrocandoSenha(false);
   };
-
-  const expiraEm = usuario?.expira_em ? new Date(usuario.expira_em).toLocaleDateString("pt-BR") : "—";
-  const diasRestantes = usuario?.expira_em ? Math.floor((new Date(usuario.expira_em) - new Date()) / (1000 * 60 * 60 * 24)) : null;
 
   return (
     <div>
@@ -992,8 +1083,8 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
       <div style={{ display: "grid", gap: 18, maxWidth: 620 }}>
 
         <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>Meu Perfil</h3>
-          {[["Nome", usuario?.nome], ["E-mail", usuario?.email], ["Plano", usuario?.plano], ["Válido até", expiraEm]].map(([k, v]) => (
+          <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>👤 Meu Perfil</h3>
+          {[["Nome", usuario?.nome], ["E-mail", usuario?.email], ["Plano", usuario?.plano?.charAt(0).toUpperCase() + usuario?.plano?.slice(1)], ["Válido até", expiraEm]].map(([k, v]) => (
             <div key={k} style={{ background: "#F8FAFC", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
               <span style={{ fontSize: 13, color: "#64748B" }}>{k}</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>{v || "—"}</span>
@@ -1001,61 +1092,47 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
           ))}
           {diasRestantes !== null && diasRestantes <= 7 && (
             <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#92400E", fontWeight: 600, marginTop: 8 }}>
-              ⚠️ Seu plano vence em {diasRestantes} dia(s). Renove agora!
+              ⚠️ Seu plano vence em {diasRestantes} dia(s)! Entre em contato: (44) 99897-0506
             </div>
           )}
         </div>
 
         <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>🔄 Renovar Plano</h3>
-          {resultadoRenovacao ? (
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
-              <div style={{ fontWeight: 700, color: "#16A34A", marginBottom: 8 }}>Plano renovado com sucesso!</div>
-              <button onClick={() => setResultadoRenovacao(null)} style={{ background: "#F1F5F9", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, cursor: "pointer" }}>Fechar</button>
-            </div>
-          ) : (
-            <div>
-              <Sel label="Plano" value={planoRenovar} onChange={e => setPlanoRenovar(e.target.value)}>
-                <option value="mensal">Mensal — R$147/mês</option>
-                <option value="trimestral">Trimestral — R$119/mês (R$357)</option>
-                <option value="anual">Anual — R$97/mês (R$1.164)</option>
-              </Sel>
-              {erroRenovacao && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>{erroRenovacao}</div>}
-              <Btn onClick={renovarPlano} disabled={renovando} style={{ width: "100%", justifyContent: "center" }}>{renovando ? "Processando..." : "🔄 Renovar agora"}</Btn>
-            </div>
-          )}
+          <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>🔒 Alterar Senha</h3>
+          <SenhaInput label="Nova senha" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+          <SenhaInput label="Confirmar senha" value={confirmaSenha} onChange={e => setConfirmaSenha(e.target.value)} placeholder="Repita a nova senha" />
+          <Btn onClick={trocarSenha} disabled={trocandoSenha || !novaSenha || !confirmaSenha} style={{ width: "100%", justifyContent: "center" }}>{trocandoSenha ? "Salvando..." : "🔒 Alterar senha"}</Btn>
         </div>
 
         <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700 }}>⚡ Chave Pix</h3>
           {pixSalvo ? (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F0FDF4", borderRadius: 10, padding: "12px 16px", border: "1px solid #86EFAC" }}>
-              <div><div style={{ fontSize: 12, color: "#64748B", marginBottom: 2 }}>Chave cadastrada</div><div style={{ fontWeight: 800, fontFamily: "monospace", fontSize: 15 }}>{pixKey}</div></div>
+              <div><div style={{ fontSize: 12, color: "#64748B" }}>Chave cadastrada</div><div style={{ fontWeight: 800, fontFamily: "monospace", fontSize: 15 }}>{pixInput}</div></div>
               <Btn small variant="ghost" onClick={() => setPixSalvo(false)}>✏️ Alterar</Btn>
             </div>
           ) : (
             <div>
               <Inp label="Chave Pix" value={pixInput} onChange={e => setPixInput(e.target.value)} placeholder="Telefone, CPF, e-mail ou chave aleatória" />
-              <Btn onClick={salvarPix} disabled={!pixInput.trim()}>Salvar chave Pix</Btn>
+              <Btn onClick={salvarPix} disabled={!pixInput.trim()} style={{ width: "100%", justifyContent: "center" }}>Salvar chave Pix</Btn>
             </div>
           )}
         </div>
 
         <div style={{ background: "#fff", borderRadius: 16, padding: 22, border: "1px solid #F1F5F9" }}>
           <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700 }}>📱 Conectar WhatsApp</h3>
-          <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Conecte o número do seu negócio para enviar cobranças automáticas</p>
+          <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Conecte o número do seu negócio para enviar cobranças automáticas aos seus clientes</p>
           {instanciaWpp && !qrCode && (
             <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div><div style={{ fontSize: 12, color: "#64748B" }}>Instância ativa</div><div style={{ fontWeight: 700, color: "#16A34A" }}>✅ {instanciaWpp}</div></div>
-              <Btn small variant="ghost" onClick={() => { setInstanciaWpp(""); setInstanciaInput(""); setQrCode(null); setWppStatus(null); }}>Desconectar</Btn>
+              <div style={{ fontWeight: 700, color: "#16A34A" }}>✅ WhatsApp conectado</div>
+              <Btn small variant="ghost" onClick={() => { setInstanciaWpp(""); localStorage.removeItem("cobrarfacil_instancia"); setQrCode(null); setWppStatus(null); }}>Desconectar</Btn>
             </div>
           )}
           {qrCode ? (
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 13, color: "#64748B", marginBottom: 12 }}>Escaneie o QR Code com seu WhatsApp Business:</div>
-              <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 220, height: 220, borderRadius: 8, border: "2px solid #E2E8F0" }} />
-              <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12 }}>
+              <div style={{ fontSize: 13, color: "#64748B", marginBottom: 12 }}>Escaneie com o WhatsApp do seu negócio:</div>
+              <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 220, height: 220, borderRadius: 8, border: "2px solid #E2E8F0", display: "block", margin: "0 auto 16px" }} />
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                 <Btn small onClick={verificarStatus}><Ic.refresh /> Verificar conexão</Btn>
                 <Btn small variant="ghost" onClick={() => { setQrCode(null); setWppStatus(null); }}>Cancelar</Btn>
               </div>
@@ -1066,7 +1143,7 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
               <Btn onClick={conectarWpp} disabled={loadingQr} style={{ width: "100%", justifyContent: "center" }}>
                 {loadingQr ? "Gerando QR Code..." : <><Ic.qr /> Gerar QR Code para conectar</>}
               </Btn>
-              {wppStatus && <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: wppStatus.includes("✅") ? "#16A34A" : "#D97706" }}>{wppStatus}</div>}
+              {wppStatus && <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: wppStatus.includes("✅") ? "#16A34A" : "#DC2626" }}>{wppStatus}</div>}
             </div>
           )}
         </div>
@@ -1076,16 +1153,14 @@ function Configuracoes({ usuario, pixKey, setPixKey, instanciaWpp, setInstanciaW
   );
 }
 
+// ─── APP PRINCIPAL ────────────────────────────────────────────────────────────
 export default function CobrarFacil() {
   const [sessao, setSessao] = useState(null);
   const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [tela, setTela] = useState("dashboard");
-  const emailSalvo = (() => { try { const u = localStorage.getItem("cobrarfacil_usuario"); return u ? JSON.parse(u).email : ""; } catch { return ""; } })();
-  const [clientes, setClientes] = useState(emailSalvo === "tiago@lookupmoda.com.br" ? DB_DEMO.clientes : []);
-  const [historico, setHistorico] = useState(emailSalvo === "tiago@lookupmoda.com.br" ? DB_DEMO.historico : []);
+  const [clientes, setClientes] = useState([]);
+  const [historico, setHistorico] = useState([]);
   const [clienteParaCobrar, setClienteParaCobrar] = useState(null);
-  const [pixKey, setPixKey] = useState(() => { try { return localStorage.getItem("cobrarfacil_pix") || ""; } catch { return ""; } });
-  const [instanciaWpp, setInstanciaWpp] = useState(() => { try { return localStorage.getItem("cobrarfacil_instancia") || ""; } catch { return ""; } });
 
   useEffect(() => {
     try {
@@ -1098,14 +1173,20 @@ export default function CobrarFacil() {
     } catch {}
   }, []);
 
-  const salvarPixKey = (key) => { try { localStorage.setItem("cobrarfacil_pix", key); } catch {} setPixKey(key); };
-  const salvarInstancia = (inst) => { try { localStorage.setItem("cobrarfacil_instancia", inst); } catch {} setInstanciaWpp(inst); };
+  useEffect(() => {
+    if (sessao && !sessao.isAdmin) {
+      const t = sessao.token;
+      api("/clientes", {}, t).then(d => { if (Array.isArray(d)) setClientes(d); });
+      api("/cobrancas/historico", {}, t).then(d => { if (Array.isArray(d)) setHistorico(d); });
+    }
+  }, [sessao]);
+
   const logout = () => { try { localStorage.removeItem("cobrarfacil_token"); localStorage.removeItem("cobrarfacil_usuario"); } catch {} setSessao(null); setTrocandoSenha(false); };
   const onLogin = (dados) => { setSessao(dados); if (!dados.isAdmin && dados.usuario?.primeiro_acesso) setTrocandoSenha(true); };
 
   if (!sessao) return <LoginScreen onLogin={onLogin} />;
-  if (sessao.isAdmin) return <AdminPanel onLogout={logout} />;
-  if (trocandoSenha) return <TrocarSenha email={sessao.usuario?.email} onSucesso={() => setTrocandoSenha(false)} />;
+  if (sessao.isAdmin) return <AdminPanel onLogout={logout} token={sessao.token} />;
+  if (trocandoSenha) return <TrocarSenha token={sessao.token} onSucesso={() => setTrocandoSenha(false)} />;
 
   const irParaCobranca = (c) => { setClienteParaCobrar(c); setTela("cobrancas"); };
   const nav = [
@@ -1131,14 +1212,13 @@ export default function CobrarFacil() {
             <button key={n.key} onClick={() => setTela(n.key)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "10px 12px", borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 3, background: tela === n.key ? "rgba(59,130,246,0.15)" : "transparent", color: tela === n.key ? "#60A5FA" : "#64748B", fontSize: 13, fontWeight: tela === n.key ? 700 : 500, textAlign: "left" }}>
               {n.icon} {n.label}
               {n.key === "clientes" && atrasadosCount > 0 && <span style={{ marginLeft: "auto", background: "#DC2626", color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "1px 6px" }}>{atrasadosCount}</span>}
-              {n.key === "config" && !instanciaWpp && <span style={{ marginLeft: "auto", background: "#D97706", color: "#fff", borderRadius: 99, fontSize: 9, fontWeight: 700, padding: "1px 5px" }}>!</span>}
             </button>
           ))}
         </nav>
         <div style={{ padding: "14px 16px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #1E40AF, #3B82F6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#fff" }}>{sessao.usuario?.nome?.charAt(0) || "U"}</div>
-            <div><div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0" }}>{sessao.usuario?.nome?.split(" ")[0] || "Usuário"}</div><div style={{ fontSize: 10, color: "#475569" }}>Plano {sessao.usuario?.plano || "Pro"}</div></div>
+            <div><div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0" }}>{sessao.usuario?.nome?.split(" ")[0] || "Usuário"}</div><div style={{ fontSize: 10, color: "#475569" }}>Plano {sessao.usuario?.plano || "—"}</div></div>
           </div>
           <button onClick={logout} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "7px", color: "#94A3B8", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>Sair</button>
         </div>
@@ -1147,16 +1227,16 @@ export default function CobrarFacil() {
         <div style={{ background: "#fff", borderBottom: "1px solid #F1F5F9", padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
           <span style={{ fontSize: 13, color: "#64748B", fontWeight: 600 }}>Bem-vindo, {sessao.usuario?.nome?.split(" ")[0] || ""}!</span>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {!instanciaWpp && <div onClick={() => setTela("config")} style={{ background: "#FEF3C7", color: "#92400E", padding: "4px 10px", borderRadius: 99, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>⚠️ Conecte seu WhatsApp</div>}
+            {sessao.usuario?.avisoRenovacao && <div style={{ background: "#FEF3C7", color: "#92400E", padding: "4px 10px", borderRadius: 99, fontSize: 12, fontWeight: 700 }}>⚠️ Plano vencendo em breve</div>}
             {atrasadosCount > 0 && <div style={{ display: "flex", alignItems: "center", gap: 5, background: "#FEF2F2", color: "#DC2626", padding: "5px 10px", borderRadius: 99, fontSize: 12, fontWeight: 700 }}><Ic.bell /> {atrasadosCount} em atraso</div>}
           </div>
         </div>
         <div style={{ padding: "20px 16px" }}>
-          {tela === "dashboard" && <Dashboard clientes={clientes} />}
-          {tela === "clientes"  && <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} />}
-          {tela === "cobrancas" && <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} pixKey={pixKey} instanciaWpp={instanciaWpp} />}
-          {tela === "historico" && <Historico historico={historico} setHistorico={setHistorico} clientes={clientes} setClientes={setClientes} />}
-          {tela === "config"    && <Configuracoes usuario={sessao.usuario} pixKey={pixKey} setPixKey={salvarPixKey} instanciaWpp={instanciaWpp} setInstanciaWpp={salvarInstancia} />}
+          {tela === "dashboard" && <Dashboard clientes={clientes} token={sessao.token} />}
+          {tela === "clientes"  && <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} token={sessao.token} />}
+          {tela === "cobrancas" && <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessao.token} />}
+          {tela === "historico" && <Historico historico={historico} />}
+          {tela === "config"    && <Configuracoes usuario={sessao.usuario} token={sessao.token} />}
         </div>
       </div>
     </div>
