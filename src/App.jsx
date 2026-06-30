@@ -864,7 +864,7 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
           <Inp label="Valor (R$) *" type="number" value={novo.total_divida} onChange={e => setNovo(p => ({ ...p, total_divida: e.target.value }))} placeholder="0,00" />
           <Inp label="Vencimento" type="date" value={novo.vencimento} onChange={e => setNovo(p => ({ ...p, vencimento: e.target.value }))} />
           <Sel label="Parcelas" value={novo.parcelas} onChange={e => setNovo(p => ({ ...p, parcelas: e.target.value }))}>
-            {[1,2,3,4,6,8,10,12].map(n => <option key={n} value={n}>{n}x</option>)}
+            {[1,2,3,4,5,6,7,8,9,10,11,12,18,24].map(n => <option key={n} value={n}>{n}x</option>)}
           </Sel>
           {parseInt(novo.parcelas) > 1 && novo.total_divida && novo.vencimento && (
             <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "12px 14px", marginBottom: 14, fontSize: 13, color: "#1E40AF" }}>
@@ -899,6 +899,9 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
           <Inp label="E-mail" value={editando.email || ""} onChange={e => setEditando(p => ({ ...p, email: e.target.value }))} placeholder="email@exemplo.com" />
           <Inp label="Valor (R$) *" type="number" value={editando.total_divida || ""} onChange={e => setEditando(p => ({ ...p, total_divida: e.target.value }))} placeholder="0,00" />
           <Inp label="Vencimento" type="date" value={editando.vencimento ? editando.vencimento.split("T")[0] : ""} onChange={e => setEditando(p => ({ ...p, vencimento: e.target.value }))} />
+          <Sel label="Parcelas" value={editando.parcelas || 1} onChange={e => setEditando(p => ({ ...p, parcelas: e.target.value }))}>
+            {[1,2,3,4,5,6,7,8,9,10,11,12,18,24].map(n => <option key={n} value={n}>{n}x</option>)}
+          </Sel>
           <Sel label="Status" value={editando.status || "pendente"} onChange={e => setEditando(p => ({ ...p, status: e.target.value }))}>
             <option value="pendente">Pendente</option>
             <option value="atrasado">Atrasado</option>
