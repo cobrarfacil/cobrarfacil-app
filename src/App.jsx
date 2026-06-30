@@ -71,9 +71,9 @@ const Badge = ({ status }) => {
 };
 
 const Modal = ({ title, children, onClose, wide }) => (
-  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 0 }}
+  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
     onClick={e => e.target === e.currentTarget && onClose()}>
-    <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: wide ? 760 : 560, maxHeight: "92vh", overflow: "auto", boxShadow: "0 -8px 40px rgba(0,0,0,0.2)" }}>
+    <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: wide ? 760 : 560, maxHeight: "92vh", overflow: "auto", boxShadow: "0 8px 40px rgba(0,0,0,0.25)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px", borderBottom: "1px solid #F1F5F9", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0F172A" }}>{title}</h3>
         <button onClick={onClose} style={{ background: "#F1F5F9", border: "none", borderRadius: 8, width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B" }}><Ic.close /></button>
@@ -744,8 +744,17 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
 
   const salvarEdicao = async () => {
     const data = await api("/clientes/" + editando.id, { method: "PUT", body: JSON.stringify(editando) }, token);
-    if (data.id) { setClientes(prev => prev.map(x => x.id === editando.id ? data : x)); setModalEditar(null); showToast("Cliente atualizado!"); }
-    else showToast(data.erro || "Erro", "error");
+    if (data.id) {
+      setClientes(prev => prev.map(x => x.id === editando.id ? data : x));
+      setModalEditar(null);
+      showToast("Cliente atualizado!");
+    } else if (data.reparcelado) {
+      // Recarrega todos os clientes para refletir o reparcelamento
+      const novos = await api("/clientes", {}, token);
+      if (Array.isArray(novos)) setClientes(novos);
+      setModalEditar(null);
+      showToast(data.total + " parcelas criadas com sucesso!");
+    } else showToast(data.erro || "Erro", "error");
   };
 
   const prorrogarDivida = async () => {
@@ -932,16 +941,27 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
       )}
 
       {modalImport && (
-        <Modal title="Importar CSV" onClose={() => { setModalImport(false); setCsvPreview([]); }} wide>
+        <Modal title="Importar Planilha" onClose={() => { setModalImport(false); setCsvPreview([]); }} wide>
           {csvPreview.length === 0 ? (
             <div>
-              <div style={{ background: "#F0FDF4", borderRadius: 10, padding: 14, marginBottom: 16, fontSize: 13, color: "#166534" }}>
-                <strong>Colunas reconhecidas:</strong> nome, telefone (ou whatsapp), valor (ou divida), cpf, email, vencimento
+              <div style={{ background: "#F0FDF4", borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 13, color: "#166534" }}>
+                <strong>Colunas aceitas:</strong> nome*, telefone*, valor*, cpf, email, vencimento (dd/mm/aaaa ou aaaa-mm-dd), parcelas
               </div>
+              <button onClick={() => {
+                const csv = "nome,telefone,valor,cpf,email,vencimento,parcelas
+João Silva,44999990000,300.00,123.456.789-00,joao@email.com,2026-07-01,3
+Maria Souza,44988880000,150.00,,,2026-07-15,1";
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = "modelo_clientes_cobrarfacil.csv"; a.click();
+              }} style={{ width: "100%", background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 10, padding: "10px", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 14 }}>
+                📥 Baixar modelo de planilha
+              </button>
               <div onClick={() => fileRef.current?.click()} style={{ border: "2px dashed #E2E8F0", borderRadius: 12, padding: 40, textAlign: "center", cursor: "pointer", background: "#F8FAFC" }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>📊</div>
                 <div style={{ fontWeight: 700, color: "#0F172A" }}>Clique para selecionar</div>
-                <div style={{ fontSize: 13, color: "#64748B" }}>Arquivo CSV</div>
+                <div style={{ fontSize: 13, color: "#64748B" }}>Arquivo CSV ou Excel exportado como CSV</div>
               </div>
               <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleCSV} style={{ display: "none" }} />
             </div>
