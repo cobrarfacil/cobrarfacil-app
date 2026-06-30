@@ -506,11 +506,42 @@ function AdminPanel({ onLogout, token }) {
   );
 }
 
+function ModalDetalheLista({ titulo, lista, onClose }) {
+  const totalValor = lista.reduce((a, c) => a + parseFloat(c.total_divida || 0), 0);
+  return (
+    <Modal title={titulo} onClose={onClose} wide>
+      <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 14, color: "#1E40AF", fontWeight: 700, display: "flex", justifyContent: "space-between" }}>
+        <span>{lista.length} cliente(s)</span>
+        <span>{fmt(totalValor)}</span>
+      </div>
+      {lista.length === 0 ? (
+        <div style={{ textAlign: "center", color: "#94A3B8", padding: 30, fontSize: 14 }}>Nenhum cliente neste grupo</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {lista.map(c => (
+            <div key={c.id} style={{ background: "#F8FAFC", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{c.nome}</div>
+                <div style={{ fontSize: 12, color: "#64748B" }}>{c.telefone} {c.vencimento && "· Vence " + fmtData(c.vencimento.split("T")[0])}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Badge status={c.status} />
+                <div style={{ fontWeight: 800, color: "#0F172A" }}>{fmt(c.total_divida)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 function Dashboard({ clientes, token }) {
   const [metricas, setMetricas] = useState(null);
   const [relatorio, setRelatorio] = useState(null);
   const [periodo, setPeriodo] = useState({ inicio: new Date().toISOString().split('T')[0], fim: new Date(Date.now() + 30*86400000).toISOString().split('T')[0] });
   const [filtrando, setFiltrando] = useState(false);
+  const [detalhe, setDetalhe] = useState(null);
 
   useEffect(() => {
     api("/metricas", {}, token).then(d => { if (d.total_em_aberto !== undefined) setMetricas(d); });
@@ -526,37 +557,48 @@ function Dashboard({ clientes, token }) {
   const total = clientes.reduce((a, c) => a + parseFloat(c.total_divida || 0), 0);
   const pagos = clientes.filter(c => c.status === "pago");
   const atrasados = clientes.filter(c => c.status === "atrasado");
+  const abertos = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist");
+
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const fimSemana = new Date(hoje); fimSemana.setDate(fimSemana.getDate() + 7);
+  const fimMes = new Date(hoje); fimMes.setMonth(fimMes.getMonth() + 1);
+
+  const venceHojeList = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist" && c.vencimento && new Date(c.vencimento.split("T")[0] + "T12:00:00").toDateString() === hoje.toDateString());
+  const venceSemanaList = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist" && c.vencimento && new Date(c.vencimento.split("T")[0] + "T12:00:00") >= hoje && new Date(c.vencimento.split("T")[0] + "T12:00:00") <= fimSemana);
+  const venceMesList = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist" && c.vencimento && new Date(c.vencimento.split("T")[0] + "T12:00:00") >= hoje && new Date(c.vencimento.split("T")[0] + "T12:00:00") <= fimMes);
 
   return (
     <div>
       <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Painel Geral</h1>
 
+      {detalhe && <ModalDetalheLista titulo={detalhe.titulo} lista={detalhe.lista} onClose={() => setDetalhe(null)} />}
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 16 }}>
         {[
-          { label: "Total em aberto", value: fmt(metricas?.total_em_aberto ?? total), icon: <Ic.money />, color: "#1E40AF", bg: "#EFF6FF" },
-          { label: "Total recebido", value: fmt(metricas?.total_recebido ?? 0), icon: <Ic.trend />, color: "#16A34A", bg: "#F0FDF4" },
-          { label: "Em atraso", value: fmt(metricas?.atrasados?.valor ?? 0), sub: (metricas?.atrasados?.qtd ?? atrasados.length) + " clientes", icon: <Ic.alert />, color: "#DC2626", bg: "#FEF2F2" },
-          { label: "Clientes", value: clientes.length, icon: <Ic.users />, color: "#7C3AED", bg: "#F5F3FF" },
+          { label: "Total em aberto", value: fmt(metricas?.total_em_aberto ?? total), icon: <Ic.money />, color: "#1E40AF", bg: "#EFF6FF", lista: abertos, titulo: "Clientes em aberto" },
+          { label: "Total recebido", value: fmt(metricas?.total_recebido ?? 0), icon: <Ic.trend />, color: "#16A34A", bg: "#F0FDF4", lista: pagos, titulo: "Clientes que pagaram" },
+          { label: "Em atraso", value: fmt(metricas?.atrasados?.valor ?? 0), sub: (metricas?.atrasados?.qtd ?? atrasados.length) + " clientes", icon: <Ic.alert />, color: "#DC2626", bg: "#FEF2F2", lista: atrasados, titulo: "Clientes em atraso" },
+          { label: "Clientes", value: clientes.length, icon: <Ic.users />, color: "#7C3AED", bg: "#F5F3FF", lista: clientes, titulo: "Todos os clientes" },
         ].map(c => (
-          <div key={c.label} style={{ background: "#fff", borderRadius: 14, padding: 16, border: "1px solid #F1F5F9", boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+          <div key={c.label} onClick={() => setDetalhe({ titulo: c.titulo, lista: c.lista })} style={{ background: "#fff", borderRadius: 14, padding: 16, border: "1px solid #F1F5F9", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", cursor: "pointer" }}>
             <div style={{ width: 36, height: 36, background: c.bg, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: c.color, marginBottom: 10 }}>{c.icon}</div>
             <div style={{ fontSize: 20, fontWeight: 800, color: "#0F172A" }}>{c.value}</div>
             {c.sub && <div style={{ fontSize: 12, color: "#DC2626", fontWeight: 600 }}>{c.sub}</div>}
-            <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>{c.label}</div>
+            <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>{c.label} <span style={{ color: "#94A3B8" }}>→ ver lista</span></div>
           </div>
         ))}
       </div>
 
       {metricas && (
         <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>📅 Vencimentos</h3>
+          <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>📅 Vencimentos <span style={{ fontSize: 12, fontWeight: 400, color: "#94A3B8" }}>(toque para ver detalhes)</span></h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {[
-              { label: "Vence hoje", dados: metricas.vence_hoje, cor: "#EF4444", bg: "#FEF2F2" },
-              { label: "Vence esta semana", dados: metricas.vence_semana, cor: "#F59E0B", bg: "#FFFBEB" },
-              { label: "Vence este mês", dados: metricas.vence_mes, cor: "#3B82F6", bg: "#EFF6FF" },
+              { label: "Vence hoje", dados: metricas.vence_hoje, cor: "#EF4444", bg: "#FEF2F2", lista: venceHojeList },
+              { label: "Vence esta semana", dados: metricas.vence_semana, cor: "#F59E0B", bg: "#FFFBEB", lista: venceSemanaList },
+              { label: "Vence este mês", dados: metricas.vence_mes, cor: "#3B82F6", bg: "#EFF6FF", lista: venceMesList },
             ].map(v => (
-              <div key={v.label} style={{ background: v.bg, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={v.label} onClick={() => setDetalhe({ titulo: v.label, lista: v.lista })} style={{ background: v.bg, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: v.cor }}>{v.label}</span>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 16, fontWeight: 800, color: v.cor }}>{fmt(v.dados?.valor ?? 0)}</div>
@@ -577,7 +619,7 @@ function Dashboard({ clientes, token }) {
               { label: "Semana", valor: metricas.recebido_semana },
               { label: "Mês", valor: metricas.recebido_mes },
             ].map(r => (
-              <div key={r.label} style={{ flex: 1, background: "#F0FDF4", borderRadius: 10, padding: "12px 8px", textAlign: "center" }}>
+              <div key={r.label} onClick={() => setDetalhe({ titulo: "Recebidos — " + r.label, lista: pagos })} style={{ flex: 1, background: "#F0FDF4", borderRadius: 10, padding: "12px 8px", textAlign: "center", cursor: "pointer" }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: "#16A34A" }}>{fmt(r.valor)}</div>
                 <div style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>{r.label}</div>
               </div>
