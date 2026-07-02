@@ -1106,6 +1106,17 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
 
   useEffect(() => { if (clientePreSelecionado) { setClienteSel(clientePreSelecionado.id.toString()); setClientePreSelecionado(null); } }, []);
 
+  // Pré-preenche a mensagem quando um cliente é selecionado, pra não começar em branco
+  useEffect(() => {
+    if (!clienteSel) { setMsg(""); return; }
+    const cliente = clientes.find(c => c.id.toString() === clienteSel);
+    if (cliente) {
+      const nome = cliente.nome.split(" ")[0];
+      const valor = parseFloat(cliente.total_divida).toFixed(2).replace(".", ",");
+      setMsg("Olá " + nome + "! 😊 Passando para lembrar sobre o pagamento de *R$ " + valor + "* em aberto. Qualquer dúvida, estou à disposição!");
+    }
+  }, [clienteSel, clientes]);
+
   const enviar = async () => {
     if (!clienteSel || !msg) return;
     setEnviando(true);
@@ -1288,10 +1299,25 @@ function Configuracoes({ usuario, token }) {
     else setWppStatus("Erro ao gerar QR Code. Tente novamente.");
     setLoadingQr(false);
   };
+  // Confirma a conexão sozinho, checando a cada 3s — o usuário não precisa clicar em nada
+  useEffect(() => {
+    if (!qrCode) return;
+    const interval = setInterval(async () => {
+      const data = await api("/whatsapp/status", {}, token);
+      if (data.state === "open" || data.instance?.state === "open") {
+        setWppStatus("✅ WhatsApp conectado!");
+        setQrCode(null);
+        setInstanciaWpp("conectado");
+        localStorage.setItem("cobrarfacil_instancia", "conectado");
+        showToast("WhatsApp conectado com sucesso!");
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [qrCode, token]);
   const verificarStatus = async () => {
     const data = await api("/whatsapp/status", {}, token);
     if (data.state === "open" || data.instance?.state === "open") { setWppStatus("✅ WhatsApp conectado!"); setQrCode(null); setInstanciaWpp("conectado"); localStorage.setItem("cobrarfacil_instancia", "conectado"); }
-    else setWppStatus("⏳ Aguardando leitura do QR Code...");
+    else setWppStatus("⏳ Ainda não conectado — confirmamos automaticamente assim que escanear.");
   };
   const trocarSenha = async () => {
     if (novaSenha.length < 6) { showToast("Mínimo 6 caracteres", "error"); return; }
@@ -1352,7 +1378,7 @@ function Configuracoes({ usuario, token }) {
           )}
           {qrCode ? (
             <div style={{ textAlign: "center" }}>
-              <p style={{ fontSize: 14, color: "#64748B", marginBottom: 14 }}>Escaneie com o WhatsApp do seu negócio:</p>
+              <p style={{ fontSize: 14, color: "#64748B", marginBottom: 14 }}>Escaneie com o WhatsApp do seu negócio — a conexão é confirmada automaticamente:</p>
               <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 220, height: 220, borderRadius: 10, border: "2px solid #E2E8F0", display: "block", margin: "0 auto 16px" }} />
               <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                 <Btn small onClick={verificarStatus}><Ic.refresh /> Verificar</Btn>
