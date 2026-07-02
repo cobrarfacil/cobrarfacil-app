@@ -195,6 +195,22 @@ function Checkout({ planoInicial, onVoltar }) {
   };
   const pixCode = resultado?.charges?.[0]?.last_transaction?.qr_code;
   const pixUrl  = resultado?.charges?.[0]?.last_transaction?.qr_code_url;
+  const [pagamentoConfirmado, setPagamentoConfirmado] = useState(false);
+
+  // Confirma sozinho quando o Pix cai — sem navegar pra lugar nenhum. O login
+  // continua manual, porque a senha só chega por WhatsApp alguns segundos depois.
+  useEffect(() => {
+    if (!pixCode || pagamentoConfirmado || !dados.email) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(BACKEND_URL + "/checkout/status?email=" + encodeURIComponent(dados.email));
+        const data = await res.json();
+        if (data.pago) { setPagamentoConfirmado(true); clearInterval(interval); }
+      } catch {}
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [pixCode, pagamentoConfirmado, dados.email]);
+
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0F172A, #1E40AF)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ width: "100%", maxWidth: 520 }}>
@@ -257,15 +273,26 @@ function Checkout({ planoInicial, onVoltar }) {
           )}
           {step === 3 && (
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 60, marginBottom: 16 }}>🎉</div>
-              <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Pedido confirmado!</h2>
-              <p style={{ color: "#64748B", fontSize: 15, marginBottom: 24 }}>Você receberá seu login via WhatsApp em instantes no número <strong>{dados.telefone}</strong>.</p>
-              {pixCode && (
+              {pagamentoConfirmado ? (
+                <>
+                  <div style={{ fontSize: 60, marginBottom: 16 }}>✅</div>
+                  <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8, color: "#16A34A" }}>Pagamento confirmado!</h2>
+                  <p style={{ color: "#64748B", fontSize: 15, marginBottom: 24 }}>Seu login e senha já foram enviados no WhatsApp <strong>{dados.telefone}</strong>. Confira lá e acesse quando quiser — sem pressa.</p>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 60, marginBottom: 16 }}>🎉</div>
+                  <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Pedido confirmado!</h2>
+                  <p style={{ color: "#64748B", fontSize: 15, marginBottom: 24 }}>Você receberá seu login via WhatsApp em instantes no número <strong>{dados.telefone}</strong>.</p>
+                </>
+              )}
+              {pixCode && !pagamentoConfirmado && (
                 <div style={{ background: "#F8FAFC", borderRadius: 14, padding: 20, marginBottom: 20, border: "1px solid #E2E8F0" }}>
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>💠 QR Code Pix</div>
                   {pixUrl && <img src={pixUrl} alt="QR Code Pix" style={{ width: 200, height: 200, borderRadius: 8 }} />}
                   <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 8, padding: "8px 12px", fontFamily: "monospace", fontSize: 11, wordBreak: "break-all", color: "#374151", marginTop: 12 }}>{pixCode}</div>
                   <button onClick={() => navigator.clipboard?.writeText(pixCode)} style={{ marginTop: 10, background: "#1E40AF", color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>📋 Copiar código Pix</button>
+                  <div style={{ marginTop: 14, fontSize: 12, color: "#94A3B8" }}>⏳ Assim que o Pix cair, esta tela confirma sozinha — não precisa recarregar nem sair daqui.</div>
                 </div>
               )}
               <button onClick={onVoltar} style={{ background: "#F1F5F9", border: "none", borderRadius: 10, padding: "12px 24px", fontSize: 15, fontWeight: 600, cursor: "pointer", color: "#374151" }}>Voltar ao login</button>
@@ -1293,11 +1320,22 @@ function Configuracoes({ usuario, token }) {
   const [qrCode, setQrCode] = useState(null);
   const [wppStatus, setWppStatus] = useState(null);
   const [loadingQr, setLoadingQr] = useState(false);
-  const [instanciaWpp, setInstanciaWpp] = useState(() => { try { return localStorage.getItem("cobrarfacil_instancia") || ""; } catch { return ""; } });
+  const [instanciaWpp, setInstanciaWpp] = useState("");
+  const [verificandoWpp, setVerificandoWpp] = useState(true);
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmaSenha, setConfirmaSenha] = useState("");
   const [trocandoSenha, setTrocandoSenha] = useState(false);
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500); };
+
+  // Checa o status REAL da conexão direto na Evolution API ao abrir a tela —
+  // não confia mais só no que ficou salvo no navegador, que podia dizer
+  // "desconectado" mesmo com o WhatsApp funcionando normalmente no servidor.
+  useEffect(() => {
+    api("/whatsapp/status", {}, token).then(data => {
+      if (data.state === "open" || data.instance?.state === "open") setInstanciaWpp("conectado");
+      setVerificandoWpp(false);
+    }).catch(() => setVerificandoWpp(false));
+  }, [token]);
   const expiraEm = usuario?.expira_em ? fmtData(usuario.expira_em.split("T")[0]) : "—";
   const diasRestantes = usuario?.expira_em ? Math.floor((new Date(usuario.expira_em) - new Date()) / 86400000) : null;
 
@@ -1340,7 +1378,6 @@ function Configuracoes({ usuario, token }) {
         setWppStatus("✅ WhatsApp conectado!");
         setQrCode(null);
         setInstanciaWpp("conectado");
-        localStorage.setItem("cobrarfacil_instancia", "conectado");
         showToast("WhatsApp conectado com sucesso!");
       }
     }, 3000);
@@ -1348,7 +1385,7 @@ function Configuracoes({ usuario, token }) {
   }, [qrCode, token]);
   const verificarStatus = async () => {
     const data = await api("/whatsapp/status", {}, token);
-    if (data.state === "open" || data.instance?.state === "open") { setWppStatus("✅ WhatsApp conectado!"); setQrCode(null); setInstanciaWpp("conectado"); localStorage.setItem("cobrarfacil_instancia", "conectado"); }
+    if (data.state === "open" || data.instance?.state === "open") { setWppStatus("✅ WhatsApp conectado!"); setQrCode(null); setInstanciaWpp("conectado"); }
     else setWppStatus("⏳ Ainda não conectado — confirmamos automaticamente assim que escanear.");
   };
   const trocarSenha = async () => {
@@ -1405,29 +1442,35 @@ function Configuracoes({ usuario, token }) {
         <div style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1px solid #F1F5F9" }}>
           <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700 }}>📱 Conectar WhatsApp</h3>
           <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Conecte o número do seu negócio para enviar cobranças automáticas</p>
-          {instanciaWpp && !qrCode && (
-            <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: "12px 14px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontWeight: 700, color: "#16A34A" }}>✅ WhatsApp conectado</div>
-              <Btn small variant="ghost" onClick={() => { setInstanciaWpp(""); localStorage.removeItem("cobrarfacil_instancia"); setQrCode(null); setWppStatus(null); }}>Desconectar</Btn>
-            </div>
-          )}
-          {qrCode ? (
-            <div style={{ textAlign: "center" }}>
-              <p style={{ fontSize: 14, color: "#64748B", marginBottom: 14 }}>Escaneie com o WhatsApp do seu negócio — a conexão é confirmada automaticamente:</p>
-              <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 220, height: 220, borderRadius: 10, border: "2px solid #E2E8F0", display: "block", margin: "0 auto 16px" }} />
-              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                <Btn small onClick={verificarStatus}><Ic.refresh /> Verificar</Btn>
-                <Btn small variant="ghost" onClick={() => { setQrCode(null); setWppStatus(null); }}>Cancelar</Btn>
-              </div>
-              {wppStatus && <div style={{ marginTop: 12, fontSize: 14, fontWeight: 600, color: wppStatus.includes("✅") ? "#16A34A" : "#D97706" }}>{wppStatus}</div>}
-            </div>
+          {verificandoWpp ? (
+            <div style={{ textAlign: "center", padding: "20px 0", color: "#94A3B8", fontSize: 14 }}>Verificando conexão...</div>
           ) : (
-            <div>
-              <Btn onClick={conectarWpp} disabled={loadingQr} style={{ width: "100%", justifyContent: "center" }}>
-                {loadingQr ? "Gerando QR Code..." : <><Ic.qr /> Gerar QR Code</>}
-              </Btn>
-              {wppStatus && <div style={{ marginTop: 12, fontSize: 14, fontWeight: 600, color: wppStatus.includes("✅") ? "#16A34A" : "#DC2626" }}>{wppStatus}</div>}
-            </div>
+            <>
+              {instanciaWpp && !qrCode && (
+                <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: "12px 14px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ fontWeight: 700, color: "#16A34A" }}>✅ WhatsApp conectado</div>
+                  <Btn small variant="ghost" onClick={async () => { await api("/whatsapp/desconectar", { method: "POST" }, token); setInstanciaWpp(""); setQrCode(null); setWppStatus(null); showToast("WhatsApp desconectado."); }}>Desconectar</Btn>
+                </div>
+              )}
+              {qrCode ? (
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 14, color: "#64748B", marginBottom: 14 }}>Escaneie com o WhatsApp do seu negócio — a conexão é confirmada automaticamente:</p>
+                  <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 220, height: 220, borderRadius: 10, border: "2px solid #E2E8F0", display: "block", margin: "0 auto 16px" }} />
+                  <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                    <Btn small onClick={verificarStatus}><Ic.refresh /> Verificar</Btn>
+                    <Btn small variant="ghost" onClick={() => { setQrCode(null); setWppStatus(null); }}>Cancelar</Btn>
+                  </div>
+                  {wppStatus && <div style={{ marginTop: 12, fontSize: 14, fontWeight: 600, color: wppStatus.includes("✅") ? "#16A34A" : "#D97706" }}>{wppStatus}</div>}
+                </div>
+              ) : !instanciaWpp && (
+                <div>
+                  <Btn onClick={conectarWpp} disabled={loadingQr} style={{ width: "100%", justifyContent: "center" }}>
+                    {loadingQr ? "Gerando QR Code..." : <><Ic.qr /> Gerar QR Code</>}
+                  </Btn>
+                  {wppStatus && <div style={{ marginTop: 12, fontSize: 14, fontWeight: 600, color: wppStatus.includes("✅") ? "#16A34A" : "#DC2626" }}>{wppStatus}</div>}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
