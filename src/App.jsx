@@ -1278,8 +1278,9 @@ function Relatorio({ token }) {
 }
 
 function Configuracoes({ usuario, token }) {
-  const [pixInput, setPixInput] = useState(() => { try { return localStorage.getItem("cobrarfacil_pix") || ""; } catch { return ""; } });
-  const [pixSalvo, setPixSalvo] = useState(() => { try { return !!localStorage.getItem("cobrarfacil_pix"); } catch { return false; } });
+  const [pixInput, setPixInput] = useState("");
+  const [pixSalvo, setPixSalvo] = useState(false);
+  const [salvandoPix, setSalvandoPix] = useState(false);
   const [toast, setToast] = useState(null);
   const [qrCode, setQrCode] = useState(null);
   const [wppStatus, setWppStatus] = useState(null);
@@ -1291,7 +1292,23 @@ function Configuracoes({ usuario, token }) {
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500); };
   const expiraEm = usuario?.expira_em ? fmtData(usuario.expira_em.split("T")[0]) : "—";
   const diasRestantes = usuario?.expira_em ? Math.floor((new Date(usuario.expira_em) - new Date()) / 86400000) : null;
-  const salvarPix = () => { if (!pixInput.trim()) return; localStorage.setItem("cobrarfacil_pix", pixInput.trim()); setPixSalvo(true); showToast("Chave Pix salva!"); };
+
+  // Busca a chave Pix real, salva no banco — não depende mais do localStorage do navegador
+  useEffect(() => {
+    api("/usuarios/me", {}, token).then(data => {
+      if (data.pix_key) { setPixInput(data.pix_key); setPixSalvo(true); }
+    });
+  }, [token]);
+
+  const salvarPix = async () => {
+    if (!pixInput.trim()) return;
+    setSalvandoPix(true);
+    const data = await api("/usuarios/pix-key", { method: "PUT", body: JSON.stringify({ pix_key: pixInput.trim() }) }, token);
+    if (data.sucesso) { setPixSalvo(true); showToast("Chave Pix salva!"); }
+    else showToast(data.erro || "Erro ao salvar chave Pix", "error");
+    setSalvandoPix(false);
+  };
+
   const conectarWpp = async () => {
     setLoadingQr(true); setQrCode(null); setWppStatus(null);
     const data = await api("/whatsapp/qrcode", {}, token);
@@ -1363,7 +1380,7 @@ function Configuracoes({ usuario, token }) {
           ) : (
             <div>
               <Inp label="Chave Pix" value={pixInput} onChange={e => setPixInput(e.target.value)} placeholder="Telefone, CPF, e-mail ou chave aleatória" />
-              <Btn onClick={salvarPix} disabled={!pixInput.trim()} style={{ width: "100%", justifyContent: "center" }}>Salvar chave Pix</Btn>
+              <Btn onClick={salvarPix} disabled={salvandoPix || !pixInput.trim()} style={{ width: "100%", justifyContent: "center" }}>{salvandoPix ? "Salvando..." : "Salvar chave Pix"}</Btn>
             </div>
           )}
         </div>
