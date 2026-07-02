@@ -228,6 +228,11 @@ function Checkout({ planoInicial, onVoltar }) {
                   <div key={k} onClick={() => setFormaPag(k)} style={{ flex: 1, background: formaPag === k ? "#EFF6FF" : "#F8FAFC", border: "2px solid " + (formaPag === k ? "#1E40AF" : "#E2E8F0"), borderRadius: 12, padding: "14px", textAlign: "center", cursor: "pointer", fontSize: 15, fontWeight: 600, color: formaPag === k ? "#1E40AF" : "#64748B" }}>{l}</div>
                 ))}
               </div>
+              {formaPag === "pix" && (
+                <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#1E40AF", lineHeight: 1.5 }}>
+                  💡 Ao pagar, o Pix vai mostrar <strong>"Look Up Moda"</strong> como recebedor — é a razão social que processa nossos pagamentos com segurança. Tudo certo, é assim que funciona pelo Banco Central.
+                </div>
+              )}
               {formaPag === "cartao" && (
                 <div>
                   <Inp label="Número do cartão" value={cartao.numero} onChange={e => setCartao(p => ({ ...p, numero: e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim() }))} placeholder="0000 0000 0000 0000" maxLength={19} />
