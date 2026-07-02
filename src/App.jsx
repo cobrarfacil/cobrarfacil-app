@@ -20,6 +20,13 @@ const ETAPAS_INFO = {
   "d+30": { label: "30 dias após",  tom: "Final",     cor: "#7F1D1D" },
 };
 
+const TIPOS_PIX = {
+  cpf_cnpj:  { label: "CPF ou CNPJ",      placeholder: "000.000.000-00", normalizar: v => v.replace(/\D/g, ""), validar: v => { const d = v.replace(/\D/g, ""); return d.length === 11 || d.length === 14; }, erro: "CPF precisa ter 11 números, CNPJ 14 números." },
+  telefone:  { label: "Telefone",         placeholder: "(44) 99999-0000", normalizar: v => { const d = v.replace(/\D/g, ""); const comPais = (d.length === 10 || d.length === 11) ? "55" + d : d; return "+" + comPais; }, validar: v => { const d = v.replace(/\D/g, ""); return d.length === 10 || d.length === 11; }, erro: "Telefone precisa ter DDD + número." },
+  email:     { label: "E-mail",           placeholder: "seu@email.com", normalizar: v => v.trim().toLowerCase(), validar: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()), erro: "E-mail inválido." },
+  aleatoria: { label: "Chave aleatória",  placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", normalizar: v => v.trim(), validar: v => v.trim().length >= 20, erro: "Chave aleatória parece incompleta — copie certinho do seu banco." },
+};
+
 const MENSAGENS_PADRAO = {
   "d-3":  (n, v) => "Olá " + n.split(" ")[0] + "! 😊 Sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* vence em 3 dias. Qualquer dúvida é só chamar!",
   "d0":   (n, v) => "🔔 " + n.split(" ")[0] + ", hoje é o dia! Sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* vence hoje. Pague agora e fique em dia!",
@@ -1279,6 +1286,7 @@ function Relatorio({ token }) {
 
 function Configuracoes({ usuario, token }) {
   const [pixInput, setPixInput] = useState("");
+  const [pixTipo, setPixTipo] = useState("cpf_cnpj");
   const [pixSalvo, setPixSalvo] = useState(false);
   const [salvandoPix, setSalvandoPix] = useState(false);
   const [toast, setToast] = useState(null);
@@ -1296,15 +1304,22 @@ function Configuracoes({ usuario, token }) {
   // Busca a chave Pix real, salva no banco — não depende mais do localStorage do navegador
   useEffect(() => {
     api("/usuarios/me", {}, token).then(data => {
-      if (data.pix_key) { setPixInput(data.pix_key); setPixSalvo(true); }
+      if (data.pix_key) {
+        setPixInput(data.pix_key);
+        setPixSalvo(true);
+        if (data.pix_key_tipo && TIPOS_PIX[data.pix_key_tipo]) setPixTipo(data.pix_key_tipo);
+      }
     });
   }, [token]);
 
   const salvarPix = async () => {
     if (!pixInput.trim()) return;
+    const config = TIPOS_PIX[pixTipo];
+    if (!config.validar(pixInput)) { showToast(config.erro, "error"); return; }
+    const chaveNormalizada = config.normalizar(pixInput);
     setSalvandoPix(true);
-    const data = await api("/usuarios/pix-key", { method: "PUT", body: JSON.stringify({ pix_key: pixInput.trim() }) }, token);
-    if (data.sucesso) { setPixSalvo(true); showToast("Chave Pix salva!"); }
+    const data = await api("/usuarios/pix-key", { method: "PUT", body: JSON.stringify({ pix_key: chaveNormalizada, pix_key_tipo: pixTipo }) }, token);
+    if (data.sucesso) { setPixInput(chaveNormalizada); setPixSalvo(true); showToast("Chave Pix salva!"); }
     else showToast(data.erro || "Erro ao salvar chave Pix", "error");
     setSalvandoPix(false);
   };
@@ -1374,12 +1389,15 @@ function Configuracoes({ usuario, token }) {
           <p style={{ margin: "0 0 14px", fontSize: 13, color: "#64748B" }}>Sua chave Pix é incluída automaticamente nas cobranças com QR Code real.</p>
           {pixSalvo ? (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F0FDF4", borderRadius: 10, padding: "12px 16px", border: "1px solid #86EFAC" }}>
-              <div><div style={{ fontSize: 12, color: "#64748B" }}>Chave cadastrada</div><div style={{ fontWeight: 800, fontFamily: "monospace", fontSize: 15 }}>{pixInput}</div></div>
+              <div><div style={{ fontSize: 12, color: "#64748B" }}>Chave cadastrada · {TIPOS_PIX[pixTipo]?.label}</div><div style={{ fontWeight: 800, fontFamily: "monospace", fontSize: 15 }}>{pixInput}</div></div>
               <Btn small variant="ghost" onClick={() => setPixSalvo(false)}>✏️ Alterar</Btn>
             </div>
           ) : (
             <div>
-              <Inp label="Chave Pix" value={pixInput} onChange={e => setPixInput(e.target.value)} placeholder="Telefone, CPF, e-mail ou chave aleatória" />
+              <Sel label="Tipo de chave" value={pixTipo} onChange={e => setPixTipo(e.target.value)}>
+                {Object.entries(TIPOS_PIX).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </Sel>
+              <Inp label="Chave Pix" value={pixInput} onChange={e => setPixInput(e.target.value)} placeholder={TIPOS_PIX[pixTipo].placeholder} />
               <Btn onClick={salvarPix} disabled={salvandoPix || !pixInput.trim()} style={{ width: "100%", justifyContent: "center" }}>{salvandoPix ? "Salvando..." : "Salvar chave Pix"}</Btn>
             </div>
           )}
