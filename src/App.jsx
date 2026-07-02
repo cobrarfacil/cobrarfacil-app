@@ -1316,6 +1316,9 @@ function Configuracoes({ usuario, token }) {
   const [pixTipo, setPixTipo] = useState("cpf_cnpj");
   const [pixSalvo, setPixSalvo] = useState(false);
   const [salvandoPix, setSalvandoPix] = useState(false);
+  const [nomeEmpresaInput, setNomeEmpresaInput] = useState("");
+  const [nomeEmpresaSalvo, setNomeEmpresaSalvo] = useState(false);
+  const [salvandoNomeEmpresa, setSalvandoNomeEmpresa] = useState(false);
   const [toast, setToast] = useState(null);
   const [qrCode, setQrCode] = useState(null);
   const [wppStatus, setWppStatus] = useState(null);
@@ -1336,16 +1339,30 @@ function Configuracoes({ usuario, token }) {
       setVerificandoWpp(false);
     }).catch(() => setVerificandoWpp(false));
   }, [token]);
+
+  const salvarNomeEmpresa = async () => {
+    if (!nomeEmpresaInput.trim()) return;
+    setSalvandoNomeEmpresa(true);
+    const data = await api("/usuarios/nome-empresa", { method: "PUT", body: JSON.stringify({ nome_empresa: nomeEmpresaInput.trim() }) }, token);
+    if (data.sucesso) { setNomeEmpresaSalvo(true); showToast("Nome do negócio salvo!"); }
+    else showToast(data.erro || "Erro ao salvar", "error");
+    setSalvandoNomeEmpresa(false);
+  };
   const expiraEm = usuario?.expira_em ? fmtData(usuario.expira_em.split("T")[0]) : "—";
   const diasRestantes = usuario?.expira_em ? Math.floor((new Date(usuario.expira_em) - new Date()) / 86400000) : null;
 
-  // Busca a chave Pix real, salva no banco — não depende mais do localStorage do navegador
+  // Busca a chave Pix e o nome do negócio reais, salvos no banco — não depende
+  // mais do localStorage do navegador
   useEffect(() => {
     api("/usuarios/me", {}, token).then(data => {
       if (data.pix_key) {
         setPixInput(data.pix_key);
         setPixSalvo(true);
         if (data.pix_key_tipo && TIPOS_PIX[data.pix_key_tipo]) setPixTipo(data.pix_key_tipo);
+      }
+      if (data.nome_empresa) {
+        setNomeEmpresaInput(data.nome_empresa);
+        setNomeEmpresaSalvo(true);
       }
     });
   }, [token]);
@@ -1420,6 +1437,21 @@ function Configuracoes({ usuario, token }) {
           <SenhaInput label="Nova senha" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
           <SenhaInput label="Confirmar senha" value={confirmaSenha} onChange={e => setConfirmaSenha(e.target.value)} placeholder="Repita a nova senha" />
           <Btn onClick={trocarSenha} disabled={trocandoSenha || !novaSenha || !confirmaSenha} style={{ width: "100%", justifyContent: "center" }}>{trocandoSenha ? "Salvando..." : "🔒 Alterar senha"}</Btn>
+        </div>
+        <div style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1px solid #F1F5F9" }}>
+          <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>🏪 Nome do negócio</h3>
+          <p style={{ margin: "0 0 14px", fontSize: 13, color: "#64748B" }}>É esse nome que aparece nas mensagens de cobrança pro seu cliente — use o nome que ele reconhece (ex: "Salão Bella"), não necessariamente o seu nome pessoal.</p>
+          {nomeEmpresaSalvo ? (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F0FDF4", borderRadius: 10, padding: "12px 16px", border: "1px solid #86EFAC" }}>
+              <div><div style={{ fontSize: 12, color: "#64748B" }}>Nome usado nas cobranças</div><div style={{ fontWeight: 800, fontSize: 15 }}>{nomeEmpresaInput}</div></div>
+              <Btn small variant="ghost" onClick={() => setNomeEmpresaSalvo(false)}>✏️ Alterar</Btn>
+            </div>
+          ) : (
+            <div>
+              <Inp label="Nome do negócio" value={nomeEmpresaInput} onChange={e => setNomeEmpresaInput(e.target.value)} placeholder="Ex: Salão Bella, Barbearia do João..." />
+              <Btn onClick={salvarNomeEmpresa} disabled={salvandoNomeEmpresa || !nomeEmpresaInput.trim()} style={{ width: "100%", justifyContent: "center" }}>{salvandoNomeEmpresa ? "Salvando..." : "Salvar nome do negócio"}</Btn>
+            </div>
+          )}
         </div>
         <div style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1px solid #F1F5F9" }}>
           <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>⚡ Chave Pix</h3>
