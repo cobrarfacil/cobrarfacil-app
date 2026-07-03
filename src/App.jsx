@@ -128,6 +128,33 @@ function mapearLinhaPlanilha(linhaOriginal) {
   };
 }
 
+// ─── DETECTA SE ESSA LINHA JÁ EXISTE NO CADASTRO (mesmo telefone ou nome) ────
+// Compara pelos últimos 8 dígitos do telefone (ignora diferença de DDI/DDD já
+// incluso ou não) e por nome exato (sem o sufixo "— Parcela X/Y"). Se achar,
+// o lojista decide o que fazer — não substitui nem ignora sozinho.
+function anotarDuplicado(linha, clientesExistentes) {
+  const telNorm = String(linha.telefone || "").replace(/\D/g, "").slice(-8);
+  const nomeNorm = String(linha.nome || "").trim().toLowerCase();
+  const match = (clientesExistentes || []).find(c => {
+    const cTelNorm = String(c.telefone || "").replace(/\D/g, "").slice(-8);
+    const cNomeNorm = String(c.nome || "").replace(/ — Parcela \d+\/\d+$/, "").trim().toLowerCase();
+    return (telNorm.length >= 8 && telNorm === cTelNorm) || (nomeNorm.length > 2 && nomeNorm === cNomeNorm);
+  });
+  if (!match) return { ...linha, duplicado: null, decisao: null };
+  const ehPago = match.status === "pago";
+  return {
+    ...linha,
+    duplicado: {
+      clienteId: match.id,
+      valorAntigo: match.total_divida,
+      vencimentoAntigo: match.vencimento,
+      pago: ehPago,
+      dataPagamento: match.ultima_cobranca,
+    },
+    decisao: ehPago ? "nao_incluir" : "manter", // decisão padrão segura — lojista pode trocar
+  };
+}
+
 const TIPOS_PIX = {
   cpf_cnpj:  { label: "CPF ou CNPJ",      placeholder: "000.000.000-00", normalizar: v => v.replace(/\D/g, ""), validar: v => { const d = v.replace(/\D/g, ""); return d.length === 11 || d.length === 14; }, erro: "CPF precisa ter 11 números, CNPJ 14 números." },
   telefone:  { label: "Telefone",         placeholder: "(44) 99999-0000", normalizar: v => { const d = v.replace(/\D/g, ""); const comPais = (d.length === 10 || d.length === 11) ? "55" + d : d; return "+" + comPais; }, validar: v => { const d = v.replace(/\D/g, ""); return d.length === 10 || d.length === 11; }, erro: "Telefone precisa ter DDD + número." },
@@ -899,6 +926,57 @@ function ModalRegua({ cliente, token, onClose }) {
   );
 }
 
+function ModalConversa({ cliente, token, onClose }) {
+  const [mensagens, setMensagens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [novaMsg, setNovaMsg] = useState("");
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    api("/clientes/" + cliente.id + "/conversa", {}, token).then(data => {
+      if (data.mensagens) setMensagens(data.mensagens);
+      setLoading(false);
+    });
+  }, []);
+
+  const enviar = async () => {
+    if (!novaMsg.trim()) return;
+    setEnviando(true);
+    const data = await api("/clientes/" + cliente.id + "/enviar-mensagem", { method: "POST", body: JSON.stringify({ mensagem: novaMsg.trim() }) }, token);
+    if (data.sucesso) {
+      setMensagens(prev => [...prev, { direcao: "enviada", texto: novaMsg.trim(), criado_em: new Date().toISOString() }]);
+      setNovaMsg("");
+    }
+    setEnviando(false);
+  };
+
+  return (
+    <Modal title={"Conversa — " + cliente.nome} onClose={onClose}>
+      <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#1E40AF" }}>
+        💡 Espelho das mensagens trocadas com esse cliente pelo WhatsApp — o que o sistema mandou e o que ele respondeu.
+      </div>
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 30, color: "#64748B" }}>Carregando...</div>
+      ) : (
+        <div style={{ background: "#E5DDD5", borderRadius: 10, padding: 12, minHeight: 200, maxHeight: 360, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+          {mensagens.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#64748B", fontSize: 13, margin: "auto" }}>Nenhuma mensagem registrada ainda</div>
+          ) : mensagens.map((m, i) => (
+            <div key={i} style={{ alignSelf: m.direcao === "enviada" ? "flex-end" : "flex-start", maxWidth: "80%", background: m.direcao === "enviada" ? "#DCF8C6" : "#fff", borderRadius: 8, padding: "8px 12px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
+              <div style={{ fontSize: 13, color: "#0F172A", whiteSpace: "pre-wrap" }}>{m.texto}</div>
+              <div style={{ fontSize: 10, color: "#94A3B8", textAlign: "right", marginTop: 3 }}>{new Date(m.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        <input value={novaMsg} onChange={e => setNovaMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && enviar()} placeholder="Digite uma mensagem..." style={{ flex: 1, border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none" }} />
+        <Btn onClick={enviar} disabled={enviando || !novaMsg.trim()} small><Ic.send /></Btn>
+      </div>
+    </Modal>
+  );
+}
+
 function MensagemEditorInline({ etapa, mensagemAtual, cliente, onSalvar }) {
   const padrao = MENSAGENS_PADRAO[etapa] ? MENSAGENS_PADRAO[etapa](cliente.nome, cliente.total_divida) : "";
   const [msg, setMsg] = useState(mensagemAtual || padrao);
@@ -919,6 +997,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
   const [modalAdd, setModalAdd] = useState(false);
   const [modalImport, setModalImport] = useState(false);
   const [modalRegua, setModalRegua] = useState(null);
+  const [modalConversa, setModalConversa] = useState(null);
   const [modalEditar, setModalEditar] = useState(null);
   const [modalProrrogar, setModalProrrogar] = useState(null);
   const [editando, setEditando] = useState({});
@@ -991,9 +1070,14 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
     });
   };
 
+  const atualizarDecisao = (index, novaDecisao) => {
+    setCsvPreview(prev => prev.map((r, i) => i === index ? { ...r, decisao: novaDecisao } : r));
+  };
+
   const handleCSV = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     const nomeArquivo = file.name.toLowerCase();
+    let linhasMapeadas = null;
 
     if (nomeArquivo.endsWith(".xlsx") || nomeArquivo.endsWith(".xls")) {
       try {
@@ -1041,34 +1125,56 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
           return;
         }
 
-        const mapeado = json.map(mapearLinhaPlanilha);
-        setCsvPreview(mapeado);
+        linhasMapeadas = json.map(mapearLinhaPlanilha);
       } catch (err) {
         console.error("Erro ao ler planilha:", err);
         showToast("Erro ao ler o arquivo: " + (err.message || "formato não reconhecido") + ". Alternativa: abra no Excel → Salvar Como → CSV, e suba o CSV.", "error");
+        return;
       }
+    } else {
+      const texto = await file.text();
+      linhasMapeadas = parseCSVText(texto);
+    }
+
+    if (!linhasMapeadas || linhasMapeadas.length === 0) {
+      showToast("Nenhuma linha de dado encontrada no arquivo.", "error");
       return;
     }
 
-    // CSV padrão
-    const reader = new FileReader();
-    reader.onload = (ev) => { setCsvPreview(parseCSVText(ev.target.result)); };
-    reader.readAsText(file);
+    // Compara cada linha contra os clientes que já existem (mesmo telefone ou nome)
+    const comDuplicados = linhasMapeadas.map(linha => anotarDuplicado(linha, clientes));
+    setCsvPreview(comDuplicados);
   };
 
   const importarCSV = async () => {
-    const lista = csvPreview.filter(c => !c.pular).map(c => ({ nome: c.nome, telefone: c.telefone, total_divida: c.total_divida, cpf: c.cpf, email: c.email, vencimento: c.vencimento, parcelas: c.parcelas }));
-    const data = await api("/clientes/importar", { method: "POST", body: JSON.stringify({ clientes: lista }) }, token);
-    if (data.sucesso) {
-      const novos = await api("/clientes", {}, token); if (Array.isArray(novos)) setClientes(novos);
-      setCsvPreview([]); setModalImport(false);
-      if (data.aviso) {
-        alert("⚠️ Atenção!\n\n" + data.importados + " de " + data.totalSolicitado + " clientes foram importados.\n\n" + data.aviso);
-      } else {
-        showToast(data.importados + " importados! A régua começa a cobrar automaticamente a partir de amanhã.");
-      }
+    // Separa em 3 grupos, de acordo com a decisão tomada em cada linha duplicada
+    const substituicoes = csvPreview.filter(c => c.duplicado && c.decisao === "substituir");
+    const novos = csvPreview.filter(c => !c.pular && (!c.duplicado || c.decisao === "manter" || c.decisao === "incluir"));
+
+    let substituidos = 0;
+    for (const s of substituicoes) {
+      const r = await api("/clientes/" + s.duplicado.clienteId, { method: "PUT", body: JSON.stringify({
+        nome: s.nome, telefone: s.telefone, cpf: s.cpf, email: s.email,
+        total_divida: s.total_divida, vencimento: s.vencimento, parcelas: s.parcelas, status: "pendente",
+      }) }, token);
+      if (r.id || r.reparcelado) substituidos++;
     }
-    else showToast(data.erro || "Erro", "error");
+
+    let data = { sucesso: true, importados: 0 };
+    if (novos.length > 0) {
+      const lista = novos.map(c => ({ nome: c.nome, telefone: c.telefone, total_divida: c.total_divida, cpf: c.cpf, email: c.email, vencimento: c.vencimento, parcelas: c.parcelas }));
+      data = await api("/clientes/importar", { method: "POST", body: JSON.stringify({ clientes: lista }) }, token);
+    }
+
+    const novosClientes = await api("/clientes", {}, token); if (Array.isArray(novosClientes)) setClientes(novosClientes);
+    setCsvPreview([]); setModalImport(false);
+
+    const partes = [];
+    if (data.importados) partes.push(data.importados + " novo(s) importado(s)");
+    if (substituidos) partes.push(substituidos + " atualizado(s) (dívida substituída)");
+    if (data.aviso) partes.push(data.aviso);
+    if (partes.length === 0) partes.push("Nenhuma alteração foi feita.");
+    alert("✅ Concluído!\n\n" + partes.join("\n"));
   };
 
   const baixarModelo = async () => {
@@ -1104,6 +1210,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
     <div>
       {toast && <ToastMsg {...toast} />}
       {modalRegua && <ModalRegua cliente={modalRegua} token={token} onClose={() => setModalRegua(null)} />}
+      {modalConversa && <ModalConversa cliente={modalConversa} token={token} onClose={() => setModalConversa(null)} />}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div>
@@ -1151,7 +1258,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
               {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => setModalProrrogar(c)} style={{ background: "#FFFBEB", color: "#D97706", border: "1.5px solid #FDE68A", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>📅 Prorrogar</button>}
               {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => onCobranca(c)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.send /> Cobrar</button>}
               {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => marcarPago(c)} style={{ background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>✓ Pago</button>}
-              {c.status !== "blacklist" && <button onClick={() => adicionarBlacklist(c)} style={{ background: "#1F2937", color: "#F9FAFB", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}>🚫</button>}
+              <button onClick={() => setModalConversa(c)} style={{ background: "#ECFDF5", color: "#059669", border: "1.5px solid #A7F3D0", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.eye /></button>
               <button onClick={() => deletarCliente(c.id)} style={{ background: "#FEF2F2", color: "#DC2626", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.trash /></button>
             </div>
           </div>
@@ -1221,6 +1328,9 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
             <Btn variant="ghost" onClick={() => setModalEditar(null)} style={{ flex: 1, justifyContent: "center" }}>Cancelar</Btn>
             <Btn onClick={salvarEdicao} style={{ flex: 1, justifyContent: "center" }}>💾 Salvar</Btn>
           </div>
+          {modalEditar.status !== "blacklist" && (
+            <button onClick={() => { adicionarBlacklist(modalEditar); setModalEditar(null); }} style={{ width: "100%", marginTop: 10, background: "none", border: "none", color: "#991B1B", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>🚫 Colocar este cliente na blacklist</button>
+          )}
         </Modal>
       )}
 
@@ -1264,11 +1374,18 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                 const validos = csvPreview.filter(c => !c.pular);
                 const pulados = csvPreview.filter(c => c.pular);
                 const comDataInferida = validos.filter(c => c.vencimentoInferido).length;
+                const duplicados = csvPreview.filter(c => c.duplicado);
+                const botaoEstilo = (ativo) => ({ background: ativo ? "#1E40AF" : "#F1F5F9", color: ativo ? "#fff" : "#374151", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" });
                 return (
                   <>
                     <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", marginBottom: 10, fontSize: 13, color: "#1E40AF", fontWeight: 600 }}>
                       ✅ {validos.length} cliente(s) prontos para importar
                     </div>
+                    {duplicados.length > 0 && (
+                      <div style={{ background: "#FFFBEB", borderRadius: 10, padding: "10px 14px", marginBottom: 10, fontSize: 12, color: "#92400E", fontWeight: 600 }}>
+                        🔁 {duplicados.length} já existem no seu cadastro (mesmo nome ou telefone) — revise cada um abaixo antes de confirmar.
+                      </div>
+                    )}
                     {comDataInferida > 0 && (
                       <div style={{ background: "#FFFBEB", borderRadius: 10, padding: "10px 14px", marginBottom: 10, fontSize: 12, color: "#92400E" }}>
                         💡 {comDataInferida} não tinham data de vencimento na planilha — usamos a última movimentação registrada como referência (marcados com 📅 abaixo).
@@ -1280,19 +1397,51 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                       </div>
                     )}
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>Confira a lista completa antes de confirmar:</div>
-                    <div style={{ maxHeight: 320, overflow: "auto", marginBottom: 14, border: "1px solid #F1F5F9", borderRadius: 8 }}>
-                      {csvPreview.map((r, i) => (
-                        <div key={i} style={{ padding: "8px 12px", background: r.pular ? "#FEF2F2" : (i % 2 === 0 ? "#F8FAFC" : "#fff"), fontSize: 13, borderBottom: "1px solid #F1F5F9", opacity: r.pular ? 0.7 : 1 }}>
-                          <strong>{r.nome || "(sem nome)"}</strong> · {r.telefone || "sem telefone"} · R$ {r.total_divida?.toFixed(2) || "0,00"}
-                          {r.parcelas > 1 ? " (" + r.parcelas + "x)" : ""}
-                          {r.vencimento ? (r.vencimentoInferido ? " · 📅 " + r.vencimento + " (inferida)" : " · vence " + r.vencimento) : " · sem data"}
-                          {r.pular && <span style={{ color: "#DC2626", fontWeight: 700 }}> · ⚠️ {r.motivoPular}</span>}
-                        </div>
-                      ))}
+                    <div style={{ maxHeight: 380, overflow: "auto", marginBottom: 14, border: "1px solid #F1F5F9", borderRadius: 8 }}>
+                      {csvPreview.map((r, i) => {
+                        if (r.duplicado) {
+                          const d = r.duplicado;
+                          return (
+                            <div key={i} style={{ padding: 12, background: d.pago ? "#FFFBEB" : "#EFF6FF", borderBottom: "1px solid #F1F5F9" }}>
+                              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{r.nome} <span style={{ fontSize: 11, fontWeight: 400, color: "#64748B" }}>· {r.telefone}</span></div>
+                              {d.pago ? (
+                                <>
+                                  <div style={{ fontSize: 12, color: "#92400E", marginBottom: 8 }}>
+                                    ✅ Já pagou {fmt(d.valorAntigo)}{d.dataPagamento ? " em " + new Date(d.dataPagamento).toLocaleDateString("pt-BR") : ""}. Incluir nova dívida de {fmt(r.total_divida)} mesmo assim?
+                                  </div>
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button onClick={() => atualizarDecisao(i, "incluir")} style={botaoEstilo(r.decisao === "incluir")}>Sim, incluir nova</button>
+                                    <button onClick={() => atualizarDecisao(i, "nao_incluir")} style={botaoEstilo(r.decisao === "nao_incluir")}>Não, ignorar</button>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div style={{ fontSize: 12, color: "#1E40AF", marginBottom: 8 }}>
+                                    Já existe: {fmt(d.valorAntigo)}{d.vencimentoAntigo ? " · venc. " + new Date(d.vencimentoAntigo).toLocaleDateString("pt-BR") : ""}. Na planilha nova: {fmt(r.total_divida)}. O que fazer?
+                                  </div>
+                                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                    <button onClick={() => atualizarDecisao(i, "substituir")} style={botaoEstilo(r.decisao === "substituir")}>Substituir valor</button>
+                                    <button onClick={() => atualizarDecisao(i, "manter")} style={botaoEstilo(r.decisao === "manter")}>Manter os dois</button>
+                                    <button onClick={() => atualizarDecisao(i, "ignorar")} style={botaoEstilo(r.decisao === "ignorar")}>Ignorar esse</button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={i} style={{ padding: "8px 12px", background: r.pular ? "#FEF2F2" : (i % 2 === 0 ? "#F8FAFC" : "#fff"), fontSize: 13, borderBottom: "1px solid #F1F5F9", opacity: r.pular ? 0.7 : 1 }}>
+                            <strong>{r.nome || "(sem nome)"}</strong> · {r.telefone || "sem telefone"} · R$ {r.total_divida?.toFixed(2) || "0,00"}
+                            {r.parcelas > 1 ? " (" + r.parcelas + "x)" : ""}
+                            {r.vencimento ? (r.vencimentoInferido ? " · 📅 " + r.vencimento + " (inferida)" : " · vence " + r.vencimento) : " · sem data"}
+                            {r.pular && <span style={{ color: "#DC2626", fontWeight: 700 }}> · ⚠️ {r.motivoPular}</span>}
+                          </div>
+                        );
+                      })}
                     </div>
                     <div style={{ display: "flex", gap: 10 }}>
                       <Btn variant="ghost" onClick={() => setCsvPreview([])} style={{ flex: 1, justifyContent: "center" }}>← Voltar</Btn>
-                      <Btn onClick={importarCSV} disabled={validos.length === 0} style={{ flex: 1, justifyContent: "center" }}>✅ Confirmar e importar {validos.length}</Btn>
+                      <Btn onClick={importarCSV} disabled={validos.length === 0} style={{ flex: 1, justifyContent: "center" }}>✅ Confirmar</Btn>
                     </div>
                   </>
                 );
