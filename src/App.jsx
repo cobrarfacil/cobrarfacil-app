@@ -20,6 +20,114 @@ const ETAPAS_INFO = {
   "d+30": { label: "30 dias após",  tom: "Final",     cor: "#7F1D1D" },
 };
 
+// ─── IMPORTAÇÃO INTELIGENTE DE PLANILHA ──────────────────────────────────────
+// Detecta automaticamente as colunas certas mesmo em planilhas de outros
+// sistemas (ex: exportação de sistema de salão), não só do nosso modelo.
+function normalizarCabecalho(str) {
+  return String(str || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\(.*?\)/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// "unico": campo já vem sempre positivo (nosso modelo). "sinalizado": pode vir
+// negativo (dívida) ou positivo (crédito, não cobrar) — comum em sistemas de
+// salão que controlam saldo do cliente.
+const ALIASES_COLUNA = {
+  nome:      { tipo: "texto", aliases: ["nome", "cliente", "name", "nomecliente", "clientenome"] },
+  telefone:  { tipo: "texto", aliases: ["telefone", "celular", "whatsapp", "fone", "contato", "tel", "numero", "numerocelular"] },
+  valor:     { tipo: "unico", aliases: ["valor", "divida", "valordivida", "totaldivida"] },
+  valorSinalizado: { tipo: "sinalizado", aliases: ["creditooudivida", "saldo", "debito", "creditodivida"] },
+  vencimento:      { tipo: "texto", aliases: ["vencimento", "datavencimento", "prazo", "datalimite", "datadevencimento"] },
+  dataReferencia:  { tipo: "texto", aliases: ["ultimamovimentacao", "ultimomovimento", "movimentacao", "dataultimacompra", "data"] },
+  cpf:       { tipo: "texto", aliases: ["cpf", "documento", "cpfcnpj"] },
+  email:     { tipo: "texto", aliases: ["email", "emailcliente", "mail"] },
+  parcelas:  { tipo: "texto", aliases: ["parcelas", "parcela", "numparcelas", "qtdparcelas"] },
+};
+
+function parseValorBR(bruto) {
+  if (bruto === null || bruto === undefined || bruto === "") return null;
+  let s = String(bruto).replace(/[R$\s]/g, "");
+  if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
+  else if (s.includes(",")) s = s.replace(",", ".");
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+function parseDataBR(bruto) {
+  if (!bruto) return null;
+  const s = String(bruto).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (m) {
+    let [, d, mo, y] = m;
+    if (y.length === 2) y = "20" + y;
+    return y + "-" + mo.padStart(2, "0") + "-" + d.padStart(2, "0");
+  }
+  return null;
+}
+
+function mapearLinhaPlanilha(linhaOriginal) {
+  const mapaNormalizado = {};
+  Object.keys(linhaOriginal).forEach(chaveOriginal => {
+    const norm = normalizarCabecalho(chaveOriginal);
+    if (mapaNormalizado[norm] === undefined) mapaNormalizado[norm] = chaveOriginal;
+  });
+
+  const pegarBruto = (aliases) => {
+    for (const alias of aliases) {
+      if (mapaNormalizado[alias] !== undefined) {
+        const v = linhaOriginal[mapaNormalizado[alias]];
+        if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
+      }
+    }
+    return "";
+  };
+
+  const nome = pegarBruto(ALIASES_COLUNA.nome.aliases);
+  const telefone = pegarBruto(ALIASES_COLUNA.telefone.aliases);
+  const cpf = pegarBruto(ALIASES_COLUNA.cpf.aliases);
+  const email = pegarBruto(ALIASES_COLUNA.email.aliases);
+  const parcelasBruto = pegarBruto(ALIASES_COLUNA.parcelas.aliases);
+
+  // Valor: tenta coluna "única" (sempre positiva) primeiro, depois "sinalizada"
+  let valorAbs = null, pular = false, motivoPular = "";
+  const valorUnicoBruto = pegarBruto(ALIASES_COLUNA.valor.aliases);
+  if (valorUnicoBruto) {
+    valorAbs = Math.abs(parseValorBR(valorUnicoBruto) || 0);
+  } else {
+    const valorSinalizadoBruto = pegarBruto(ALIASES_COLUNA.valorSinalizado.aliases);
+    const n = parseValorBR(valorSinalizadoBruto);
+    if (n !== null) {
+      if (n > 0) { pular = true; motivoPular = "Saldo positivo (crédito, não deve)"; valorAbs = n; }
+      else valorAbs = Math.abs(n);
+    }
+  }
+
+  // Vencimento: usa coluna explícita se existir; senão, infere da última movimentação
+  let vencimento = parseDataBR(pegarBruto(ALIASES_COLUNA.vencimento.aliases));
+  let vencimentoInferido = false;
+  if (!vencimento) {
+    const dataRef = parseDataBR(pegarBruto(ALIASES_COLUNA.dataReferencia.aliases));
+    if (dataRef) { vencimento = dataRef; vencimentoInferido = true; }
+  }
+
+  if (!nome) pular = true, motivoPular = motivoPular || "Sem nome";
+  if (!telefone) pular = true, motivoPular = motivoPular || "Sem telefone";
+  if (valorAbs === null || valorAbs === 0) pular = pular || false; // valor 0 ainda é válido de importar, só não teria pra que cobrar — deixa passar, lojista decide
+
+  return {
+    nome, telefone, cpf, email,
+    total_divida: valorAbs || 0,
+    vencimento,
+    vencimentoInferido,
+    parcelas: parseInt(parcelasBruto) || 1,
+    pular,
+    motivoPular,
+  };
+}
+
 const TIPOS_PIX = {
   cpf_cnpj:  { label: "CPF ou CNPJ",      placeholder: "000.000.000-00", normalizar: v => v.replace(/\D/g, ""), validar: v => { const d = v.replace(/\D/g, ""); return d.length === 11 || d.length === 14; }, erro: "CPF precisa ter 11 números, CNPJ 14 números." },
   telefone:  { label: "Telefone",         placeholder: "(44) 99999-0000", normalizar: v => { const d = v.replace(/\D/g, ""); const comPais = (d.length === 10 || d.length === 11) ? "55" + d : d; return "+" + comPais; }, validar: v => { const d = v.replace(/\D/g, ""); return d.length === 10 || d.length === 11; }, erro: "Telefone precisa ter DDD + número." },
@@ -867,12 +975,12 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
 
   const parseCSVText = (text) => {
     const lines = text.split("\n").filter(l => l.trim());
-    const header = lines[0].toLowerCase().split(/[,;]/);
+    const header = lines[0].split(/[,;]/);
     return lines.slice(1).map(line => {
       const cols = line.split(/[,;]/); const obj = {};
       header.forEach((h, i) => { obj[h.trim()] = (cols[i] || "").trim().replace(/"/g, ""); });
-      return obj;
-    }).filter(r => r.nome || r.name);
+      return mapearLinhaPlanilha(obj);
+    });
   };
 
   const handleCSV = async (e) => {
@@ -894,13 +1002,9 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
         const buffer = await file.arrayBuffer();
         const workbook = window.XLSX.read(buffer, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = window.XLSX.utils.sheet_to_json(sheet, { defval: "" });
-        const normalizado = json.map(row => {
-          const obj = {};
-          Object.keys(row).forEach(k => { obj[k.trim().toLowerCase()] = String(row[k]).trim(); });
-          return obj;
-        }).filter(r => r.nome || r.name);
-        setCsvPreview(normalizado);
+        const json = window.XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false, dateNF: "dd/mm/yyyy" });
+        const mapeado = json.map(mapearLinhaPlanilha);
+        setCsvPreview(mapeado);
       } catch (err) {
         showToast("Erro ao ler arquivo Excel. Tente salvar como CSV.", "error");
       }
@@ -914,9 +1018,9 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
   };
 
   const importarCSV = async () => {
-    const lista = csvPreview.map(r => ({ nome: r.nome || r.name || "", telefone: r.telefone || r.whatsapp || r.celular || "", total_divida: parseFloat(r.valor || r.divida || "0") || 0, cpf: r.cpf || "", email: r.email || "", vencimento: r.vencimento || null, parcelas: parseInt(r.parcelas) || 1 })).filter(c => c.nome && c.telefone);
+    const lista = csvPreview.filter(c => !c.pular).map(c => ({ nome: c.nome, telefone: c.telefone, total_divida: c.total_divida, cpf: c.cpf, email: c.email, vencimento: c.vencimento, parcelas: c.parcelas }));
     const data = await api("/clientes/importar", { method: "POST", body: JSON.stringify({ clientes: lista }) }, token);
-    if (data.sucesso) { const novos = await api("/clientes", {}, token); if (Array.isArray(novos)) setClientes(novos); setCsvPreview([]); setModalImport(false); showToast(data.importados + " importados!"); }
+    if (data.sucesso) { const novos = await api("/clientes", {}, token); if (Array.isArray(novos)) setClientes(novos); setCsvPreview([]); setModalImport(false); showToast(data.importados + " importados! A régua começa a cobrar automaticamente a partir de amanhã."); }
     else showToast(data.erro || "Erro", "error");
   };
 
@@ -1095,7 +1199,7 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
           {csvPreview.length === 0 ? (
             <div>
               <div style={{ background: "#F0FDF4", borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 13, color: "#166534" }}>
-                <strong>Colunas aceitas:</strong> nome*, telefone*, valor*, cpf, email, vencimento (aaaa-mm-dd), parcelas
+                <strong>Funciona com qualquer planilha</strong> — nossa ou de outro sistema (ex: sistema de salão). O sistema reconhece sozinho colunas como Nome/Cliente, Telefone/Celular, Valor/Dívida/Saldo. Sem coluna de vencimento? Usamos a data da última movimentação como referência. Você confere tudo antes de confirmar.
               </div>
               <button onClick={baixarModelo} style={{ width: "100%", background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 10, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 14 }}>
                 📥 Baixar modelo de planilha (Excel)
@@ -1109,19 +1213,43 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
             </div>
           ) : (
             <div>
-              <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#1E40AF", fontWeight: 600 }}>✅ {csvPreview.length} clientes encontrados</div>
-              <div style={{ maxHeight: 260, overflow: "auto", marginBottom: 14 }}>
-                {csvPreview.slice(0, 10).map((r, i) => (
-                  <div key={i} style={{ padding: "8px 12px", background: i % 2 === 0 ? "#F8FAFC" : "#fff", borderRadius: 8, fontSize: 13, marginBottom: 4 }}>
-                    <strong>{r.nome || r.name}</strong> · {r.telefone || r.whatsapp || "—"} · R$ {r.valor || r.divida || "—"} {r.parcelas > 1 ? "(" + r.parcelas + "x)" : ""}
-                  </div>
-                ))}
-                {csvPreview.length > 10 && <div style={{ fontSize: 12, color: "#64748B", textAlign: "center", padding: 8 }}>... e mais {csvPreview.length - 10}</div>}
-              </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <Btn variant="ghost" onClick={() => setCsvPreview([])} style={{ flex: 1, justifyContent: "center" }}>← Voltar</Btn>
-                <Btn onClick={importarCSV} style={{ flex: 1, justifyContent: "center" }}>Importar {csvPreview.length}</Btn>
-              </div>
+              {(() => {
+                const validos = csvPreview.filter(c => !c.pular);
+                const pulados = csvPreview.filter(c => c.pular);
+                const comDataInferida = validos.filter(c => c.vencimentoInferido).length;
+                return (
+                  <>
+                    <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", marginBottom: 10, fontSize: 13, color: "#1E40AF", fontWeight: 600 }}>
+                      ✅ {validos.length} cliente(s) prontos para importar
+                    </div>
+                    {comDataInferida > 0 && (
+                      <div style={{ background: "#FFFBEB", borderRadius: 10, padding: "10px 14px", marginBottom: 10, fontSize: 12, color: "#92400E" }}>
+                        💡 {comDataInferida} não tinham data de vencimento na planilha — usamos a última movimentação registrada como referência (marcados com 📅 abaixo).
+                      </div>
+                    )}
+                    {pulados.length > 0 && (
+                      <div style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", marginBottom: 10, fontSize: 12, color: "#991B1B" }}>
+                        ⚠️ {pulados.length} linha(s) não serão importadas: {pulados.slice(0, 5).map(p => p.nome || "(sem nome)").join(", ")}{pulados.length > 5 ? "..." : ""}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>Confira a lista completa antes de confirmar:</div>
+                    <div style={{ maxHeight: 320, overflow: "auto", marginBottom: 14, border: "1px solid #F1F5F9", borderRadius: 8 }}>
+                      {csvPreview.map((r, i) => (
+                        <div key={i} style={{ padding: "8px 12px", background: r.pular ? "#FEF2F2" : (i % 2 === 0 ? "#F8FAFC" : "#fff"), fontSize: 13, borderBottom: "1px solid #F1F5F9", opacity: r.pular ? 0.7 : 1 }}>
+                          <strong>{r.nome || "(sem nome)"}</strong> · {r.telefone || "sem telefone"} · R$ {r.total_divida?.toFixed(2) || "0,00"}
+                          {r.parcelas > 1 ? " (" + r.parcelas + "x)" : ""}
+                          {r.vencimento ? (r.vencimentoInferido ? " · 📅 " + r.vencimento + " (inferida)" : " · vence " + r.vencimento) : " · sem data"}
+                          {r.pular && <span style={{ color: "#DC2626", fontWeight: 700 }}> · ⚠️ {r.motivoPular}</span>}
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <Btn variant="ghost" onClick={() => setCsvPreview([])} style={{ flex: 1, justifyContent: "center" }}>← Voltar</Btn>
+                      <Btn onClick={importarCSV} disabled={validos.length === 0} style={{ flex: 1, justifyContent: "center" }}>✅ Confirmar e importar {validos.length}</Btn>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
         </Modal>
