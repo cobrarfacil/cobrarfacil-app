@@ -1361,17 +1361,27 @@ function Relatorio({ token }) {
   const [dados, setDados] = useState(null);
   const [loading, setLoading] = useState(true);
   const [blacklist, setBlacklist] = useState([]);
+  const [errosEnvio, setErrosEnvio] = useState(null);
+  const [dataErros, setDataErros] = useState(new Date().toISOString().split("T")[0]);
 
   useEffect(() => {
     Promise.all([
       api("/relatorio/inadimplencia", {}, token),
       api("/blacklist", {}, token),
-    ]).then(([r, b]) => {
+      api("/relatorio/erros-envio?data=" + dataErros, {}, token),
+    ]).then(([r, b, e]) => {
       if (r.inadimplentes) setDados(r);
       if (Array.isArray(b)) setBlacklist(b);
+      if (e.erros) setErrosEnvio(e);
       setLoading(false);
     });
   }, []);
+
+  const buscarErrosData = async (novaData) => {
+    setDataErros(novaData);
+    const e = await api("/relatorio/erros-envio?data=" + novaData, {}, token);
+    if (e.erros) setErrosEnvio(e);
+  };
 
   const removerBlacklist = async (id) => {
     await api("/blacklist/" + id, { method: "DELETE" }, token);
@@ -1383,6 +1393,34 @@ function Relatorio({ token }) {
   return (
     <div>
       <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Relatório</h1>
+
+      <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>⚠️ Cobranças que falharam</h3>
+          <input type="date" value={dataErros} onChange={e => buscarErrosData(e.target.value)} style={{ border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "6px 10px", fontSize: 13 }} />
+        </div>
+        {!errosEnvio || errosEnvio.total === 0 ? (
+          <div style={{ textAlign: "center", color: "#16A34A", padding: 20, fontSize: 14, fontWeight: 600, background: "#F0FDF4", borderRadius: 10 }}>✅ Nenhuma falha nesse dia — todas as cobranças foram entregues.</div>
+        ) : (
+          <div>
+            <div style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#991B1B", fontWeight: 600 }}>
+              {errosEnvio.total} cliente(s) não foram cobrados nesse dia — corrija os dados abaixo.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {errosEnvio.erros.map(e => (
+                <div key={e.id} style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{e.cliente_nome || "Cliente removido"}</div>
+                    <div style={{ fontSize: 12, color: "#64748B" }}>{e.cliente_telefone || "—"} · {new Date(e.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+                  </div>
+                  <div style={{ background: "#FEE2E2", color: "#DC2626", padding: "4px 10px", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>{e.erro_motivo}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 12, color: "#64748B" }}>💡 Corrija o telefone em <strong>Clientes → Editar</strong>. Na próxima passada da régua, o sistema tenta cobrar de novo automaticamente.</div>
+          </div>
+        )}
+      </div>
 
       {dados && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 16 }}>
