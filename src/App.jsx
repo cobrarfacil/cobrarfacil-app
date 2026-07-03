@@ -1210,7 +1210,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
     <div>
       {toast && <ToastMsg {...toast} />}
       {modalRegua && <ModalRegua cliente={modalRegua} token={token} onClose={() => setModalRegua(null)} />}
-      {modalConversa && <ModalConversa cliente={modalConversa} token={token} onClose={() => setModalConversa(null)} />}
+      {modalConversa && <ModalConversa key={modalConversa.id} cliente={modalConversa} token={token} onClose={() => setModalConversa(null)} />}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div>
