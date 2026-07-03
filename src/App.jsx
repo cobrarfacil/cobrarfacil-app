@@ -785,15 +785,18 @@ function Dashboard({ clientes, token }) {
         {relatorio && (
           <div style={{ marginTop: 14 }}>
             {relatorio.por_status?.map(r => (
-              <div key={r.status} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F1F5F9", fontSize: 14 }}>
+              <div key={r.status} onClick={() => setDetalhe({ titulo: "Período — " + r.status, lista: (relatorio.clientes || []).filter(c => c.status === r.status) })} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F1F5F9", fontSize: 14, cursor: "pointer" }}>
                 <span style={{ color: "#374151", fontWeight: 600 }}>{r.status}</span>
-                <span style={{ fontWeight: 700, color: "#0F172A" }}>{fmt(r.total)} ({r.qtd} clientes)</span>
+                <span style={{ fontWeight: 700, color: "#0F172A" }}>{fmt(r.total)} ({r.qtd} clientes) <span style={{ color: "#94A3B8", fontWeight: 400 }}>→</span></span>
               </div>
             ))}
             {relatorio.recebidos && (
-              <div style={{ background: "#F0FDF4", borderRadius: 8, padding: "10px 12px", marginTop: 10, fontSize: 14, color: "#16A34A", fontWeight: 700 }}>
-                ✅ Recebido no período: {fmt(relatorio.recebidos.total)} ({relatorio.recebidos.qtd} pagamentos)
+              <div onClick={() => setDetalhe({ titulo: "Recebido no período", lista: (relatorio.clientes || []).filter(c => c.status === "pago") })} style={{ background: "#F0FDF4", borderRadius: 8, padding: "10px 12px", marginTop: 10, fontSize: 14, color: "#16A34A", fontWeight: 700, cursor: "pointer" }}>
+                ✅ Recebido no período: {fmt(relatorio.recebidos.total)} ({relatorio.recebidos.qtd} pagamentos) →
               </div>
+            )}
+            {relatorio.clientes && relatorio.clientes.length > 0 && (
+              <Btn small variant="ghost" onClick={() => setDetalhe({ titulo: "Todos os clientes do período", lista: relatorio.clientes })} style={{ width: "100%", justifyContent: "center", marginTop: 10 }}>Ver todos os {relatorio.clientes.length} clientes do período</Btn>
             )}
           </div>
         )}
@@ -910,7 +913,7 @@ function MensagemEditorInline({ etapa, mensagemAtual, cliente, onSalvar }) {
   );
 }
 
-function Clientes({ clientes, setClientes, onCobranca, token }) {
+function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setClienteParaEditar, token }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [modalAdd, setModalAdd] = useState(false);
@@ -927,6 +930,11 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
   useEffect(() => { if (modalEditar) setEditando({ ...modalEditar }); }, [modalEditar]);
+
+  // Chegou aqui vindo do "✏️ Editar" no Relatório de erros — abre o modal direto
+  useEffect(() => {
+    if (clienteParaEditar) { setModalEditar(clienteParaEditar); setClienteParaEditar(null); }
+  }, [clienteParaEditar]);
 
   const filtrados = clientes.filter(c => (filtro === "todos" || c.status === filtro) && c.nome.toLowerCase().includes(busca.toLowerCase()));
 
@@ -988,7 +996,6 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
     const nomeArquivo = file.name.toLowerCase();
 
     if (nomeArquivo.endsWith(".xlsx") || nomeArquivo.endsWith(".xls")) {
-      // Lê Excel real usando SheetJS carregado dinamicamente
       try {
         if (!window.XLSX) {
           await new Promise((resolve, reject) => {
@@ -1000,13 +1007,45 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
           });
         }
         const buffer = await file.arrayBuffer();
-        const workbook = window.XLSX.read(buffer, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = window.XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false, dateNF: "dd/mm/yyyy" });
+
+        // Alguns sistemas de gestão (comum em software de salão mais antigo)
+        // exportam um arquivo com extensão .xls que por dentro é uma TABELA HTML,
+        // não um Excel binário de verdade. O SheetJS não lê isso. Detecta e usa
+        // outro caminho de leitura nesse caso.
+        const inicioArquivo = new TextDecoder("utf-8", { fatal: false }).decode(buffer.slice(0, 1024)).toLowerCase();
+        const pareceHtml = inicioArquivo.includes("<html") || inicioArquivo.includes("<table") || inicioArquivo.includes("<!doctype");
+
+        let json;
+        if (pareceHtml) {
+          const texto = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+          const doc = new DOMParser().parseFromString(texto, "text/html");
+          const tabela = doc.querySelector("table");
+          if (!tabela) throw new Error("Arquivo parece HTML mas não encontrei nenhuma tabela dentro dele.");
+          const linhas = Array.from(tabela.querySelectorAll("tr")).filter(l => l.querySelectorAll("td,th").length > 0);
+          if (linhas.length < 2) throw new Error("Tabela encontrada, mas sem linhas de dados suficientes.");
+          const cabecalho = Array.from(linhas[0].querySelectorAll("th,td")).map(c => c.textContent.trim());
+          json = linhas.slice(1).map(linha => {
+            const celulas = Array.from(linha.querySelectorAll("td,th")).map(c => c.textContent.trim());
+            const obj = {};
+            cabecalho.forEach((h, i) => { obj[h] = celulas[i] || ""; });
+            return obj;
+          });
+        } else {
+          const workbook = window.XLSX.read(buffer, { type: "array" });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          json = window.XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false, dateNF: "dd/mm/yyyy" });
+        }
+
+        if (!json || json.length === 0) {
+          showToast("O arquivo foi lido mas nenhuma linha de dado foi encontrada. Confira se a planilha tem cabeçalho na primeira linha.", "error");
+          return;
+        }
+
         const mapeado = json.map(mapearLinhaPlanilha);
         setCsvPreview(mapeado);
       } catch (err) {
-        showToast("Erro ao ler arquivo Excel. Tente salvar como CSV.", "error");
+        console.error("Erro ao ler planilha:", err);
+        showToast("Erro ao ler o arquivo: " + (err.message || "formato não reconhecido") + ". Alternativa: abra no Excel → Salvar Como → CSV, e suba o CSV.", "error");
       }
       return;
     }
@@ -1020,7 +1059,15 @@ function Clientes({ clientes, setClientes, onCobranca, token }) {
   const importarCSV = async () => {
     const lista = csvPreview.filter(c => !c.pular).map(c => ({ nome: c.nome, telefone: c.telefone, total_divida: c.total_divida, cpf: c.cpf, email: c.email, vencimento: c.vencimento, parcelas: c.parcelas }));
     const data = await api("/clientes/importar", { method: "POST", body: JSON.stringify({ clientes: lista }) }, token);
-    if (data.sucesso) { const novos = await api("/clientes", {}, token); if (Array.isArray(novos)) setClientes(novos); setCsvPreview([]); setModalImport(false); showToast(data.importados + " importados! A régua começa a cobrar automaticamente a partir de amanhã."); }
+    if (data.sucesso) {
+      const novos = await api("/clientes", {}, token); if (Array.isArray(novos)) setClientes(novos);
+      setCsvPreview([]); setModalImport(false);
+      if (data.aviso) {
+        alert("⚠️ Atenção!\n\n" + data.importados + " de " + data.totalSolicitado + " clientes foram importados.\n\n" + data.aviso);
+      } else {
+        showToast(data.importados + " importados! A régua começa a cobrar automaticamente a partir de amanhã.");
+      }
+    }
     else showToast(data.erro || "Erro", "error");
   };
 
@@ -1294,6 +1341,15 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
     setDisparando(false);
   };
 
+  const [mostrarReguaVisual, setMostrarReguaVisual] = useState(false);
+  const ETAPAS_VISUAL = [
+    { etapa: "d-3",  label: "D-3",  quando: "3 dias antes do vencimento", cor: "#3B82F6", bg: "#EFF6FF", icone: "🔔" },
+    { etapa: "d0",   label: "D0",   quando: "No dia do vencimento",        cor: "#EF4444", bg: "#FEF2F2", icone: "📅" },
+    { etapa: "d+3",  label: "D+3",  quando: "3 dias em atraso",            cor: "#F59E0B", bg: "#FFFBEB", icone: "⚠️" },
+    { etapa: "d+15", label: "D+15", quando: "15 dias em atraso",           cor: "#DC2626", bg: "#FEF2F2", icone: "🚨" },
+    { etapa: "d+30", label: "D+30", quando: "30+ dias — repete a cada 15 dias até pagar", cor: "#7C3AED", bg: "#F5F3FF", icone: "⛔" },
+  ];
+
   return (
     <div>
       <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Cobranças</h1>
@@ -1304,6 +1360,30 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
           <strong>D-3 · D0 · D+3 · D+15 · D+30</strong> com variação de mensagens.<br />
           Configure etapas em cada cliente clicando em <strong>"Régua"</strong>.
         </div>
+        <Btn small variant="outline" onClick={() => setMostrarReguaVisual(p => !p)} style={{ width: "100%", justifyContent: "center", marginBottom: 12 }}>
+          {mostrarReguaVisual ? "▲ Esconder como funciona" : "👀 Ver como funciona, passo a passo"}
+        </Btn>
+        {mostrarReguaVisual && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+            {ETAPAS_VISUAL.map((e, i) => {
+              const exemplo = MENSAGENS_PADRAO[e.etapa] ? MENSAGENS_PADRAO[e.etapa]("Maria Silva", "150.00") : "";
+              return (
+                <div key={e.etapa} style={{ background: "#fff", borderRadius: 12, padding: 14, border: "1.5px solid " + e.cor + "33", position: "relative" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: e.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{e.icone}</div>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: e.cor }}>{e.label}</div>
+                      <div style={{ fontSize: 12, color: "#64748B" }}>{e.quando}</div>
+                    </div>
+                  </div>
+                  <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#374151", fontStyle: "italic" }}>"{exemplo}"</div>
+                  {i < ETAPAS_VISUAL.length - 1 && <div style={{ position: "absolute", left: 32, bottom: -14, width: 2, height: 14, background: "#E2E8F0" }} />}
+                </div>
+              );
+            })}
+            <div style={{ fontSize: 12, color: "#64748B", textAlign: "center", marginTop: 4 }}>💡 Exemplo com dados fictícios — cada cliente recebe com o nome e valor reais dele.</div>
+          </div>
+        )}
         <Btn onClick={dispararRegua} disabled={disparando} style={{ width: "100%", justifyContent: "center" }}>
           {disparando ? "⏳ Disparando..." : "▶ Disparar régua agora"}
         </Btn>
@@ -1357,12 +1437,13 @@ function Historico({ historico }) {
   );
 }
 
-function Relatorio({ token }) {
+function Relatorio({ token, clientes, onEditarCliente }) {
   const [dados, setDados] = useState(null);
   const [loading, setLoading] = useState(true);
   const [blacklist, setBlacklist] = useState([]);
   const [errosEnvio, setErrosEnvio] = useState(null);
   const [dataErros, setDataErros] = useState(new Date().toISOString().split("T")[0]);
+  const [detalhe, setDetalhe] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -1394,6 +1475,8 @@ function Relatorio({ token }) {
     <div>
       <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Relatório</h1>
 
+      {detalhe && <ModalDetalheLista titulo={detalhe.titulo} lista={detalhe.lista} onClose={() => setDetalhe(null)} />}
+
       <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>⚠️ Cobranças que falharam</h3>
@@ -1407,17 +1490,25 @@ function Relatorio({ token }) {
               {errosEnvio.total} cliente(s) não foram cobrados nesse dia — corrija os dados abaixo.
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {errosEnvio.erros.map(e => (
-                <div key={e.id} style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{e.cliente_nome || "Cliente removido"}</div>
-                    <div style={{ fontSize: 12, color: "#64748B" }}>{e.cliente_telefone || "—"} · {new Date(e.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+              {errosEnvio.erros.map(e => {
+                const clienteCompleto = clientes?.find(c => c.id === e.cliente_id);
+                return (
+                  <div key={e.id} style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{e.cliente_nome || "Cliente removido"}</div>
+                      <div style={{ fontSize: 12, color: "#64748B" }}>{e.cliente_telefone || "—"} · {new Date(e.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <div style={{ background: "#FEE2E2", color: "#DC2626", padding: "4px 10px", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>{e.erro_motivo}</div>
+                      {clienteCompleto && onEditarCliente && (
+                        <button onClick={() => onEditarCliente(clienteCompleto)} style={{ background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>✏️ Editar</button>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ background: "#FEE2E2", color: "#DC2626", padding: "4px 10px", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>{e.erro_motivo}</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-            <div style={{ marginTop: 12, fontSize: 12, color: "#64748B" }}>💡 Corrija o telefone em <strong>Clientes → Editar</strong>. Na próxima passada da régua, o sistema tenta cobrar de novo automaticamente.</div>
+            <div style={{ marginTop: 12, fontSize: 12, color: "#64748B" }}>💡 Clique em "Editar" pra corrigir na hora. Na próxima passada da régua, o sistema tenta cobrar de novo automaticamente.</div>
           </div>
         )}
       </div>
@@ -1425,14 +1516,14 @@ function Relatorio({ token }) {
       {dados && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 16 }}>
           {[
-            { label: "Total inadimplente", value: fmt(dados.total_inadimplencia), color: "#DC2626", bg: "#FEF2F2" },
-            { label: "Clientes em atraso", value: dados.inadimplentes?.length || 0, color: "#F59E0B", bg: "#FFFBEB" },
-            { label: "Taxa inadimplência", value: dados.taxa_inadimplencia + "%", color: "#7C3AED", bg: "#F5F3FF" },
-            { label: "Taxa de recuperação", value: dados.taxa_recuperacao + "%", color: "#16A34A", bg: "#F0FDF4" },
+            { label: "Total inadimplente", value: fmt(dados.total_inadimplencia), color: "#DC2626", bg: "#FEF2F2", lista: dados.inadimplentes || [], titulo: "Clientes inadimplentes" },
+            { label: "Clientes em atraso", value: dados.inadimplentes?.length || 0, color: "#F59E0B", bg: "#FFFBEB", lista: dados.inadimplentes || [], titulo: "Clientes em atraso" },
+            { label: "Taxa inadimplência", value: dados.taxa_inadimplencia + "%", color: "#7C3AED", bg: "#F5F3FF", lista: dados.inadimplentes || [], titulo: "Clientes que compõem a taxa de inadimplência" },
+            { label: "Taxa de recuperação", value: dados.taxa_recuperacao + "%", color: "#16A34A", bg: "#F0FDF4", lista: (clientes || []).filter(c => c.status === "pago"), titulo: "Clientes recuperados (pagos)" },
           ].map(c => (
-            <div key={c.label} style={{ background: c.bg, borderRadius: 14, padding: 16, border: "1px solid #F1F5F9" }}>
+            <div key={c.label} onClick={() => setDetalhe({ titulo: c.titulo, lista: c.lista })} style={{ background: c.bg, borderRadius: 14, padding: 16, border: "1px solid #F1F5F9", cursor: "pointer" }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: c.color }}>{c.value}</div>
-              <div style={{ fontSize: 12, color: "#64748B", marginTop: 4 }}>{c.label}</div>
+              <div style={{ fontSize: 12, color: "#64748B", marginTop: 4 }}>{c.label} <span style={{ color: "#94A3B8" }}>→</span></div>
             </div>
           ))}
         </div>
@@ -1683,6 +1774,7 @@ export default function CobrarFacil() {
   const [clientes, setClientes] = useState([]);
   const [historico, setHistorico] = useState([]);
   const [clienteParaCobrar, setClienteParaCobrar] = useState(null);
+  const [clienteParaEditar, setClienteParaEditar] = useState(null);
   const isMobile = useMobile();
 
   useEffect(() => {
@@ -1709,6 +1801,7 @@ export default function CobrarFacil() {
   if (trocandoSenha) return <TrocarSenha token={sessao.token} onSucesso={() => setTrocandoSenha(false)} />;
 
   const irParaCobranca = (c) => { setClienteParaCobrar(c); setTela("cobrancas"); };
+  const irParaEditar = (c) => { setClienteParaEditar(c); setTela("clientes"); };
 
   const nav = [
     { key: "dashboard", label: "Painel",     icon: <Ic.dash /> },
@@ -1724,10 +1817,10 @@ export default function CobrarFacil() {
   const renderTela = () => {
     switch(tela) {
       case "dashboard": return <Dashboard clientes={clientes} token={sessao.token} />;
-      case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} token={sessao.token} />;
+      case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={sessao.token} />;
       case "cobrancas": return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessao.token} />;
       case "historico": return <Historico historico={historico} />;
-      case "relatorio": return <Relatorio token={sessao.token} />;
+      case "relatorio": return <Relatorio token={sessao.token} clientes={clientes} onEditarCliente={irParaEditar} />;
       case "config":    return <Configuracoes usuario={sessao.usuario} token={sessao.token} />;
       default: return null;
     }
