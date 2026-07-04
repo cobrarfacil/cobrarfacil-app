@@ -614,6 +614,7 @@ function AdminPanel({ onLogout, token }) {
   };
   const alterarStatus = async (id, status) => { await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ status }) }, token); showToast("Status atualizado!"); carregar(); };
   const adicionarDias = async (id, dias) => { await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ dias_adicionais: dias }) }, token); showToast(dias + " dias adicionados!"); carregar(); };
+  const alternarModoDemo = async (id, valorAtual) => { await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ modo_demo: !valorAtual }) }, token); showToast(!valorAtual ? "🎭 Modo demonstração ATIVADO — nenhuma mensagem real será enviada" : "Modo demonstração desativado — volta a enviar mensagens reais"); carregar(); };
   const lojFiltrados = lojistas.filter(l => l.plano !== "admin" && (l.nome?.toLowerCase().includes(busca.toLowerCase()) || l.email?.toLowerCase().includes(busca.toLowerCase())));
   const vencendo = lojistas.filter(l => { if (!l.expira_em || l.plano === "admin") return false; const d = Math.floor((new Date(l.expira_em) - new Date()) / 86400000); return d >= 0 && d <= 7; });
   return (
@@ -664,6 +665,7 @@ function AdminPanel({ onLogout, token }) {
                   </div>
                   <span style={{ background: l.status === "ativo" ? "#16A34A" : "#D97706", color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99 }}>{l.status}</span>
                 </div>
+                {l.modo_demo && <div style={{ background: "#581C87", color: "#E9D5FF", fontSize: 11.5, fontWeight: 700, padding: "5px 10px", borderRadius: 8, marginBottom: 10, display: "inline-block" }}>🎭 MODO DEMONSTRAÇÃO ATIVO — mensagens não são enviadas de verdade</div>}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12, color: "#94A3B8", marginBottom: 10 }}>
                   <span>Plano: <strong style={{ color: "#60A5FA" }}>{l.plano}</strong></span>
                   <span>Vence: <strong style={{ color: diasExp !== null && diasExp <= 7 ? "#FCA5A5" : "#94A3B8" }}>{expira}</strong></span>
@@ -674,6 +676,7 @@ function AdminPanel({ onLogout, token }) {
                   <button onClick={() => adicionarDias(l.id, 30)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>+30d</button>
                   {l.status === "ativo" ? <button onClick={() => alterarStatus(l.id, "inativo")} style={{ background: "#D97706", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>Bloquear</button>
                     : <button onClick={() => alterarStatus(l.id, "ativo")} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>Ativar</button>}
+                  <button onClick={() => alternarModoDemo(l.id, l.modo_demo)} style={{ background: l.modo_demo ? "#7C3AED" : "#374151", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>🎭 {l.modo_demo ? "Desligar demo" : "Ligar modo demo"}</button>
                 </div>
               </div>
             );
