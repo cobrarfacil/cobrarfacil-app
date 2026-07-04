@@ -5,6 +5,20 @@ const BACKEND_URL = "https://cobrarfacil-backend-production.up.railway.app";
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtData = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR") : "—";
 
+// CSS global — micro-interações que dão sensação de resposta/qualidade sem
+// precisar reescrever cada componente em inline style.
+const GLOBAL_STYLES = `
+  .cf-btn { transition: transform .12s ease, box-shadow .12s ease, filter .12s ease, opacity .12s ease; }
+  .cf-btn:active:not(:disabled) { transform: scale(0.96); filter: brightness(0.96); }
+  .cf-card { transition: transform .15s ease, box-shadow .15s ease; }
+  .cf-card:active { transform: scale(0.98); }
+  @keyframes cfFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .cf-fade { animation: cfFadeUp .5s cubic-bezier(.16,1,.3,1) both; }
+  @keyframes cfBarGrow { from { width: 0%; } }
+  .cf-bar { animation: cfBarGrow 1.1s cubic-bezier(.16,1,.3,1) both; }
+  * { -webkit-tap-highlight-color: transparent; }
+`;
+
 const statusColor = {
   pendente:   { bg: "#FEF3C7", text: "#D97706", label: "Pendente" },
   atrasado:   { bg: "#FEE2E2", text: "#DC2626", label: "Atrasado" },
@@ -240,8 +254,15 @@ const Sel = ({ label, children, ...props }) => (
 );
 
 const Btn = ({ children, onClick, variant = "primary", small, style: s = {}, disabled }) => {
-  const v = { primary: { background: "#1E40AF", color: "#fff", border: "none" }, green: { background: "#16A34A", color: "#fff", border: "none" }, danger: { background: "#DC2626", color: "#fff", border: "none" }, ghost: { background: "#F1F5F9", color: "#374151", border: "none" }, outline: { background: "transparent", color: "#1E40AF", border: "1.5px solid #1E40AF" }, orange: { background: "#F59E0B", color: "#fff", border: "none" } };
-  return <button onClick={onClick} disabled={disabled} style={{ ...v[variant], borderRadius: 10, padding: small ? "8px 14px" : "12px 20px", fontSize: small ? 13 : 15, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6, ...s }}>{children}</button>;
+  const v = {
+    primary: { background: "linear-gradient(135deg, #2563EB, #1E3A8A)", color: "#fff", border: "none", boxShadow: "0 3px 10px rgba(30,64,175,0.3)" },
+    green:   { background: "linear-gradient(135deg, #22C55E, #15803D)", color: "#fff", border: "none", boxShadow: "0 3px 10px rgba(21,128,61,0.3)" },
+    danger:  { background: "linear-gradient(135deg, #EF4444, #B91C1C)", color: "#fff", border: "none", boxShadow: "0 3px 10px rgba(185,28,28,0.28)" },
+    ghost:   { background: "#F1F5F9", color: "#374151", border: "none", boxShadow: "none" },
+    outline: { background: "transparent", color: "#1E40AF", border: "1.5px solid #1E40AF", boxShadow: "none" },
+    orange:  { background: "linear-gradient(135deg, #FBBF24, #D97706)", color: "#fff", border: "none", boxShadow: "0 3px 10px rgba(217,119,6,0.28)" },
+  };
+  return <button className="cf-btn" onClick={onClick} disabled={disabled} style={{ ...v[variant], borderRadius: 11, padding: small ? "8px 14px" : "12px 20px", fontSize: small ? 13 : 15, fontWeight: 700, letterSpacing: "-0.1px", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1, display: "inline-flex", alignItems: "center", gap: 6, ...s }}>{children}</button>;
 };
 
 const ToastMsg = ({ msg, type }) => (
@@ -716,6 +737,7 @@ function Dashboard({ clientes, token }) {
   const [periodo, setPeriodo] = useState({ inicio: new Date().toISOString().split('T')[0], fim: new Date(Date.now() + 30*86400000).toISOString().split('T')[0] });
   const [filtrando, setFiltrando] = useState(false);
   const [detalhe, setDetalhe] = useState(null);
+  const [mostrarCompleto, setMostrarCompleto] = useState(false);
 
   useEffect(() => {
     api("/metricas", {}, token).then(d => { if (d.total_em_aberto !== undefined) setMetricas(d); });
@@ -732,6 +754,8 @@ function Dashboard({ clientes, token }) {
   const pagos = clientes.filter(c => c.status === "pago");
   const atrasados = clientes.filter(c => c.status === "atrasado");
   const abertos = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist");
+  const totalPagoSoma = pagos.reduce((a, c) => a + parseFloat(c.total_divida || 0), 0);
+  const percentual = total > 0 ? Math.round((totalPagoSoma / total) * 100) : 0;
 
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const fimSemana = new Date(hoje); fimSemana.setDate(fimSemana.getDate() + 7);
@@ -743,110 +767,143 @@ function Dashboard({ clientes, token }) {
 
   return (
     <div>
-      <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Painel Geral</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.3px" }}>Painel Geral</h1>
+        <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>{new Date().toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" }).replace(/^\w/, c => c.toUpperCase())}</span>
+      </div>
 
       {detalhe && <ModalDetalheLista titulo={detalhe.titulo} lista={detalhe.lista} onClose={() => setDetalhe(null)} />}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 16 }}>
+      {/* HERO — recuperação, o número que mais importa */}
+      <div className="cf-fade" style={{ background: "linear-gradient(135deg, #0F172A 0%, #064E3B 100%)", borderRadius: 20, padding: "22px 20px", marginBottom: 12, boxShadow: "0 10px 28px rgba(6,78,59,0.28)", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -40, right: -30, width: 140, height: 140, background: "radial-gradient(circle, rgba(34,197,94,0.28), transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6EE7B7", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 8, position: "relative" }}>Recuperação total</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 14, position: "relative" }}>
+          <span style={{ fontSize: 46, fontWeight: 900, color: "#fff", fontFamily: "'JetBrains Mono', 'SF Mono', monospace", letterSpacing: -1.5, lineHeight: 1 }}>{percentual}%</span>
+          <span style={{ fontSize: 12.5, color: "#94A3B8", fontWeight: 500 }}>do valor total já recuperado</span>
+        </div>
+        <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 99, height: 7, overflow: "hidden", marginBottom: 16, position: "relative" }}>
+          <div className="cf-bar" style={{ width: percentual + "%", background: "linear-gradient(90deg, #22C55E, #6EE7B7)", height: "100%", borderRadius: 99 }} />
+        </div>
+        <div style={{ display: "flex", gap: 14, position: "relative" }}>
+          <div onClick={() => setDetalhe({ titulo: "Clientes que pagaram", lista: pagos })} style={{ flex: 1, cursor: "pointer" }}>
+            <div style={{ fontSize: 10.5, color: "#94A3B8", marginBottom: 3, fontWeight: 600 }}>RECEBIDO</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#6EE7B7", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(metricas?.total_recebido ?? totalPagoSoma)}</div>
+          </div>
+          <div style={{ width: 1, background: "rgba(255,255,255,0.15)" }} />
+          <div onClick={() => setDetalhe({ titulo: "Clientes em aberto", lista: abertos })} style={{ flex: 1, cursor: "pointer" }}>
+            <div style={{ fontSize: 10.5, color: "#94A3B8", marginBottom: 3, fontWeight: 600 }}>EM ABERTO</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(metricas?.total_em_aberto ?? total)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats secundárias compactas */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 12 }}>
         {[
-          { label: "Total em aberto", value: fmt(metricas?.total_em_aberto ?? total), icon: <Ic.money />, color: "#1E40AF", bg: "#EFF6FF", lista: abertos, titulo: "Clientes em aberto" },
-          { label: "Total recebido", value: fmt(metricas?.total_recebido ?? 0), icon: <Ic.trend />, color: "#16A34A", bg: "#F0FDF4", lista: pagos, titulo: "Clientes que pagaram" },
           { label: "Em atraso", value: fmt(metricas?.atrasados?.valor ?? 0), sub: (metricas?.atrasados?.qtd ?? atrasados.length) + " clientes", icon: <Ic.alert />, color: "#DC2626", bg: "#FEF2F2", lista: atrasados, titulo: "Clientes em atraso" },
-          { label: "Clientes", value: clientes.length, icon: <Ic.users />, color: "#7C3AED", bg: "#F5F3FF", lista: clientes, titulo: "Todos os clientes" },
+          { label: "Total de clientes", value: clientes.length, sub: null, icon: <Ic.users />, color: "#7C3AED", bg: "#F5F3FF", lista: clientes, titulo: "Todos os clientes" },
         ].map(c => (
-          <div key={c.label} onClick={() => setDetalhe({ titulo: c.titulo, lista: c.lista })} style={{ background: "#fff", borderRadius: 14, padding: 16, border: "1px solid #F1F5F9", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", cursor: "pointer" }}>
-            <div style={{ width: 36, height: 36, background: c.bg, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: c.color, marginBottom: 10 }}>{c.icon}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#0F172A" }}>{c.value}</div>
-            {c.sub && <div style={{ fontSize: 12, color: "#DC2626", fontWeight: 600 }}>{c.sub}</div>}
-            <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>{c.label} <span style={{ color: "#94A3B8" }}>→ ver lista</span></div>
+          <div key={c.label} className="cf-card" onClick={() => setDetalhe({ titulo: c.titulo, lista: c.lista })} style={{ background: "#fff", borderRadius: 14, padding: "13px 14px", border: "1px solid #F1F5F9", boxShadow: "0 1px 6px rgba(0,0,0,0.05)", cursor: "pointer" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 7 }}>
+              <div style={{ width: 26, height: 26, background: c.bg, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: c.color, flexShrink: 0 }}>{c.icon}</div>
+              <span style={{ fontSize: 11.5, color: "#64748B", fontWeight: 600 }}>{c.label}</span>
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#0F172A" }}>{c.value}</div>
+            {c.sub && <div style={{ fontSize: 10.5, color: c.color, fontWeight: 700 }}>{c.sub}</div>}
           </div>
         ))}
       </div>
 
+      {/* Vencimentos — uma linha compacta, não 3 blocos */}
       {metricas && (
-        <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>📅 Vencimentos <span style={{ fontSize: 12, fontWeight: 400, color: "#94A3B8" }}>(toque para ver detalhes)</span></h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { label: "Vence hoje", dados: metricas.vence_hoje, cor: "#EF4444", bg: "#FEF2F2", lista: venceHojeList },
-              { label: "Vence esta semana", dados: metricas.vence_semana, cor: "#F59E0B", bg: "#FFFBEB", lista: venceSemanaList },
-              { label: "Vence este mês", dados: metricas.vence_mes, cor: "#3B82F6", bg: "#EFF6FF", lista: venceMesList },
-            ].map(v => (
-              <div key={v.label} onClick={() => setDetalhe({ titulo: v.label, lista: v.lista })} style={{ background: v.bg, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: v.cor }}>{v.label}</span>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: v.cor }}>{fmt(v.dados?.valor ?? 0)}</div>
-                  <div style={{ fontSize: 11, color: "#64748B" }}>{v.dados?.qtd ?? 0} cobrança(s)</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {metricas && (
-        <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>💰 Recebimentos</h3>
+        <div style={{ background: "#fff", borderRadius: 16, padding: 14, border: "1px solid #F1F5F9", marginBottom: 12 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 10 }}>📅 Próximos vencimentos</div>
           <div style={{ display: "flex", gap: 8 }}>
             {[
-              { label: "Hoje", valor: metricas.recebido_hoje },
-              { label: "Semana", valor: metricas.recebido_semana },
-              { label: "Mês", valor: metricas.recebido_mes },
-            ].map(r => (
-              <div key={r.label} onClick={() => setDetalhe({ titulo: "Recebidos — " + r.label, lista: pagos })} style={{ flex: 1, background: "#F0FDF4", borderRadius: 10, padding: "12px 8px", textAlign: "center", cursor: "pointer" }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "#16A34A" }}>{fmt(r.valor)}</div>
-                <div style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>{r.label}</div>
+              { label: "Hoje", dados: metricas.vence_hoje, cor: "#EF4444", bg: "#FEF2F2", lista: venceHojeList },
+              { label: "7 dias", dados: metricas.vence_semana, cor: "#F59E0B", bg: "#FFFBEB", lista: venceSemanaList },
+              { label: "30 dias", dados: metricas.vence_mes, cor: "#3B82F6", bg: "#EFF6FF", lista: venceMesList },
+            ].map(v => (
+              <div key={v.label} className="cf-card" onClick={() => setDetalhe({ titulo: v.label, lista: v.lista })} style={{ flex: 1, background: v.bg, borderRadius: 10, padding: "9px 6px", textAlign: "center", cursor: "pointer" }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: v.cor, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(v.dados?.valor ?? 0)}</div>
+                <div style={{ fontSize: 9.5, color: v.cor, fontWeight: 700 }}>{v.label} · {v.dados?.qtd ?? 0}</div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 16 }}>
-        <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>🔍 Filtrar por período</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-          <Inp label="De" type="date" value={periodo.inicio} onChange={e => setPeriodo(p => ({ ...p, inicio: e.target.value }))} />
-          <Inp label="Até" type="date" value={periodo.fim} onChange={e => setPeriodo(p => ({ ...p, fim: e.target.value }))} />
-        </div>
-        <Btn onClick={filtrarPeriodo} disabled={filtrando} style={{ width: "100%", justifyContent: "center" }}>{filtrando ? "Filtrando..." : "📊 Ver relatório do período"}</Btn>
-        {relatorio && (
-          <div style={{ marginTop: 14 }}>
-            {relatorio.por_status?.map(r => (
-              <div key={r.status} onClick={() => setDetalhe({ titulo: "Período — " + r.status, lista: (relatorio.clientes || []).filter(c => c.status === r.status) })} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F1F5F9", fontSize: 14, cursor: "pointer" }}>
-                <span style={{ color: "#374151", fontWeight: 600 }}>{r.status}</span>
-                <span style={{ fontWeight: 700, color: "#0F172A" }}>{fmt(r.total)} ({r.qtd} clientes) <span style={{ color: "#94A3B8", fontWeight: 400 }}>→</span></span>
+      {/* Tudo o resto fica dobrado — não força scroll pra quem só quer o resumo */}
+      <button onClick={() => setMostrarCompleto(p => !p)} className="cf-btn" style={{ width: "100%", background: "none", border: "1.5px dashed #CBD5E1", borderRadius: 12, padding: "11px", color: "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: mostrarCompleto ? 12 : 0 }}>
+        {mostrarCompleto ? "▲ Esconder relatório completo" : "▼ Ver relatório completo e filtrar por período"}
+      </button>
+
+      {mostrarCompleto && (
+        <div className="cf-fade">
+          <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 12 }}>
+            <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>💰 Recebimentos</h3>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[
+                { label: "Hoje", valor: metricas?.recebido_hoje },
+                { label: "Semana", valor: metricas?.recebido_semana },
+                { label: "Mês", valor: metricas?.recebido_mes },
+              ].map(r => (
+                <div key={r.label} onClick={() => setDetalhe({ titulo: "Recebidos — " + r.label, lista: pagos })} style={{ flex: 1, background: "#F0FDF4", borderRadius: 10, padding: "12px 8px", textAlign: "center", cursor: "pointer" }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#16A34A", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(r.valor)}</div>
+                  <div style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>{r.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 12 }}>
+            <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>🔍 Filtrar por período</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <Inp label="De" type="date" value={periodo.inicio} onChange={e => setPeriodo(p => ({ ...p, inicio: e.target.value }))} />
+              <Inp label="Até" type="date" value={periodo.fim} onChange={e => setPeriodo(p => ({ ...p, fim: e.target.value }))} />
+            </div>
+            <Btn onClick={filtrarPeriodo} disabled={filtrando} style={{ width: "100%", justifyContent: "center" }}>{filtrando ? "Filtrando..." : "📊 Ver relatório do período"}</Btn>
+            {relatorio && (
+              <div style={{ marginTop: 14 }}>
+                {relatorio.por_status?.map(r => (
+                  <div key={r.status} onClick={() => setDetalhe({ titulo: "Período — " + r.status, lista: (relatorio.clientes || []).filter(c => c.status === r.status) })} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F1F5F9", fontSize: 14, cursor: "pointer" }}>
+                    <span style={{ color: "#374151", fontWeight: 600 }}>{r.status}</span>
+                    <span style={{ fontWeight: 700, color: "#0F172A" }}>{fmt(r.total)} ({r.qtd} clientes) <span style={{ color: "#94A3B8", fontWeight: 400 }}>→</span></span>
+                  </div>
+                ))}
+                {relatorio.recebidos && (
+                  <div onClick={() => setDetalhe({ titulo: "Recebido no período", lista: (relatorio.clientes || []).filter(c => c.status === "pago") })} style={{ background: "#F0FDF4", borderRadius: 8, padding: "10px 12px", marginTop: 10, fontSize: 14, color: "#16A34A", fontWeight: 700, cursor: "pointer" }}>
+                    ✅ Recebido no período: {fmt(relatorio.recebidos.total)} ({relatorio.recebidos.qtd} pagamentos) →
+                  </div>
+                )}
+                {relatorio.clientes && relatorio.clientes.length > 0 && (
+                  <Btn small variant="ghost" onClick={() => setDetalhe({ titulo: "Todos os clientes do período", lista: relatorio.clientes })} style={{ width: "100%", justifyContent: "center", marginTop: 10 }}>Ver todos os {relatorio.clientes.length} clientes do período</Btn>
+                )}
               </div>
-            ))}
-            {relatorio.recebidos && (
-              <div onClick={() => setDetalhe({ titulo: "Recebido no período", lista: (relatorio.clientes || []).filter(c => c.status === "pago") })} style={{ background: "#F0FDF4", borderRadius: 8, padding: "10px 12px", marginTop: 10, fontSize: 14, color: "#16A34A", fontWeight: 700, cursor: "pointer" }}>
-                ✅ Recebido no período: {fmt(relatorio.recebidos.total)} ({relatorio.recebidos.qtd} pagamentos) →
-              </div>
-            )}
-            {relatorio.clientes && relatorio.clientes.length > 0 && (
-              <Btn small variant="ghost" onClick={() => setDetalhe({ titulo: "Todos os clientes do período", lista: relatorio.clientes })} style={{ width: "100%", justifyContent: "center", marginTop: 10 }}>Ver todos os {relatorio.clientes.length} clientes do período</Btn>
             )}
           </div>
-        )}
-      </div>
 
-      <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
-        <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>Situação geral</h3>
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          {[{ label: "Pagos", count: pagos.length, color: "#16A34A", bg: "#F0FDF4" }, { label: "Pendentes", count: clientes.filter(c => c.status === "pendente").length, color: "#D97706", bg: "#FFFBEB" }, { label: "Atrasados", count: atrasados.length, color: "#DC2626", bg: "#FEF2F2" }].map(s => (
-            <div key={s.label} style={{ flex: 1, background: s.bg, borderRadius: 12, padding: "12px 8px", textAlign: "center" }}>
-              <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{s.count}</div>
-              <div style={{ fontSize: 12, color: s.color, fontWeight: 600 }}>{s.label}</div>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
+            <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>Situação geral</h3>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              {[{ label: "Pagos", count: pagos.length, color: "#16A34A", bg: "#F0FDF4" }, { label: "Pendentes", count: clientes.filter(c => c.status === "pendente").length, color: "#D97706", bg: "#FFFBEB" }, { label: "Atrasados", count: atrasados.length, color: "#DC2626", bg: "#FEF2F2" }].map(s => (
+                <div key={s.label} style={{ flex: 1, background: s.bg, borderRadius: 12, padding: "12px 8px", textAlign: "center" }}>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{s.count}</div>
+                  <div style={{ fontSize: 12, color: s.color, fontWeight: 600 }}>{s.label}</div>
+                </div>
+              ))}
             </div>
-          ))}
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ fontSize: 13, color: "#64748B" }}>Taxa de recebimento</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#16A34A" }}>{percentual}%</span>
+            </div>
+            <div style={{ background: "#F1F5F9", borderRadius: 99, height: 8, overflow: "hidden" }}>
+              <div style={{ width: percentual + "%", background: "linear-gradient(90deg, #16A34A, #22C55E)", height: "100%", borderRadius: 99 }} />
+            </div>
+          </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-          <span style={{ fontSize: 13, color: "#64748B" }}>Taxa de recebimento</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#16A34A" }}>{total > 0 ? Math.round((pagos.reduce((a,c)=>a+parseFloat(c.total_divida||0),0) / total) * 100) : 0}%</span>
-        </div>
-        <div style={{ background: "#F1F5F9", borderRadius: 99, height: 8, overflow: "hidden" }}>
-          <div style={{ width: (total > 0 ? Math.round((pagos.reduce((a,c)=>a+parseFloat(c.total_divida||0),0) / total) * 100) : 0) + "%", background: "linear-gradient(90deg, #16A34A, #22C55E)", height: "100%", borderRadius: 99 }} />
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1978,6 +2035,7 @@ export default function CobrarFacil() {
   if (isMobile) {
     return (
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: 70 }}>
+        <style>{GLOBAL_STYLES}</style>
         <div style={{ background: "#0F172A", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 30, height: 30, background: "linear-gradient(135deg, #22C55E, #0D9488)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff" }}>C$</div>
@@ -2005,6 +2063,7 @@ export default function CobrarFacil() {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+      <style>{GLOBAL_STYLES}</style>
       <div style={{ width: 220, background: "#0F172A", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100 }}>
         <div style={{ padding: "18px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
