@@ -231,7 +231,7 @@ const Modal = ({ title, children, onClose, wide }) => (
     onClick={e => e.target === e.currentTarget && onClose()}>
     <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: wide ? 760 : 560, maxHeight: "92vh", overflow: "auto", boxShadow: "0 8px 40px rgba(0,0,0,0.25)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px", borderBottom: "1px solid #F1F5F9", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0F172A" }}>{title}</h3>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0B2B24" }}>{title}</h3>
         <button onClick={onClose} style={{ background: "#F1F5F9", border: "none", borderRadius: 8, width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B" }}><Ic.close /></button>
       </div>
       <div style={{ padding: "20px" }}>{children}</div>
@@ -242,14 +242,14 @@ const Modal = ({ title, children, onClose, wide }) => (
 const Inp = ({ label, ...props }) => (
   <div style={{ marginBottom: 14 }}>
     {label && <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>{label}</label>}
-    <input {...props} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "12px 14px", fontSize: 15, color: "#0F172A", outline: "none", boxSizing: "border-box", background: "#F8FAFC", ...props.style }} />
+    <input {...props} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "12px 14px", fontSize: 15, color: "#0B2B24", outline: "none", boxSizing: "border-box", background: "#F8FAFC", ...props.style }} />
   </div>
 );
 
 const Sel = ({ label, children, ...props }) => (
   <div style={{ marginBottom: 14 }}>
     {label && <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>{label}</label>}
-    <select {...props} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "12px 14px", fontSize: 15, color: "#0F172A", outline: "none", background: "#F8FAFC", cursor: "pointer", boxSizing: "border-box" }}>{children}</select>
+    <select {...props} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "12px 14px", fontSize: 15, color: "#0B2B24", outline: "none", background: "#F8FAFC", cursor: "pointer", boxSizing: "border-box" }}>{children}</select>
   </div>
 );
 
@@ -276,7 +276,7 @@ const SenhaInput = ({ label, value, onChange, placeholder, onKeyDown }) => {
       {label && <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>{label}</label>}
       <div style={{ position: "relative" }}>
         <input type={mostrar ? "text" : "password"} value={value} onChange={onChange} placeholder={placeholder} onKeyDown={onKeyDown}
-          style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "12px 48px 12px 14px", fontSize: 15, color: "#0F172A", outline: "none", boxSizing: "border-box", background: "#F8FAFC" }} />
+          style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "12px 48px 12px 14px", fontSize: 15, color: "#0B2B24", outline: "none", boxSizing: "border-box", background: "#F8FAFC" }} />
         <button type="button" onClick={() => setMostrar(p => !p)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94A3B8", display: "flex", alignItems: "center", padding: 0 }}>
           {mostrar ? <Ic.eyeOff /> : <Ic.eye />}
         </button>
@@ -307,7 +307,7 @@ function TrocarSenha({ token, onSucesso }) {
     setLoading(false);
   };
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0F172A, #1E40AF)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0B2B24, #1E40AF)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ width: "100%", maxWidth: 420 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ width: 64, height: 64, background: "linear-gradient(135deg, #F59E0B, #D97706)", borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 30 }}>🔑</div>
@@ -368,7 +368,7 @@ function Checkout({ planoInicial, onVoltar }) {
   }, [pixCode, pagamentoConfirmado, dados.email]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0F172A, #1E40AF)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0B2B24, #1E40AF)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ width: "100%", maxWidth: 520 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
           <button onClick={onVoltar} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 10, width: 38, height: 38, cursor: "pointer", color: "#fff", fontSize: 20 }}>←</button>
@@ -381,7 +381,7 @@ function Checkout({ planoInicial, onVoltar }) {
               <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
                 {Object.entries(planos).map(([k, p]) => (
                   <div key={k} onClick={() => setPlano(k)} style={{ flex: 1, background: plano === k ? "#EFF6FF" : "#F8FAFC", border: "2px solid " + (plano === k ? "#1E40AF" : "#E2E8F0"), borderRadius: 12, padding: "10px 6px", textAlign: "center", cursor: "pointer" }}>
-                    <div style={{ fontWeight: 800, fontSize: 13, color: plano === k ? "#1E40AF" : "#0F172A" }}>{p.nome}</div>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: plano === k ? "#1E40AF" : "#0B2B24" }}>{p.nome}</div>
                     <div style={{ fontSize: 12, color: "#64748B" }}>{p.label}</div>
                     {p.economia && <div style={{ fontSize: 10, color: "#16A34A", fontWeight: 700 }}>🎁 {p.economia}</div>}
                   </div>
@@ -508,7 +508,7 @@ function LoginScreen({ onLogin }) {
   ];
 
   if (recuperando) return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0F172A, #1E40AF)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0B2B24, #1E40AF)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ width: "100%", maxWidth: 420 }}>
         <div style={{ background: "#fff", borderRadius: 20, padding: 28, boxShadow: "0 25px 80px rgba(0,0,0,0.3)" }}>
           {recEnviada ? (
@@ -533,11 +533,11 @@ function LoginScreen({ onLogin }) {
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E40AF 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0B2B24 0%, #1E3A5F 50%, #1E40AF 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ width: "100%", maxWidth: aba === "planos" ? 680 : 420 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-            <div style={{ width: 48, height: 48, background: "linear-gradient(135deg, #22C55E, #0D9488)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, color: "#fff" }}>C$</div>
+            <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", display: "block" }} />
             <div style={{ textAlign: "left" }}>
               <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", letterSpacing: -1 }}>CobrarFácil</div>
               <div style={{ fontSize: 11, color: "#93C5FD", fontWeight: 500 }}>SISTEMA DE COBRANÇA</div>
@@ -567,7 +567,7 @@ function LoginScreen({ onLogin }) {
               {planos.map(p => (
                 <div key={p.key} style={{ background: "#fff", borderRadius: 16, padding: 18, border: p.destaque ? "2px solid " + p.cor : "1px solid #E2E8F0", position: "relative" }}>
                   {p.destaque && <div style={{ position: "absolute", top: -10, left: "50%", transform: "translateX(-50%)", background: p.cor, color: "#fff", fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, whiteSpace: "nowrap" }}>⭐ MAIS ESCOLHIDO</div>}
-                  <div style={{ fontWeight: 800, fontSize: 14, color: "#0F172A", marginBottom: 4 }}>{p.nome}</div>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: "#0B2B24", marginBottom: 4 }}>{p.nome}</div>
                   <div style={{ fontSize: 24, fontWeight: 900, color: p.cor }}>{p.preco}<span style={{ fontSize: 12, fontWeight: 400, color: "#64748B" }}>{p.sub}</span></div>
                   {p.eco && <div style={{ fontSize: 11, color: "#16A34A", fontWeight: 700, marginTop: 2 }}>🎁 {p.eco}</div>}
                   <ul style={{ margin: "10px 0 0", padding: "0 0 0 14px", fontSize: 12, color: "#374151", lineHeight: 2 }}><li>WhatsApp automático</li><li>Régua completa</li><li>QR Code Pix real</li><li>7 dias garantia</li></ul>
@@ -586,7 +586,7 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-function AdminPanel({ onLogout, token }) {
+function AdminPanel({ onLogout, token, onImpersonar }) {
   const [lojistas, setLojistas] = useState([]);
   const [metricas, setMetricas] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -612,17 +612,21 @@ function AdminPanel({ onLogout, token }) {
     const data = await api("/admin/reset-senha", { method: "POST", body: JSON.stringify({ email, senha_nova: nova }) }, token);
     if (data.sucesso) showToast("Senha resetada!"); else showToast(data.erro || "Erro", "error");
   };
+  const acessarComoUsuario = async (l) => {
+    const data = await api("/admin/usuarios/" + l.id + "/impersonar", { method: "POST", body: JSON.stringify({}) }, token);
+    if (data.token) onImpersonar(data); else showToast(data.erro || "Erro ao acessar conta", "error");
+  };
   const alterarStatus = async (id, status) => { await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ status }) }, token); showToast("Status atualizado!"); carregar(); };
   const adicionarDias = async (id, dias) => { await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ dias_adicionais: dias }) }, token); showToast(dias + " dias adicionados!"); carregar(); };
   const alternarModoDemo = async (id, valorAtual) => { await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ modo_demo: !valorAtual }) }, token); showToast(!valorAtual ? "🎭 Modo demonstração ATIVADO — nenhuma mensagem real será enviada" : "Modo demonstração desativado — volta a enviar mensagens reais"); carregar(); };
   const lojFiltrados = lojistas.filter(l => l.plano !== "admin" && (l.nome?.toLowerCase().includes(busca.toLowerCase()) || l.email?.toLowerCase().includes(busca.toLowerCase())));
   const vencendo = lojistas.filter(l => { if (!l.expira_em || l.plano === "admin") return false; const d = Math.floor((new Date(l.expira_em) - new Date()) / 86400000); return d >= 0 && d <= 7; });
   return (
-    <div style={{ minHeight: "100vh", background: "#0F172A", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#0B2B24", fontFamily: "'Inter', -apple-system, sans-serif" }}>
       {toast && <ToastMsg {...toast} />}
       <div style={{ background: "#1E293B", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, background: "linear-gradient(135deg, #22C55E, #0D9488)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "#fff" }}>C$</div>
+          <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", display: "block" }} />
           <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Admin</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -666,12 +670,20 @@ function AdminPanel({ onLogout, token }) {
                   <span style={{ background: l.status === "ativo" ? "#16A34A" : "#D97706", color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 99 }}>{l.status}</span>
                 </div>
                 {l.modo_demo && <div style={{ background: "#581C87", color: "#E9D5FF", fontSize: 11.5, fontWeight: 700, padding: "5px 10px", borderRadius: 8, marginBottom: 10, display: "inline-block" }}>🎭 MODO DEMONSTRAÇÃO ATIVO — mensagens não são enviadas de verdade</div>}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                  <span style={{ background: l.whatsapp_conectado ? "#052e16" : "#3f1212", color: l.whatsapp_conectado ? "#4ADE80" : "#F87171", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 99, border: "1px solid " + (l.whatsapp_conectado ? "#166534" : "#7F1D1D") }}>{l.whatsapp_conectado ? "🟢 WhatsApp conectado" : "🔴 WhatsApp desconectado"}</span>
+                  <span style={{ background: l.pix_configurado ? "#052e16" : "#2a1a00", color: l.pix_configurado ? "#4ADE80" : "#FBBF24", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 99, border: "1px solid " + (l.pix_configurado ? "#166534" : "#78350F") }}>{l.pix_configurado ? "🟢 Pix configurado" : "🟡 Sem chave Pix"}</span>
+                  {l.erros_7d > 0 && <span style={{ background: "#3f1212", color: "#F87171", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 99, border: "1px solid #7F1D1D" }}>⚠️ {l.erros_7d} erro(s) em 7d</span>}
+                </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12, color: "#94A3B8", marginBottom: 10 }}>
                   <span>Plano: <strong style={{ color: "#60A5FA" }}>{l.plano}</strong></span>
                   <span>Vence: <strong style={{ color: diasExp !== null && diasExp <= 7 ? "#FCA5A5" : "#94A3B8" }}>{expira}</strong></span>
                   <span>Clientes: <strong style={{ color: "#fff" }}>{l.total_clientes || 0}</strong></span>
+                  <span>Enviadas (7d): <strong style={{ color: "#fff" }}>{l.enviadas_7d}</strong></span>
+                  <span>Último acesso: <strong style={{ color: "#fff" }}>{l.ultimo_acesso ? new Date(l.ultimo_acesso).toLocaleDateString("pt-BR") : "nunca"}</strong></span>
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button onClick={() => acessarComoUsuario(l)} style={{ background: "linear-gradient(135deg, #0EA5E9, #0284C7)", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>🔧 Acessar pra ajudar</button>
                   <button onClick={() => resetarSenha(l.email)} style={{ background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>🔑 Senha</button>
                   <button onClick={() => adicionarDias(l.id, 30)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>+30d</button>
                   {l.status === "ativo" ? <button onClick={() => alterarStatus(l.id, "inativo")} style={{ background: "#D97706", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>Bloquear</button>
@@ -719,12 +731,12 @@ function ModalDetalheLista({ titulo, lista, onClose }) {
           {lista.map(c => (
             <div key={c.id} style={{ background: "#F8FAFC", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{c.nome}</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#0B2B24" }}>{c.nome}</div>
                 <div style={{ fontSize: 12, color: "#64748B" }}>{c.telefone} {c.vencimento && "· Vence " + fmtData(c.vencimento.split("T")[0])}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Badge status={c.status} />
-                <div style={{ fontWeight: 800, color: "#0F172A" }}>{fmt(c.total_divida)}</div>
+                <div style={{ fontWeight: 800, color: "#0B2B24" }}>{fmt(c.total_divida)}</div>
               </div>
             </div>
           ))}
@@ -771,14 +783,14 @@ function Dashboard({ clientes, token }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.3px" }}>Painel Geral</h1>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0B2B24", letterSpacing: "-0.3px" }}>Painel Geral</h1>
         <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>{new Date().toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" }).replace(/^\w/, c => c.toUpperCase())}</span>
       </div>
 
       {detalhe && <ModalDetalheLista titulo={detalhe.titulo} lista={detalhe.lista} onClose={() => setDetalhe(null)} />}
 
       {/* HERO — recuperação, o número que mais importa */}
-      <div className="cf-fade" style={{ background: "linear-gradient(135deg, #0F172A 0%, #064E3B 100%)", borderRadius: 20, padding: "22px 20px", marginBottom: 12, boxShadow: "0 10px 28px rgba(6,78,59,0.28)", position: "relative", overflow: "hidden" }}>
+      <div className="cf-fade" style={{ background: "linear-gradient(135deg, #0B2B24 0%, #023B32 100%)", borderRadius: 20, padding: "22px 20px", marginBottom: 12, boxShadow: "0 10px 28px rgba(6,78,59,0.28)", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -40, right: -30, width: 140, height: 140, background: "radial-gradient(circle, rgba(34,197,94,0.28), transparent 70%)", pointerEvents: "none" }} />
         <div style={{ fontSize: 11, fontWeight: 700, color: "#6EE7B7", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 8, position: "relative" }}>Recuperação total</div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 14, position: "relative" }}>
@@ -812,7 +824,7 @@ function Dashboard({ clientes, token }) {
               <div style={{ width: 26, height: 26, background: c.bg, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: c.color, flexShrink: 0 }}>{c.icon}</div>
               <span style={{ fontSize: 11.5, color: "#64748B", fontWeight: 600 }}>{c.label}</span>
             </div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#0F172A" }}>{c.value}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#0B2B24" }}>{c.value}</div>
             {c.sub && <div style={{ fontSize: 10.5, color: c.color, fontWeight: 700 }}>{c.sub}</div>}
           </div>
         ))}
@@ -872,7 +884,7 @@ function Dashboard({ clientes, token }) {
                 {relatorio.por_status?.map(r => (
                   <div key={r.status} onClick={() => setDetalhe({ titulo: "Período — " + r.status, lista: (relatorio.clientes || []).filter(c => c.status === r.status) })} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F1F5F9", fontSize: 14, cursor: "pointer" }}>
                     <span style={{ color: "#374151", fontWeight: 600 }}>{r.status}</span>
-                    <span style={{ fontWeight: 700, color: "#0F172A" }}>{fmt(r.total)} ({r.qtd} clientes) <span style={{ color: "#94A3B8", fontWeight: 400 }}>→</span></span>
+                    <span style={{ fontWeight: 700, color: "#0B2B24" }}>{fmt(r.total)} ({r.qtd} clientes) <span style={{ color: "#94A3B8", fontWeight: 400 }}>→</span></span>
                   </div>
                 ))}
                 {relatorio.recebidos && (
@@ -955,7 +967,7 @@ function ModalRegua({ cliente, token, onClose }) {
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{ width: 10, height: 10, borderRadius: "50%", background: info.cor || "#94A3B8", flexShrink: 0 }} />
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{info.label || e.etapa}</div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: "#0B2B24" }}>{info.label || e.etapa}</div>
                         <div style={{ fontSize: 12, color: "#64748B" }}>Tom: {info.tom} {e.enviado && "· ✅ Enviado"} {e.mensagem_personalizada && "· ✏️ Personalizado"}</div>
                       </div>
                     </div>
@@ -1023,7 +1035,7 @@ function ModalConversa({ cliente, token, onClose }) {
             <div style={{ textAlign: "center", color: "#64748B", fontSize: 13, margin: "auto" }}>Nenhuma mensagem registrada ainda</div>
           ) : mensagens.map((m, i) => (
             <div key={i} style={{ alignSelf: m.direcao === "enviada" ? "flex-end" : "flex-start", maxWidth: "80%", background: m.direcao === "enviada" ? "#DCF8C6" : "#fff", borderRadius: 8, padding: "8px 12px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-              <div style={{ fontSize: 13, color: "#0F172A", whiteSpace: "pre-wrap" }}>{m.texto}</div>
+              <div style={{ fontSize: 13, color: "#0B2B24", whiteSpace: "pre-wrap" }}>{m.texto}</div>
               <div style={{ fontSize: 10, color: "#94A3B8", textAlign: "right", marginTop: 3 }}>{new Date(m.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
             </div>
           ))}
@@ -1274,7 +1286,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Clientes</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Clientes</h1>
           <p style={{ margin: "3px 0 0", fontSize: 13, color: "#64748B" }}>{clientes.length} cadastrados · {clientes.filter(c => c.status === "atrasado").length} em atraso</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -1301,12 +1313,12 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                   {c.status === "blacklist" ? "🚫" : c.nome.charAt(0)}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: "#0F172A" }}>{c.nome}</div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: "#0B2B24" }}>{c.nome}</div>
                   <div style={{ fontSize: 12, color: "#94A3B8" }}>{c.telefone}</div>
                   {c.vencimento && <div style={{ fontSize: 12, color: c.status === "atrasado" ? "#DC2626" : "#64748B" }}>Vence: {fmtData(c.vencimento.split("T")[0])}</div>}
                 </div>
               </div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: c.status === "atrasado" ? "#DC2626" : c.status === "pago" ? "#16A34A" : "#0F172A" }}>{fmt(c.total_divida)}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: c.status === "atrasado" ? "#DC2626" : c.status === "pago" ? "#16A34A" : "#0B2B24" }}>{fmt(c.total_divida)}</div>
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
               <Badge status={c.status} />
@@ -1318,7 +1330,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
               {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => setModalProrrogar(c)} style={{ background: "#FFFBEB", color: "#D97706", border: "1.5px solid #FDE68A", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>📅 Prorrogar</button>}
               {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => onCobranca(c)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.send /> Cobrar</button>}
               {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => marcarPago(c)} style={{ background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>✓ Pago</button>}
-              <button onClick={() => setModalConversa(c)} style={{ background: "#ECFDF5", color: "#059669", border: "1.5px solid #A7F3D0", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.eye /></button>
+              <button onClick={() => setModalConversa(c)} style={{ background: "#ECFDF5", color: "#0E8F63", border: "1.5px solid #A7F3D0", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.eye /></button>
               <button onClick={() => deletarCliente(c.id)} style={{ background: "#FEF2F2", color: "#DC2626", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.trash /></button>
             </div>
           </div>
@@ -1423,7 +1435,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
               </button>
               <div onClick={() => fileRef.current?.click()} style={{ border: "2px dashed #E2E8F0", borderRadius: 12, padding: 40, textAlign: "center", cursor: "pointer", background: "#F8FAFC" }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>📊</div>
-                <div style={{ fontWeight: 700, color: "#0F172A" }}>Clique para selecionar</div>
+                <div style={{ fontWeight: 700, color: "#0B2B24" }}>Clique para selecionar</div>
                 <div style={{ fontSize: 13, color: "#64748B" }}>Arquivo .xlsx, .xls ou .csv</div>
               </div>
               <input ref={fileRef} type="file" accept=".csv,.txt,.xlsx,.xls" onChange={handleCSV} style={{ display: "none" }} />
@@ -1561,7 +1573,7 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
 
   return (
     <div>
-      <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Cobranças</h1>
+      <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Cobranças</h1>
       <div style={{ background: "linear-gradient(135deg, #EFF6FF, #F0FDF4)", border: "1px solid #BFDBFE", borderRadius: 16, padding: 18, marginBottom: 18 }}>
         <div style={{ fontWeight: 800, fontSize: 16, color: "#1E40AF", marginBottom: 8 }}>🤖 Régua Automática</div>
         <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, marginBottom: 14 }}>
@@ -1619,7 +1631,7 @@ function Historico({ historico }) {
   const etapaLabel = { "d-3": "D-3", "d0": "D0", "d+3": "D+3", "d+15": "D+15", "d+30": "D+30" };
   return (
     <div>
-      <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Histórico</h1>
+      <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Histórico</h1>
       <p style={{ margin: "0 0 16px", color: "#64748B", fontSize: 14 }}>{historico.length} mensagens enviadas</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {historico.map(h => (
@@ -1628,7 +1640,7 @@ function Historico({ historico }) {
               <div style={{ width: 36, height: 36, background: "#F0FDF4", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#16A34A", flexShrink: 0 }}><Ic.whatsapp /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 6 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{h.cliente_nome || "—"}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#0B2B24" }}>{h.cliente_nome || "—"}</div>
                   <div style={{ display: "flex", gap: 6 }}>
                     {h.etapa && <span style={{ background: "#EFF6FF", color: "#1E40AF", padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}>{etapaLabel[h.etapa] || h.etapa}</span>}
                     <span style={{ background: "#DCFCE7", color: "#16A34A", fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 20 }}>✓ Enviado</span>
@@ -1682,7 +1694,7 @@ function Relatorio({ token, clientes, onEditarCliente }) {
 
   return (
     <div>
-      <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Relatório</h1>
+      <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Relatório</h1>
 
       {detalhe && <ModalDetalheLista titulo={detalhe.titulo} lista={detalhe.lista} onClose={() => setDetalhe(null)} />}
 
@@ -1704,7 +1716,7 @@ function Relatorio({ token, clientes, onEditarCliente }) {
                 return (
                   <div key={e.id} style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{e.cliente_nome || "Cliente removido"}</div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#0B2B24" }}>{e.cliente_nome || "Cliente removido"}</div>
                       <div style={{ fontSize: 12, color: "#64748B" }}>{e.cliente_telefone || "—"} · {new Date(e.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
                     </div>
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -1745,7 +1757,7 @@ function Relatorio({ token, clientes, onEditarCliente }) {
             {dados.inadimplentes.map(c => (
               <div key={c.id} style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{c.nome}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#0B2B24" }}>{c.nome}</div>
                   <div style={{ fontSize: 12, color: "#64748B" }}>{c.telefone} · {Math.round(c.dias_atraso)} dias em atraso</div>
                 </div>
                 <div style={{ fontWeight: 800, color: "#DC2626" }}>{fmt(c.total_divida)}</div>
@@ -1882,14 +1894,14 @@ function Configuracoes({ usuario, token }) {
   return (
     <div>
       {toast && <ToastMsg {...toast} />}
-      <h1 style={{ margin: "0 0 20px", fontSize: 22, fontWeight: 800, color: "#0F172A" }}>Configurações</h1>
+      <h1 style={{ margin: "0 0 20px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Configurações</h1>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1px solid #F1F5F9" }}>
           <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>👤 Meu Perfil</h3>
           {[["Nome", usuario?.nome], ["E-mail", usuario?.email], ["Plano", usuario?.plano?.charAt(0).toUpperCase() + usuario?.plano?.slice(1)], ["Válido até", expiraEm]].map(([k, v]) => (
             <div key={k} style={{ background: "#F8FAFC", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
               <span style={{ fontSize: 14, color: "#64748B" }}>{k}</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{v || "—"}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#0B2B24" }}>{v || "—"}</span>
             </div>
           ))}
           {diasRestantes !== null && diasRestantes <= 7 && (
@@ -1978,6 +1990,7 @@ function Configuracoes({ usuario, token }) {
 
 export default function CobrarFacil() {
   const [sessao, setSessao] = useState(null);
+  const [impersonando, setImpersonando] = useState(null); // { token, usuario } do lojista, quando admin clica "Acessar pra ajudar"
   const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [tela, setTela] = useState("dashboard");
   const [clientes, setClientes] = useState([]);
@@ -1995,19 +2008,23 @@ export default function CobrarFacil() {
   }, []);
 
   useEffect(() => {
-    if (sessao && !sessao.isAdmin) {
-      const t = sessao.token;
+    const efetivo = impersonando || sessao;
+    if (efetivo && !efetivo.isAdmin) {
+      const t = efetivo.token;
       api("/clientes", {}, t).then(d => { if (Array.isArray(d)) setClientes(d); });
       api("/cobrancas/historico", {}, t).then(d => { if (Array.isArray(d)) setHistorico(d); });
     }
-  }, [sessao]);
+  }, [sessao, impersonando]);
 
-  const logout = () => { try { localStorage.removeItem("cobrarfacil_token"); localStorage.removeItem("cobrarfacil_usuario"); } catch {} setSessao(null); setTrocandoSenha(false); };
+  const logout = () => { try { localStorage.removeItem("cobrarfacil_token"); localStorage.removeItem("cobrarfacil_usuario"); } catch {} setSessao(null); setImpersonando(null); setTrocandoSenha(false); };
   const onLogin = (dados) => { setSessao(dados); if (!dados.isAdmin && dados.usuario?.primeiro_acesso) setTrocandoSenha(true); };
 
   if (!sessao) return <LoginScreen onLogin={onLogin} />;
-  if (sessao.isAdmin) return <AdminPanel onLogout={logout} token={sessao.token} />;
+  if (sessao.isAdmin && !impersonando) return <AdminPanel onLogout={logout} token={sessao.token} onImpersonar={setImpersonando} />;
   if (trocandoSenha) return <TrocarSenha token={sessao.token} onSucesso={() => setTrocandoSenha(false)} />;
+
+  const sessaoEfetiva = impersonando || sessao;
+  const sairDoSuporte = () => { setImpersonando(null); setTela("dashboard"); };
 
   const irParaCobranca = (c) => { setClienteParaCobrar(c); setTela("cobrancas"); };
   const irParaEditar = (c) => { setClienteParaEditar(c); setTela("clientes"); };
@@ -2025,12 +2042,12 @@ export default function CobrarFacil() {
 
   const renderTela = () => {
     switch(tela) {
-      case "dashboard": return <Dashboard clientes={clientes} token={sessao.token} />;
-      case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={sessao.token} />;
-      case "cobrancas": return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessao.token} />;
+      case "dashboard": return <Dashboard clientes={clientes} token={sessaoEfetiva.token} />;
+      case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={sessaoEfetiva.token} />;
+      case "cobrancas": return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessaoEfetiva.token} />;
       case "historico": return <Historico historico={historico} />;
-      case "relatorio": return <Relatorio token={sessao.token} clientes={clientes} onEditarCliente={irParaEditar} />;
-      case "config":    return <Configuracoes usuario={sessao.usuario} token={sessao.token} />;
+      case "relatorio": return <Relatorio token={sessaoEfetiva.token} clientes={clientes} onEditarCliente={irParaEditar} />;
+      case "config":    return <Configuracoes usuario={sessaoEfetiva.usuario} token={sessaoEfetiva.token} />;
       default: return null;
     }
   };
@@ -2039,9 +2056,15 @@ export default function CobrarFacil() {
     return (
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: 70 }}>
         <style>{GLOBAL_STYLES}</style>
-        <div style={{ background: "#0F172A", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
+        {impersonando && (
+          <div style={{ background: "#7C3AED", color: "#fff", padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, fontWeight: 700, position: "sticky", top: 0, zIndex: 51 }}>
+            <span>🔧 Modo suporte — vendo como {sessaoEfetiva.usuario?.nome?.split(" ")[0]}</span>
+            <button onClick={sairDoSuporte} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11.5, padding: "4px 8px", cursor: "pointer", fontWeight: 700 }}>Voltar pro Admin</button>
+          </div>
+        )}
+        <div style={{ background: "#0B2B24", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 30, height: 30, background: "linear-gradient(135deg, #22C55E, #0D9488)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff" }}>C$</div>
+            <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover", display: "block" }} />
             <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>CobrarFácil</div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -2067,10 +2090,10 @@ export default function CobrarFacil() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif" }}>
       <style>{GLOBAL_STYLES}</style>
-      <div style={{ width: 220, background: "#0F172A", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100 }}>
+      <div style={{ width: 220, background: "#0B2B24", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100 }}>
         <div style={{ padding: "18px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 34, height: 34, background: "linear-gradient(135deg, #22C55E, #0D9488)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "#fff" }}>C$</div>
+            <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", display: "block" }} />
             <div><div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>CobrarFácil</div><div style={{ fontSize: 10, color: "#475569" }}>SISTEMA DE COBRANÇA</div></div>
           </div>
         </div>
@@ -2084,17 +2107,27 @@ export default function CobrarFacil() {
         </nav>
         <div style={{ padding: "14px 16px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #1E40AF, #3B82F6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff" }}>{sessao.usuario?.nome?.charAt(0) || "U"}</div>
-            <div><div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0" }}>{sessao.usuario?.nome?.split(" ")[0] || "Usuário"}</div><div style={{ fontSize: 10, color: "#475569" }}>Plano {sessao.usuario?.plano}</div></div>
+            <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #1E40AF, #3B82F6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff" }}>{sessaoEfetiva.usuario?.nome?.charAt(0) || "U"}</div>
+            <div><div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0" }}>{sessaoEfetiva.usuario?.nome?.split(" ")[0] || "Usuário"}</div><div style={{ fontSize: 10, color: "#475569" }}>Plano {sessaoEfetiva.usuario?.plano}</div></div>
           </div>
-          <button onClick={logout} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "8px", color: "#94A3B8", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>Sair</button>
+          {impersonando ? (
+            <button onClick={sairDoSuporte} style={{ width: "100%", background: "#7C3AED", border: "none", borderRadius: 8, padding: "8px", color: "#fff", fontSize: 13, cursor: "pointer", fontWeight: 700 }}>🔧 Voltar pro Admin</button>
+          ) : (
+            <button onClick={logout} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "8px", color: "#94A3B8", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>Sair</button>
+          )}
         </div>
       </div>
       <div style={{ flex: 1, marginLeft: 220, minWidth: 0 }}>
+        {impersonando && (
+          <div style={{ background: "#7C3AED", color: "#fff", padding: "8px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, fontWeight: 700 }}>
+            <span>🔧 Modo suporte — vendo como {sessaoEfetiva.usuario?.nome}</span>
+            <button onClick={sairDoSuporte} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, padding: "4px 10px", cursor: "pointer", fontWeight: 700 }}>Voltar pro Admin</button>
+          </div>
+        )}
         <div style={{ background: "#fff", borderBottom: "1px solid #F1F5F9", padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
-          <span style={{ fontSize: 14, color: "#64748B", fontWeight: 600 }}>Bem-vindo, {sessao.usuario?.nome?.split(" ")[0] || ""}!</span>
+          <span style={{ fontSize: 14, color: "#64748B", fontWeight: 600 }}>Bem-vindo, {sessaoEfetiva.usuario?.nome?.split(" ")[0] || ""}!</span>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {sessao.usuario?.avisoRenovacao && <div style={{ background: "#FEF3C7", color: "#92400E", padding: "5px 12px", borderRadius: 99, fontSize: 13, fontWeight: 700 }}>⚠️ Plano vencendo</div>}
+            {sessaoEfetiva.usuario?.avisoRenovacao && <div style={{ background: "#FEF3C7", color: "#92400E", padding: "5px 12px", borderRadius: 99, fontSize: 13, fontWeight: 700 }}>⚠️ Plano vencendo</div>}
             {atrasadosCount > 0 && <div style={{ display: "flex", alignItems: "center", gap: 5, background: "#FEF2F2", color: "#DC2626", padding: "5px 12px", borderRadius: 99, fontSize: 13, fontWeight: 700 }}><Ic.bell /> {atrasadosCount} em atraso</div>}
           </div>
         </div>
