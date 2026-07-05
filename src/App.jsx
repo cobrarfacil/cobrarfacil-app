@@ -325,6 +325,262 @@ function TrocarSenha({ token, onSucesso }) {
   );
 }
 
+function OnboardingWizard({ token, onCompleto }) {
+  const [etapa, setEtapa] = useState(1);
+  const [carregando, setCarregando] = useState(true);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+
+  const [qrCode, setQrCode] = useState(null);
+  const [wppStatus, setWppStatus] = useState(null);
+  const [loadingQr, setLoadingQr] = useState(false);
+
+  const [nomeEmpresa, setNomeEmpresa] = useState("");
+  const [salvandoNome, setSalvandoNome] = useState(false);
+
+  const [pixTipo, setPixTipo] = useState("cpf_cnpj");
+  const [pixInput, setPixInput] = useState("");
+  const [salvandoPix, setSalvandoPix] = useState(false);
+
+  const [modoAdd, setModoAdd] = useState(null);
+  const [novoCliente, setNovoCliente] = useState({ nome: "", telefone: "", total_divida: "", vencimento: "" });
+  const [csvPreview, setCsvPreview] = useState([]);
+  const [salvandoCliente, setSalvandoCliente] = useState(false);
+  const fileRef = useRef();
+
+  const [mostrarCelebra, setMostrarCelebra] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const [me, wpp, clis] = await Promise.all([
+        api("/usuarios/me", {}, token),
+        api("/whatsapp/status", {}, token).catch(() => ({})),
+        api("/clientes", {}, token).catch(() => []),
+      ]);
+      const conectado = wpp?.state === "open" || wpp?.instance?.state === "open";
+      if (me.nome_empresa) setNomeEmpresa(me.nome_empresa);
+      if (me.pix_key) { setPixInput(me.pix_key); if (me.pix_key_tipo && TIPOS_PIX[me.pix_key_tipo]) setPixTipo(me.pix_key_tipo); }
+
+      if (!conectado) setEtapa(1);
+      else if (!me.nome_empresa) setEtapa(2);
+      else if (!me.pix_key) setEtapa(3);
+      else if (!Array.isArray(clis) || clis.length === 0) setEtapa(4);
+      else { onCompleto(); return; }
+      setCarregando(false);
+    })();
+  }, []);
+
+  const conectarWpp = async () => {
+    setLoadingQr(true); setQrCode(null); setWppStatus(null);
+    const data = await api("/whatsapp/qrcode", {}, token);
+    if (data.base64) { const src = data.base64.startsWith("data:") ? data.base64 : "data:image/png;base64," + data.base64; setQrCode(src); }
+    else setWppStatus("Erro ao gerar QR Code. Tente de novo.");
+    setLoadingQr(false);
+  };
+  useEffect(() => {
+    if (!qrCode) return;
+    const interval = setInterval(async () => {
+      const data = await api("/whatsapp/status", {}, token);
+      if (data.state === "open" || data.instance?.state === "open") {
+        setQrCode(null); clearInterval(interval);
+        showToast("✅ WhatsApp conectado!");
+        setTimeout(() => setEtapa(2), 700);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [qrCode]);
+
+  const salvarNomeEmpresa = async () => {
+    if (!nomeEmpresa.trim()) return;
+    setSalvandoNome(true);
+    const data = await api("/usuarios/nome-empresa", { method: "PUT", body: JSON.stringify({ nome_empresa: nomeEmpresa.trim() }) }, token);
+    setSalvandoNome(false);
+    if (data.sucesso) { showToast("Nome salvo!"); setEtapa(3); }
+    else showToast(data.erro || "Erro", "error");
+  };
+
+  const salvarPix = async () => {
+    if (!pixInput.trim()) return;
+    const config = TIPOS_PIX[pixTipo];
+    if (!config.validar(pixInput)) { showToast(config.erro, "error"); return; }
+    setSalvandoPix(true);
+    const chaveNormalizada = config.normalizar(pixInput);
+    const data = await api("/usuarios/pix-key", { method: "PUT", body: JSON.stringify({ pix_key: chaveNormalizada, pix_key_tipo: pixTipo }) }, token);
+    setSalvandoPix(false);
+    if (data.sucesso) { showToast("Chave Pix salva!"); setEtapa(4); }
+    else showToast(data.erro || "Erro", "error");
+  };
+
+  const salvarClienteManual = async () => {
+    if (!novoCliente.nome || !novoCliente.telefone || !novoCliente.total_divida) { showToast("Preencha nome, telefone e valor", "error"); return; }
+    setSalvandoCliente(true);
+    const data = await api("/clientes", { method: "POST", body: JSON.stringify(novoCliente) }, token);
+    setSalvandoCliente(false);
+    if (data.id || data.criados) setMostrarCelebra(true);
+    else showToast(data.erro || "Erro", "error");
+  };
+
+  const handleCSVWizard = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const texto = await file.text();
+    const linhas = texto.split("\n").filter(l => l.trim());
+    const header = linhas[0].split(/[,;]/);
+    const mapeado = linhas.slice(1).map(linha => {
+      const cols = linha.split(/[,;]/); const obj = {};
+      header.forEach((h, i) => { obj[h.trim()] = (cols[i] || "").trim().replace(/"/g, ""); });
+      return mapearLinhaPlanilha(obj);
+    });
+    setCsvPreview(mapeado);
+  };
+
+  const importarWizard = async () => {
+    const lista = csvPreview.filter(c => !c.pular).map(c => ({ nome: c.nome, telefone: c.telefone, total_divida: c.total_divida, cpf: c.cpf, email: c.email, vencimento: c.vencimento, parcelas: c.parcelas }));
+    if (lista.length === 0) { showToast("Nenhum cliente válido encontrado no arquivo", "error"); return; }
+    setSalvandoCliente(true);
+    const data = await api("/clientes/importar", { method: "POST", body: JSON.stringify({ clientes: lista }) }, token);
+    setSalvandoCliente(false);
+    if (data.sucesso && data.importados > 0) setMostrarCelebra(true);
+    else showToast(data.erro || "Erro ao importar", "error");
+  };
+
+  if (carregando) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0B2B24", color: "#fff", fontFamily: "'Inter', sans-serif" }}>Carregando...</div>;
+
+  const passos = [{ n: 1, label: "WhatsApp" }, { n: 2, label: "Negócio" }, { n: 3, label: "Pix" }, { n: 4, label: "Clientes" }];
+  const proximaHora8h = () => {
+    const agora = new Date(); const hoje8 = new Date(); hoje8.setHours(8, 0, 0, 0);
+    return agora < hoje8 ? "hoje às 8h" : "amanhã às 8h";
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0B2B24 0%, #023B32 100%)", display: "flex", flexDirection: "column", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+      <style>{GLOBAL_STYLES}</style>
+      {toast && <div className="cf-fade" style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", background: toast.type === "error" ? "#DC2626" : "#16A34A", color: "#fff", padding: "10px 20px", borderRadius: 10, fontSize: 14, fontWeight: 600, zIndex: 200, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }}>{toast.msg}</div>}
+
+      {mostrarCelebra && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 20 }}>
+          <div className="cf-fade" style={{ background: "#fff", borderRadius: 20, padding: "34px 26px", maxWidth: 380, textAlign: "center" }}>
+            <div style={{ fontSize: 54, marginBottom: 14 }}>🎉</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", marginBottom: 10 }}>Tudo pronto!</div>
+            <div style={{ fontSize: 14.5, color: "#374151", lineHeight: 1.65, marginBottom: 20 }}>
+              Fique tranquilo — a partir de <strong>{proximaHora8h()}</strong>, o sistema confere sozinho quem está no dia certo e manda a cobrança, com QR Code Pix.
+              <br /><br />
+              <strong style={{ color: "#0E8F63" }}>E não para no primeiro aviso:</strong> continua cobrando até seu cliente pagar — ou até você decidir suspender.
+            </div>
+            <Btn onClick={onCompleto} style={{ width: "100%", justifyContent: "center" }}>Entrar no sistema →</Btn>
+          </div>
+        </div>
+      )}
+
+      <div style={{ padding: "22px 20px 0", display: "flex", alignItems: "center", gap: 10 }}>
+        <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 34, height: 34, borderRadius: "50%" }} />
+        <div style={{ color: "#fff", fontWeight: 800, fontSize: 15 }}>CobrarFácil</div>
+      </div>
+
+      <div style={{ padding: "20px 20px 0", display: "flex", gap: 8, justifyContent: "center", maxWidth: 400, margin: "0 auto", width: "100%" }}>
+        {passos.map(p => (
+          <div key={p.n} style={{ flex: 1 }}>
+            <div style={{ height: 4, borderRadius: 99, background: p.n <= etapa ? "#4ADE80" : "rgba(255,255,255,0.15)", marginBottom: 6, transition: "background .3s" }} />
+            <div style={{ fontSize: 10, color: p.n <= etapa ? "#4ADE80" : "#64748B", textAlign: "center", fontWeight: 700 }}>{p.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div key={etapa} className="cf-fade" style={{ background: "#fff", borderRadius: 20, padding: "28px 24px", maxWidth: 400, width: "100%" }}>
+
+          {etapa === 1 && (
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0E8F63", marginBottom: 6, letterSpacing: 0.5 }}>PASSO 1 DE 4</div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", margin: "0 0 8px" }}>Conecte seu WhatsApp</h2>
+              <p style={{ fontSize: 13.5, color: "#64748B", marginBottom: 18, lineHeight: 1.5 }}>É por esse número que as cobranças vão sair — seu cliente reconhece quem está cobrando.</p>
+              {qrCode ? (
+                <div style={{ textAlign: "center" }}>
+                  <img src={qrCode} alt="QR Code" style={{ width: 200, height: 200, borderRadius: 10, border: "2px solid #E2E8F0", marginBottom: 12 }} />
+                  <div style={{ fontSize: 12, color: "#64748B" }}>Escaneie com o WhatsApp do seu negócio — confirma sozinho, não precisa clicar em nada.</div>
+                </div>
+              ) : (
+                <Btn onClick={conectarWpp} disabled={loadingQr} style={{ width: "100%", justifyContent: "center" }}>{loadingQr ? "Gerando..." : "📱 Gerar QR Code"}</Btn>
+              )}
+              {wppStatus && <div style={{ marginTop: 10, fontSize: 13, color: "#DC2626" }}>{wppStatus}</div>}
+            </div>
+          )}
+
+          {etapa === 2 && (
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0E8F63", marginBottom: 6, letterSpacing: 0.5 }}>PASSO 2 DE 4</div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", margin: "0 0 8px" }}>Qual o nome do seu negócio?</h2>
+              <p style={{ fontSize: 13.5, color: "#64748B", marginBottom: 18, lineHeight: 1.5 }}>Esse nome aparece em toda cobrança — use o que seu cliente reconhece (ex: "Salão Bella").</p>
+              <Inp label="Nome do negócio" value={nomeEmpresa} onChange={e => setNomeEmpresa(e.target.value)} placeholder="Ex: Salão Bella" />
+              <Btn onClick={salvarNomeEmpresa} disabled={salvandoNome || !nomeEmpresa.trim()} style={{ width: "100%", justifyContent: "center" }}>{salvandoNome ? "Salvando..." : "Continuar →"}</Btn>
+            </div>
+          )}
+
+          {etapa === 3 && (
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0E8F63", marginBottom: 6, letterSpacing: 0.5 }}>PASSO 3 DE 4</div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", margin: "0 0 8px" }}>Sua chave Pix</h2>
+              <p style={{ fontSize: 13.5, color: "#64748B", marginBottom: 18, lineHeight: 1.5 }}>Aparece automaticamente em toda cobrança com QR Code — o valor já cai direto na sua conta.</p>
+              <Sel label="Tipo de chave" value={pixTipo} onChange={e => setPixTipo(e.target.value)}>
+                {Object.entries(TIPOS_PIX).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </Sel>
+              <Inp label="Chave Pix" value={pixInput} onChange={e => setPixInput(e.target.value)} placeholder={TIPOS_PIX[pixTipo].placeholder} />
+              <Btn onClick={salvarPix} disabled={salvandoPix || !pixInput.trim()} style={{ width: "100%", justifyContent: "center" }}>{salvandoPix ? "Salvando..." : "Continuar →"}</Btn>
+            </div>
+          )}
+
+          {etapa === 4 && (
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0E8F63", marginBottom: 6, letterSpacing: 0.5 }}>PASSO 4 DE 4 · ÚLTIMO PASSO</div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", margin: "0 0 8px" }}>Cadastre seus clientes</h2>
+              <p style={{ fontSize: 13.5, color: "#64748B", marginBottom: 18, lineHeight: 1.5 }}>Assim que tiver o primeiro cliente, o sistema já entra em ação.</p>
+
+              {!modoAdd && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <Btn onClick={() => setModoAdd("manual")} style={{ width: "100%", justifyContent: "center" }}>+ Cadastrar um cliente</Btn>
+                  <Btn variant="outline" onClick={() => setModoAdd("planilha")} style={{ width: "100%", justifyContent: "center" }}>📎 Importar planilha (CSV)</Btn>
+                </div>
+              )}
+
+              {modoAdd === "manual" && (
+                <div>
+                  <Inp label="Nome do cliente" value={novoCliente.nome} onChange={e => setNovoCliente(p => ({ ...p, nome: e.target.value }))} />
+                  <Inp label="Telefone (WhatsApp)" value={novoCliente.telefone} onChange={e => setNovoCliente(p => ({ ...p, telefone: e.target.value }))} placeholder="(44) 99999-0000" />
+                  <Inp label="Valor da dívida (R$)" type="number" value={novoCliente.total_divida} onChange={e => setNovoCliente(p => ({ ...p, total_divida: e.target.value }))} />
+                  <Inp label="Vencimento" type="date" value={novoCliente.vencimento} onChange={e => setNovoCliente(p => ({ ...p, vencimento: e.target.value }))} />
+                  <Btn onClick={salvarClienteManual} disabled={salvandoCliente} style={{ width: "100%", justifyContent: "center", marginTop: 6 }}>{salvandoCliente ? "Salvando..." : "Finalizar →"}</Btn>
+                  <Btn variant="ghost" onClick={() => setModoAdd(null)} style={{ width: "100%", justifyContent: "center", marginTop: 8 }}>← Voltar</Btn>
+                </div>
+              )}
+
+              {modoAdd === "planilha" && (
+                <div>
+                  {csvPreview.length === 0 ? (
+                    <div>
+                      <input ref={fileRef} type="file" accept=".csv" onChange={handleCSVWizard} style={{ display: "none" }} />
+                      <Btn onClick={() => fileRef.current.click()} style={{ width: "100%", justifyContent: "center" }}>📎 Escolher arquivo CSV</Btn>
+                      <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 10, textAlign: "center", lineHeight: 1.5 }}>Planilha grande, Excel, ou de outro sistema? Depois de entrar, use a tela "Clientes" — lá tem o importador completo, com detecção automática de coluna.</div>
+                      <Btn variant="ghost" onClick={() => setModoAdd(null)} style={{ width: "100%", justifyContent: "center", marginTop: 12 }}>← Voltar</Btn>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: 13.5, marginBottom: 14, color: "#374151" }}><strong>{csvPreview.filter(c => !c.pular).length}</strong> cliente(s) prontos pra importar</div>
+                      <Btn onClick={importarWizard} disabled={salvandoCliente} style={{ width: "100%", justifyContent: "center" }}>{salvandoCliente ? "Importando..." : "Finalizar →"}</Btn>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ textAlign: "center", padding: "0 20px 24px", fontSize: 12, color: "#64748B" }}>
+        💡 Um dia sem cadastrar é um dia sem cobrar — pode terminar em menos de 5 minutos.
+      </div>
+    </div>
+  );
+}
+
 function Checkout({ planoInicial, onVoltar }) {
   const [step, setStep] = useState(1);
   const [plano, setPlano] = useState(planoInicial || "trimestral");
@@ -1992,6 +2248,7 @@ export default function CobrarFacil() {
   const [sessao, setSessao] = useState(null);
   const [impersonando, setImpersonando] = useState(null); // { token, usuario } do lojista, quando admin clica "Acessar pra ajudar"
   const [trocandoSenha, setTrocandoSenha] = useState(false);
+  const [onboardingCompleto, setOnboardingCompleto] = useState(null); // null=verificando, true/false depois
   const [tela, setTela] = useState("dashboard");
   const [clientes, setClientes] = useState([]);
   const [historico, setHistorico] = useState([]);
@@ -2016,12 +2273,32 @@ export default function CobrarFacil() {
     }
   }, [sessao, impersonando]);
 
-  const logout = () => { try { localStorage.removeItem("cobrarfacil_token"); localStorage.removeItem("cobrarfacil_usuario"); } catch {} setSessao(null); setImpersonando(null); setTrocandoSenha(false); };
+  // Verifica se o primeiro acesso já foi todo configurado — pula essa checagem
+  // durante impersonação (suporte não deve ser travado pelo assistente).
+  useEffect(() => {
+    if (impersonando) { setOnboardingCompleto(true); return; }
+    if (!sessao || sessao.isAdmin) { setOnboardingCompleto(null); return; }
+    if (trocandoSenha) return; // espera trocar senha primeiro
+    (async () => {
+      const [me, wpp, clis] = await Promise.all([
+        api("/usuarios/me", {}, sessao.token),
+        api("/whatsapp/status", {}, sessao.token).catch(() => ({})),
+        api("/clientes", {}, sessao.token).catch(() => []),
+      ]);
+      const conectado = wpp?.state === "open" || wpp?.instance?.state === "open";
+      const completo = conectado && !!me.nome_empresa && !!me.pix_key && Array.isArray(clis) && clis.length > 0;
+      setOnboardingCompleto(completo);
+    })();
+  }, [sessao, impersonando, trocandoSenha]);
+
+  const logout = () => { try { localStorage.removeItem("cobrarfacil_token"); localStorage.removeItem("cobrarfacil_usuario"); } catch {} setSessao(null); setImpersonando(null); setTrocandoSenha(false); setOnboardingCompleto(null); };
   const onLogin = (dados) => { setSessao(dados); if (!dados.isAdmin && dados.usuario?.primeiro_acesso) setTrocandoSenha(true); };
 
   if (!sessao) return <LoginScreen onLogin={onLogin} />;
   if (sessao.isAdmin && !impersonando) return <AdminPanel onLogout={logout} token={sessao.token} onImpersonar={setImpersonando} />;
   if (trocandoSenha) return <TrocarSenha token={sessao.token} onSucesso={() => setTrocandoSenha(false)} />;
+  if (onboardingCompleto === false) return <OnboardingWizard token={sessao.token} onCompleto={() => setOnboardingCompleto(true)} />;
+  if (onboardingCompleto === null) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B" }}>Carregando...</div>;
 
   const sessaoEfetiva = impersonando || sessao;
   const sairDoSuporte = () => { setImpersonando(null); setTela("dashboard"); };
