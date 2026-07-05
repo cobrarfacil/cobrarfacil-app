@@ -325,7 +325,7 @@ function TrocarSenha({ token, onSucesso }) {
   );
 }
 
-function OnboardingWizard({ token, onCompleto }) {
+function OnboardingWizard({ token, onCompleto, onPular }) {
   const [etapa, setEtapa] = useState(1);
   const [carregando, setCarregando] = useState(true);
   const [toast, setToast] = useState(null);
@@ -574,6 +574,9 @@ function OnboardingWizard({ token, onCompleto }) {
         </div>
       </div>
 
+      <div style={{ textAlign: "center", padding: "0 20px 8px" }}>
+        <button onClick={onPular} className="cf-btn" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Pular por agora, configuro depois</button>
+      </div>
       <div style={{ textAlign: "center", padding: "0 20px 24px", fontSize: 12, color: "#64748B" }}>
         💡 Um dia sem cadastrar é um dia sem cobrar — pode terminar em menos de 5 minutos.
       </div>
@@ -2249,6 +2252,7 @@ export default function CobrarFacil() {
   const [impersonando, setImpersonando] = useState(null); // { token, usuario } do lojista, quando admin clica "Acessar pra ajudar"
   const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [onboardingCompleto, setOnboardingCompleto] = useState(null); // null=verificando, true/false depois
+  const [configPendente, setConfigPendente] = useState(false); // true quando pulou sem terminar — mostra aviso fixo
   const [tela, setTela] = useState("dashboard");
   const [clientes, setClientes] = useState([]);
   const [historico, setHistorico] = useState([]);
@@ -2287,9 +2291,24 @@ export default function CobrarFacil() {
       ]);
       const conectado = wpp?.state === "open" || wpp?.instance?.state === "open";
       const completo = conectado && !!me.nome_empresa && !!me.pix_key && Array.isArray(clis) && clis.length > 0;
-      setOnboardingCompleto(completo);
+      const skipKey = "cobrarfacil_onboarding_pulado_" + (sessao.usuario?.email || "");
+      const pulouAntes = !completo && localStorage.getItem(skipKey) === "true";
+      setConfigPendente(!completo); // usado pro aviso fixo, independente de ter pulado ou não
+      setOnboardingCompleto(completo || pulouAntes);
     })();
   }, [sessao, impersonando, trocandoSenha]);
+
+  const pularOnboarding = () => {
+    const skipKey = "cobrarfacil_onboarding_pulado_" + (sessao.usuario?.email || "");
+    try { localStorage.setItem(skipKey, "true"); } catch {}
+    setConfigPendente(true);
+    setOnboardingCompleto(true);
+  };
+  const retomarOnboarding = () => {
+    const skipKey = "cobrarfacil_onboarding_pulado_" + (sessao.usuario?.email || "");
+    try { localStorage.removeItem(skipKey); } catch {}
+    setOnboardingCompleto(false);
+  };
 
   const logout = () => { try { localStorage.removeItem("cobrarfacil_token"); localStorage.removeItem("cobrarfacil_usuario"); } catch {} setSessao(null); setImpersonando(null); setTrocandoSenha(false); setOnboardingCompleto(null); };
   const onLogin = (dados) => { setSessao(dados); if (!dados.isAdmin && dados.usuario?.primeiro_acesso) setTrocandoSenha(true); };
@@ -2297,7 +2316,7 @@ export default function CobrarFacil() {
   if (!sessao) return <LoginScreen onLogin={onLogin} />;
   if (sessao.isAdmin && !impersonando) return <AdminPanel onLogout={logout} token={sessao.token} onImpersonar={setImpersonando} />;
   if (trocandoSenha) return <TrocarSenha token={sessao.token} onSucesso={() => setTrocandoSenha(false)} />;
-  if (onboardingCompleto === false) return <OnboardingWizard token={sessao.token} onCompleto={() => setOnboardingCompleto(true)} />;
+  if (onboardingCompleto === false) return <OnboardingWizard token={sessao.token} onCompleto={() => setOnboardingCompleto(true)} onPular={pularOnboarding} />;
   if (onboardingCompleto === null) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B" }}>Carregando...</div>;
 
   const sessaoEfetiva = impersonando || sessao;
@@ -2337,6 +2356,12 @@ export default function CobrarFacil() {
           <div style={{ background: "#7C3AED", color: "#fff", padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, fontWeight: 700, position: "sticky", top: 0, zIndex: 51 }}>
             <span>🔧 Modo suporte — vendo como {sessaoEfetiva.usuario?.nome?.split(" ")[0]}</span>
             <button onClick={sairDoSuporte} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11.5, padding: "4px 8px", cursor: "pointer", fontWeight: 700 }}>Voltar pro Admin</button>
+          </div>
+        )}
+        {configPendente && !impersonando && (
+          <div style={{ background: "#D97706", color: "#fff", padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, fontWeight: 700, position: "sticky", top: 0, zIndex: 51, gap: 8 }}>
+            <span>⚠️ Configuração incompleta — a cobrança automática ainda não está ativa</span>
+            <button onClick={retomarOnboarding} style={{ background: "rgba(255,255,255,0.25)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11.5, padding: "4px 8px", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap" }}>Continuar →</button>
           </div>
         )}
         <div style={{ background: "#0B2B24", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
@@ -2399,6 +2424,12 @@ export default function CobrarFacil() {
           <div style={{ background: "#7C3AED", color: "#fff", padding: "8px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, fontWeight: 700 }}>
             <span>🔧 Modo suporte — vendo como {sessaoEfetiva.usuario?.nome}</span>
             <button onClick={sairDoSuporte} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, padding: "4px 10px", cursor: "pointer", fontWeight: 700 }}>Voltar pro Admin</button>
+          </div>
+        )}
+        {configPendente && !impersonando && (
+          <div style={{ background: "#D97706", color: "#fff", padding: "8px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, fontWeight: 700 }}>
+            <span>⚠️ Configuração incompleta — a cobrança automática ainda não está ativa</span>
+            <button onClick={retomarOnboarding} style={{ background: "rgba(255,255,255,0.25)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, padding: "4px 10px", cursor: "pointer", fontWeight: 700 }}>Continuar configuração →</button>
           </div>
         )}
         <div style={{ background: "#fff", borderBottom: "1px solid #F1F5F9", padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
