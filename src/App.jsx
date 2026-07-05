@@ -1049,24 +1049,25 @@ function Dashboard({ clientes, token }) {
       {detalhe && <ModalDetalheLista titulo={detalhe.titulo} lista={detalhe.lista} onClose={() => setDetalhe(null)} />}
 
       {/* HERO — recuperação, o número que mais importa */}
-      <div className="cf-fade" style={{ background: "linear-gradient(135deg, #0B2B24 0%, #023B32 100%)", borderRadius: 20, padding: "22px 20px", marginBottom: 12, boxShadow: "0 10px 28px rgba(6,78,59,0.28)", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: -40, right: -30, width: 140, height: 140, background: "radial-gradient(circle, rgba(34,197,94,0.28), transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#6EE7B7", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 8, position: "relative" }}>Recuperação total</div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 14, position: "relative" }}>
-          <span style={{ fontSize: 46, fontWeight: 900, color: "#fff", fontFamily: "'JetBrains Mono', 'SF Mono', monospace", letterSpacing: -1.5, lineHeight: 1 }}>{percentual}%</span>
-          <span style={{ fontSize: 12.5, color: "#94A3B8", fontWeight: 500 }}>do valor total já recuperado</span>
+      <div className="cf-fade" style={{ background: "linear-gradient(160deg, #081512 0%, #0E2620 55%, #023B32 100%)", borderRadius: 22, padding: "24px 22px", marginBottom: 12, boxShadow: "0 16px 36px rgba(2,20,16,0.4), inset 0 1px 0 rgba(255,255,255,0.06)", border: "1px solid rgba(74,222,128,0.12)", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -50, right: -40, width: 180, height: 180, background: "radial-gradient(circle, rgba(74,222,128,0.22), transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -60, left: -40, width: 160, height: 160, background: "radial-gradient(circle, rgba(14,143,99,0.18), transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 700, color: "#4ADE80", letterSpacing: 1.3, textTransform: "uppercase", marginBottom: 10, position: "relative", background: "rgba(74,222,128,0.1)", padding: "4px 10px", borderRadius: 99, border: "1px solid rgba(74,222,128,0.2)" }}>● RECUPERAÇÃO TOTAL</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 9, marginBottom: 16, position: "relative" }}>
+          <span style={{ fontSize: 50, fontWeight: 900, color: "#fff", fontFamily: "'JetBrains Mono', 'SF Mono', monospace", letterSpacing: -2, lineHeight: 1 }}>{percentual}%</span>
+          <span style={{ fontSize: 12.5, color: "#7C8B87", fontWeight: 500 }}>do valor total já recuperado</span>
         </div>
-        <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 99, height: 7, overflow: "hidden", marginBottom: 16, position: "relative" }}>
-          <div className="cf-bar" style={{ width: percentual + "%", background: "linear-gradient(90deg, #22C55E, #6EE7B7)", height: "100%", borderRadius: 99 }} />
+        <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 99, height: 8, overflow: "hidden", marginBottom: 18, position: "relative", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.3)" }}>
+          <div className="cf-bar" style={{ width: percentual + "%", background: "linear-gradient(90deg, #0E8F63, #4ADE80)", height: "100%", borderRadius: 99, boxShadow: "0 0 12px rgba(74,222,128,0.6)" }} />
         </div>
-        <div style={{ display: "flex", gap: 14, position: "relative" }}>
+        <div style={{ display: "flex", gap: 16, position: "relative" }}>
           <div onClick={() => setDetalhe({ titulo: "Clientes que pagaram", lista: pagos })} style={{ flex: 1, cursor: "pointer" }}>
-            <div style={{ fontSize: 10.5, color: "#94A3B8", marginBottom: 3, fontWeight: 600 }}>RECEBIDO</div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: "#6EE7B7", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(metricas?.total_recebido ?? totalPagoSoma)}</div>
+            <div style={{ fontSize: 10.5, color: "#7C8B87", marginBottom: 4, fontWeight: 700, letterSpacing: "0.4px" }}>RECEBIDO</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#4ADE80", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(metricas?.total_recebido ?? totalPagoSoma)}</div>
           </div>
-          <div style={{ width: 1, background: "rgba(255,255,255,0.15)" }} />
+          <div style={{ width: 1, background: "rgba(255,255,255,0.1)" }} />
           <div onClick={() => setDetalhe({ titulo: "Clientes em aberto", lista: abertos })} style={{ flex: 1, cursor: "pointer" }}>
-            <div style={{ fontSize: 10.5, color: "#94A3B8", marginBottom: 3, fontWeight: 600 }}>EM ABERTO</div>
+            <div style={{ fontSize: 10.5, color: "#7C8B87", marginBottom: 4, fontWeight: 700, letterSpacing: "0.4px" }}>EM ABERTO</div>
             <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(metricas?.total_em_aberto ?? total)}</div>
           </div>
         </div>
@@ -2364,20 +2365,21 @@ export default function CobrarFacil() {
             <button onClick={retomarOnboarding} style={{ background: "rgba(255,255,255,0.25)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11.5, padding: "4px 8px", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap" }}>Continuar →</button>
           </div>
         )}
-        <div style={{ background: "#0B2B24", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover", display: "block" }} />
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>CobrarFácil</div>
+        <div style={{ height: 2, background: "linear-gradient(90deg, #0E8F63, #4ADE80, #0E8F63)" }} />
+        <div style={{ background: "#070F0D", padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid rgba(74,222,128,0.08)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover", display: "block", boxShadow: "0 0 0 2px rgba(74,222,128,0.25)" }} />
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", letterSpacing: "-0.3px" }}>CobrarFácil</div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {atrasadosCount > 0 && <div style={{ background: "#DC2626", color: "#fff", borderRadius: 99, fontSize: 11, fontWeight: 700, padding: "3px 8px" }}>{atrasadosCount}</div>}
-            <button onClick={logout} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, color: "#94A3B8", fontSize: 12, padding: "6px 10px", cursor: "pointer", fontWeight: 600 }}>Sair</button>
+            <button onClick={logout} className="cf-btn" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#6B7A76", fontSize: 12, padding: "6px 10px", cursor: "pointer", fontWeight: 600 }}>Sair</button>
           </div>
         </div>
         <div style={{ flex: 1, padding: 16, overflowY: "auto" }}>{renderTela()}</div>
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#fff", borderTop: "1px solid #E2E8F0", display: "flex", zIndex: 100, boxShadow: "0 -4px 20px rgba(0,0,0,0.08)" }}>
           {nav.map(n => (
-            <button key={n.key} onClick={() => setTela(n.key)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "8px 2px 6px", border: "none", background: "transparent", cursor: "pointer", color: tela === n.key ? "#1E40AF" : "#94A3B8", gap: 2, position: "relative" }}>
+            <button key={n.key} onClick={() => setTela(n.key)} className="cf-btn" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "8px 2px 6px", border: "none", background: "transparent", cursor: "pointer", color: tela === n.key ? "#0E8F63" : "#94A3B8", gap: 2, position: "relative" }}>
               {n.key === "clientes" && atrasadosCount > 0 && <span style={{ position: "absolute", top: 4, right: "50%", marginRight: -18, background: "#DC2626", color: "#fff", borderRadius: 99, fontSize: 8, fontWeight: 700, padding: "1px 4px" }}>{atrasadosCount}</span>}
               <div style={{ transform: tela === n.key ? "scale(1.1)" : "scale(1)" }}>{n.icon}</div>
               <span style={{ fontSize: 9, fontWeight: tela === n.key ? 700 : 500 }}>{n.label}</span>
@@ -2392,34 +2394,40 @@ export default function CobrarFacil() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif" }}>
       <style>{GLOBAL_STYLES}</style>
-      <div style={{ width: 220, background: "#0B2B24", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100 }}>
-        <div style={{ padding: "18px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", display: "block" }} />
-            <div><div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>CobrarFácil</div><div style={{ fontSize: 10, color: "#475569" }}>SISTEMA DE COBRANÇA</div></div>
+      <div style={{ width: 224, background: "#070F0D", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100, borderRight: "1px solid rgba(74,222,128,0.08)" }}>
+        <div style={{ height: 2, background: "linear-gradient(90deg, #0E8F63, #4ADE80, #0E8F63)" }} />
+        <div style={{ padding: "20px 18px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+            <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", display: "block", boxShadow: "0 0 0 2px rgba(74,222,128,0.25)" }} />
+            <div><div style={{ fontSize: 15.5, fontWeight: 800, color: "#fff", letterSpacing: "-0.3px" }}>CobrarFácil</div><div style={{ fontSize: 9.5, color: "#4ADE80", letterSpacing: "1.4px", fontWeight: 700 }}>SISTEMA DE COBRANÇA</div></div>
           </div>
         </div>
-        <nav style={{ flex: 1, padding: "14px 10px", overflowY: "auto" }}>
+        <nav style={{ flex: 1, padding: "16px 12px", overflowY: "auto" }}>
           {nav.map(n => (
-            <button key={n.key} onClick={() => setTela(n.key)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "11px 12px", borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 3, background: tela === n.key ? "rgba(59,130,246,0.15)" : "transparent", color: tela === n.key ? "#60A5FA" : "#64748B", fontSize: 14, fontWeight: tela === n.key ? 700 : 500, textAlign: "left" }}>
+            <button key={n.key} onClick={() => setTela(n.key)} className="cf-btn" style={{
+              width: "100%", display: "flex", alignItems: "center", gap: 11, padding: "11px 13px", borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 4,
+              background: tela === n.key ? "linear-gradient(135deg, rgba(74,222,128,0.16), rgba(14,143,99,0.10))" : "transparent",
+              boxShadow: tela === n.key ? "inset 0 0 0 1px rgba(74,222,128,0.25)" : "none",
+              color: tela === n.key ? "#4ADE80" : "#6B7A76", fontSize: 13.5, fontWeight: tela === n.key ? 700 : 500, textAlign: "left", letterSpacing: "-0.1px"
+            }}>
               {n.icon} {n.label}
               {n.key === "clientes" && atrasadosCount > 0 && <span style={{ marginLeft: "auto", background: "#DC2626", color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "1px 6px" }}>{atrasadosCount}</span>}
             </button>
           ))}
         </nav>
-        <div style={{ padding: "14px 16px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #1E40AF, #3B82F6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff" }}>{sessaoEfetiva.usuario?.nome?.charAt(0) || "U"}</div>
-            <div><div style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0" }}>{sessaoEfetiva.usuario?.nome?.split(" ")[0] || "Usuário"}</div><div style={{ fontSize: 10, color: "#475569" }}>Plano {sessaoEfetiva.usuario?.plano}</div></div>
+        <div style={{ padding: "16px 18px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
+            <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #0E8F63, #4ADE80)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#052B1E" }}>{sessaoEfetiva.usuario?.nome?.charAt(0) || "U"}</div>
+            <div><div style={{ fontSize: 12.5, fontWeight: 700, color: "#E2E8F0" }}>{sessaoEfetiva.usuario?.nome?.split(" ")[0] || "Usuário"}</div><div style={{ fontSize: 10, color: "#5B6B67", textTransform: "capitalize" }}>Plano {sessaoEfetiva.usuario?.plano}</div></div>
           </div>
           {impersonando ? (
-            <button onClick={sairDoSuporte} style={{ width: "100%", background: "#7C3AED", border: "none", borderRadius: 8, padding: "8px", color: "#fff", fontSize: 13, cursor: "pointer", fontWeight: 700 }}>🔧 Voltar pro Admin</button>
+            <button onClick={sairDoSuporte} className="cf-btn" style={{ width: "100%", background: "#7C3AED", border: "none", borderRadius: 9, padding: "9px", color: "#fff", fontSize: 13, cursor: "pointer", fontWeight: 700 }}>🔧 Voltar pro Admin</button>
           ) : (
-            <button onClick={logout} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "8px", color: "#94A3B8", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>Sair</button>
+            <button onClick={logout} className="cf-btn" style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "9px", color: "#6B7A76", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>Sair</button>
           )}
         </div>
       </div>
-      <div style={{ flex: 1, marginLeft: 220, minWidth: 0 }}>
+      <div style={{ flex: 1, marginLeft: 224, minWidth: 0 }}>
         {impersonando && (
           <div style={{ background: "#7C3AED", color: "#fff", padding: "8px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, fontWeight: 700 }}>
             <span>🔧 Modo suporte — vendo como {sessaoEfetiva.usuario?.nome}</span>
