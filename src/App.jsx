@@ -1013,6 +1013,7 @@ function Dashboard({ clientes, token }) {
   const [filtrando, setFiltrando] = useState(false);
   const [detalhe, setDetalhe] = useState(null);
   const [mostrarCompleto, setMostrarCompleto] = useState(false);
+  const [periodoHero, setPeriodoHero] = useState("mes");
 
   useEffect(() => {
     api("/metricas", {}, token).then(d => { if (d.total_em_aberto !== undefined) setMetricas(d); });
@@ -1049,30 +1050,48 @@ function Dashboard({ clientes, token }) {
 
       {detalhe && <ModalDetalheLista titulo={detalhe.titulo} lista={detalhe.lista} onClose={() => setDetalhe(null)} />}
 
-      {/* HERO — recuperação, o número que mais importa */}
-      <div className="cf-fade" style={{ background: "linear-gradient(160deg, #081512 0%, #0E2620 55%, #023B32 100%)", borderRadius: 22, padding: "24px 22px", marginBottom: 12, boxShadow: "0 16px 36px rgba(2,20,16,0.4), inset 0 1px 0 rgba(255,255,255,0.06)", border: "1px solid rgba(74,222,128,0.12)", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: -50, right: -40, width: 180, height: 180, background: "radial-gradient(circle, rgba(74,222,128,0.22), transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: -60, left: -40, width: 160, height: 160, background: "radial-gradient(circle, rgba(14,143,99,0.18), transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 700, color: "#4ADE80", letterSpacing: 1.3, textTransform: "uppercase", marginBottom: 10, position: "relative", background: "rgba(74,222,128,0.1)", padding: "4px 10px", borderRadius: 99, border: "1px solid rgba(74,222,128,0.2)" }}>● RECUPERAÇÃO TOTAL</div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 9, marginBottom: 16, position: "relative" }}>
-          <span style={{ fontSize: 50, fontWeight: 900, color: "#fff", fontFamily: "'JetBrains Mono', 'SF Mono', monospace", letterSpacing: -2, lineHeight: 1 }}>{percentual}%</span>
-          <span style={{ fontSize: 12.5, color: "#7C8B87", fontWeight: 500 }}>do valor total já recuperado</span>
-        </div>
-        <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 99, height: 8, overflow: "hidden", marginBottom: 18, position: "relative", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.3)" }}>
-          <div className="cf-bar" style={{ width: percentual + "%", background: "linear-gradient(90deg, #0E8F63, #4ADE80)", height: "100%", borderRadius: 99, boxShadow: "0 0 12px rgba(74,222,128,0.6)" }} />
-        </div>
-        <div style={{ display: "flex", gap: 16, position: "relative" }}>
-          <div onClick={() => setDetalhe({ titulo: "Clientes que pagaram", lista: pagos })} style={{ flex: 1, cursor: "pointer" }}>
-            <div style={{ fontSize: 10.5, color: "#7C8B87", marginBottom: 4, fontWeight: 700, letterSpacing: "0.4px" }}>RECEBIDO</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#4ADE80", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(metricas?.total_recebido ?? totalPagoSoma)}</div>
+      {/* HERO — valor recebido, número absoluto que só cresce. Trocamos o
+          "% do total histórico" porque comparar dinheiro recebido contra
+          dívida antiga (parte dela praticamente impossível de cobrar) sempre
+          gera um número baixo e desanimador, mesmo com o sistema funcionando
+          bem — nenhuma agência de cobrança usa essa conta como KPI principal. */}
+      {(() => {
+        const OPCOES_PERIODO = {
+          hoje:   { label: "Hoje",       valor: metricas?.recebido_hoje },
+          semana: { label: "7 dias",     valor: metricas?.recebido_semana },
+          mes:    { label: "Este mês",   valor: metricas?.recebido_mes },
+          total:  { label: "Desde sempre", valor: metricas?.total_recebido ?? totalPagoSoma },
+        };
+        const valorHero = OPCOES_PERIODO[periodoHero]?.valor ?? 0;
+        return (
+          <div className="cf-fade" style={{ background: "linear-gradient(160deg, #081512 0%, #0E2620 55%, #023B32 100%)", borderRadius: 22, padding: "24px 22px", marginBottom: 12, boxShadow: "0 16px 36px rgba(2,20,16,0.4), inset 0 1px 0 rgba(255,255,255,0.06)", border: "1px solid rgba(74,222,128,0.12)", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: -50, right: -40, width: 180, height: 180, background: "radial-gradient(circle, rgba(74,222,128,0.22), transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", bottom: -60, left: -40, width: 160, height: 160, background: "radial-gradient(circle, rgba(14,143,99,0.18), transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, position: "relative" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 700, color: "#4ADE80", letterSpacing: 1.3, textTransform: "uppercase", background: "rgba(74,222,128,0.1)", padding: "4px 10px", borderRadius: 99, border: "1px solid rgba(74,222,128,0.2)" }}>● RECEBIDO</div>
+              <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.06)", borderRadius: 99, padding: 3 }}>
+                {Object.entries(OPCOES_PERIODO).map(([key, o]) => (
+                  <button key={key} onClick={() => setPeriodoHero(key)} className="cf-btn" style={{ border: "none", background: periodoHero === key ? "#4ADE80" : "transparent", color: periodoHero === key ? "#052B1E" : "#7C8B87", fontSize: 10.5, fontWeight: 700, padding: "4px 9px", borderRadius: 99, cursor: "pointer" }}>{o.label}</button>
+                ))}
+              </div>
+            </div>
+            <div onClick={() => setDetalhe({ titulo: "Clientes que pagaram", lista: pagos })} style={{ cursor: "pointer", position: "relative", marginBottom: 18 }}>
+              <span style={{ fontSize: 42, fontWeight: 900, color: "#fff", fontFamily: "'JetBrains Mono', 'SF Mono', monospace", letterSpacing: -1.5, lineHeight: 1 }}>{fmt(valorHero)}</span>
+            </div>
+            <div style={{ display: "flex", gap: 16, position: "relative", paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+              <div onClick={() => setDetalhe({ titulo: "Clientes em aberto", lista: abertos })} style={{ flex: 1, cursor: "pointer" }}>
+                <div style={{ fontSize: 10.5, color: "#7C8B87", marginBottom: 4, fontWeight: 700, letterSpacing: "0.4px" }}>EM ABERTO</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(metricas?.total_em_aberto ?? total)}</div>
+              </div>
+              <div style={{ width: 1, background: "rgba(255,255,255,0.1)" }} />
+              <div onClick={() => setDetalhe({ titulo: "Clientes em atraso", lista: atrasados })} style={{ flex: 1, cursor: "pointer" }}>
+                <div style={{ fontSize: 10.5, color: "#7C8B87", marginBottom: 4, fontWeight: 700, letterSpacing: "0.4px" }}>EM ATRASO</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#FCA5A5", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(metricas?.atrasados?.valor ?? 0)}</div>
+              </div>
+            </div>
           </div>
-          <div style={{ width: 1, background: "rgba(255,255,255,0.1)" }} />
-          <div onClick={() => setDetalhe({ titulo: "Clientes em aberto", lista: abertos })} style={{ flex: 1, cursor: "pointer" }}>
-            <div style={{ fontSize: 10.5, color: "#7C8B87", marginBottom: 4, fontWeight: 700, letterSpacing: "0.4px" }}>EM ABERTO</div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(metricas?.total_em_aberto ?? total)}</div>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Stats secundárias — cards com affordance clara de clicável */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 14 }}>
