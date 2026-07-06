@@ -1218,7 +1218,7 @@ function ModalRegua({ cliente, token, onClose }) {
       {loading ? <div style={{ textAlign: "center", padding: 40, color: "#64748B" }}>Carregando...</div> : (
         <div>
           <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#1E40AF" }}>
-            💡 Dispara automaticamente (não envia sábado nem domingo). Desative etapas ou personalize mensagens.
+            💡 Ajuste individual — vale só pra esse cliente e tem prioridade sobre a régua geral configurada na tela de Cobranças. Dispara automaticamente (não envia sábado nem domingo).
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {etapas.map(e => {
@@ -1861,15 +1861,73 @@ function Pagamentos({ setClientes, token }) {
   );
 }
 
+// ─── RÉGUA: DESENHO CLICÁVEL (usado editável e também só-leitura) ────────────
+function ReguaTimeline({ etapas, etapasInfo, onToggle, editavel }) {
+  if (!etapas) return null;
+  const infoMap = {};
+  (etapasInfo || []).forEach(e => { infoMap[e.etapa] = e; });
+  return (
+    <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+      {etapas.map((e, i) => {
+        const info = infoMap[e.etapa] || {};
+        const cor = info.cor || "#64748B";
+        const ultimo = i === etapas.length - 1;
+        return (
+          <div key={e.etapa} style={{ display: "flex", alignItems: "center", flex: ultimo ? "0 0 auto" : 1, minWidth: 0 }}>
+            <button
+              onClick={editavel ? () => onToggle(e.etapa) : undefined}
+              className={editavel ? "cf-btn" : ""}
+              disabled={!editavel}
+              style={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+                background: "none", border: "none", cursor: editavel ? "pointer" : "default",
+                padding: 2, flexShrink: 0,
+              }}
+            >
+              <div style={{
+                width: 38, height: 38, borderRadius: "50%",
+                background: e.ativo ? cor : "#F1F5F9",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: e.ativo ? "#fff" : "#94A3B8", fontWeight: 800, fontSize: 13,
+                border: e.ativo ? "2px solid " + cor : "2px dashed #CBD5E1",
+                boxShadow: e.ativo ? "0 2px 6px " + cor + "55" : "none",
+                transition: "all .15s",
+              }}>
+                {e.ativo ? (info.icone || "✓") : "✕"}
+              </div>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: e.ativo ? cor : "#94A3B8", textAlign: "center", whiteSpace: "nowrap" }}>{info.label || e.etapa.toUpperCase()}</div>
+              <div style={{ fontSize: 8.5, color: e.ativo ? "#94A3B8" : "#CBD5E1", fontWeight: 600 }}>{e.ativo ? "ativo" : "off"}</div>
+            </button>
+            {!ultimo && <div style={{ flex: 1, height: 2, background: "#E2E8F0", minWidth: 8, marginBottom: 18 }} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, setClientePreSelecionado, token }) {
   const [clienteSel, setClienteSel] = useState(clientePreSelecionado?.id?.toString() || "");
   const [msg, setMsg] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
-  const [disparando, setDisparando] = useState(false);
-  const [resultadoRegua, setResultadoRegua] = useState(null);
-  const [filaEnvio, setFilaEnvio] = useState(null);
-  const pollRef = useRef(null);
+
+  const [reguaGlobal, setReguaGlobal] = useState(null);
+  const [reguaPendente, setReguaPendente] = useState(null);
+  const [carregandoRegua, setCarregandoRegua] = useState(true);
+  const [salvandoRegua, setSalvandoRegua] = useState(false);
+  const [toastRegua, setToastRegua] = useState(null);
+  const showToastRegua = (msg, type = "success") => { setToastRegua({ msg, type }); setTimeout(() => setToastRegua(null), 3000); };
+
+  const [mostrarReguaVisual, setMostrarReguaVisual] = useState(false);
+
+  const ETAPAS_VISUAL = [
+    { etapa: "d-3",  label: "D-3",  quando: "3 dias antes do vencimento", cor: "#3B82F6", bg: "#EFF6FF", icone: "🔔" },
+    { etapa: "d0",   label: "D0",   quando: "No dia do vencimento",        cor: "#EF4444", bg: "#FEF2F2", icone: "📅" },
+    { etapa: "d+5",  label: "D+5",  quando: "5 dias em atraso",            cor: "#F59E0B", bg: "#FFFBEB", icone: "⚠️" },
+    { etapa: "d+15", label: "D+15", quando: "15 dias em atraso",           cor: "#DC2626", bg: "#FEF2F2", icone: "🚨" },
+    { etapa: "d+30", label: "D+30", quando: "30+ dias — repete a cada 15 dias até pagar", cor: "#7C3AED", bg: "#F5F3FF", icone: "⛔" },
+  ];
 
   useEffect(() => { if (clientePreSelecionado) { setClienteSel(clientePreSelecionado.id.toString()); setClientePreSelecionado(null); } }, []);
 
@@ -1883,6 +1941,35 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
     }
   }, [clienteSel, clientes]);
 
+  useEffect(() => {
+    api("/usuarios/regua-global", {}, token).then(data => {
+      if (data.etapas) {
+        setReguaGlobal(data.etapas.map(e => ({ ...e })));
+        setReguaPendente(data.etapas.map(e => ({ ...e })));
+      }
+      setCarregandoRegua(false);
+    });
+  }, []);
+
+  const toggleEtapaPendente = (etapa) => {
+    setReguaPendente(prev => prev.map(e => e.etapa === etapa ? { ...e, ativo: !e.ativo } : e));
+  };
+
+  const houveAlteracao = reguaGlobal && reguaPendente && JSON.stringify(reguaGlobal) !== JSON.stringify(reguaPendente);
+
+  const confirmarAlteracaoRegua = async () => {
+    setSalvandoRegua(true);
+    const data = await api("/usuarios/regua-global", { method: "PUT", body: JSON.stringify({ etapas: reguaPendente }) }, token);
+    setSalvandoRegua(false);
+    if (data.sucesso) {
+      setReguaGlobal(data.etapas.map(e => ({ ...e })));
+      setReguaPendente(data.etapas.map(e => ({ ...e })));
+      showToastRegua("✅ Régua geral atualizada! Vale a partir de agora pra todo cliente sem ajuste individual.");
+    } else showToastRegua(data.erro || "Erro ao salvar", "error");
+  };
+
+  const descartarAlteracao = () => setReguaPendente(reguaGlobal.map(e => ({ ...e })));
+
   const enviar = async () => {
     if (!clienteSel || !msg) return;
     setEnviando(true);
@@ -1891,72 +1978,47 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
     setEnviando(false);
   };
 
-  const dispararRegua = async () => {
-    setResultadoRegua(null);
-    const filaData = await api("/cobrancas/fila", {}, token);
-    if (filaData.aviso) { setResultadoRegua(filaData.aviso); return; }
-    if (!filaData.fila || filaData.fila.length === 0) {
-      setResultadoRegua("Nenhuma cobrança pendente agora — todo mundo já foi contatado ou está fora da régua hoje.");
-      return;
-    }
-    setDisparando(true);
-    setFilaEnvio(filaData.fila.map(f => ({ ...f, status: "aguardando" })));
-    await api("/cobrancas/regua", { method: "POST", body: JSON.stringify({}) }, token);
-
-    let tentativas = 0;
-    pollRef.current = setInterval(async () => {
-      tentativas++;
-      const hist = await api("/cobrancas/historico", {}, token);
-      if (Array.isArray(hist)) {
-        setHistorico(hist);
-        setFilaEnvio(prev => prev ? prev.map(item => {
-          if (item.status !== "aguardando") return item;
-          const achado = hist.find(h => h.cliente_id === item.cliente_id && h.etapa === item.etapa);
-          return achado ? { ...item, status: achado.status === "enviado" ? "enviado" : "erro" } : item;
-        }) : prev);
-      }
-      if (tentativas > 80) clearInterval(pollRef.current);
-    }, 3000);
-  };
-
-  useEffect(() => {
-    if (!filaEnvio || !disparando) return;
-    const restam = filaEnvio.filter(f => f.status === "aguardando").length;
-    if (restam === 0) {
-      setDisparando(false);
-      clearInterval(pollRef.current);
-      const enviados = filaEnvio.filter(f => f.status === "enviado").length;
-      const erros = filaEnvio.filter(f => f.status === "erro").length;
-      setResultadoRegua(enviados + " enviada(s) com sucesso" + (erros > 0 ? " · " + erros + " com erro" : "") + ".");
-    }
-  }, [filaEnvio, disparando]);
-
-  useEffect(() => () => clearInterval(pollRef.current), []);
-
-  const [mostrarReguaVisual, setMostrarReguaVisual] = useState(false);
-  const ETAPAS_VISUAL = [
-    { etapa: "d-3",  label: "D-3",  quando: "3 dias antes do vencimento", cor: "#3B82F6", bg: "#EFF6FF", icone: "🔔" },
-    { etapa: "d0",   label: "D0",   quando: "No dia do vencimento",        cor: "#EF4444", bg: "#FEF2F2", icone: "📅" },
-    { etapa: "d+5",  label: "D+5",  quando: "5 dias em atraso",            cor: "#F59E0B", bg: "#FFFBEB", icone: "⚠️" },
-    { etapa: "d+15", label: "D+15", quando: "15 dias em atraso",           cor: "#DC2626", bg: "#FEF2F2", icone: "🚨" },
-    { etapa: "d+30", label: "D+30", quando: "30+ dias — repete a cada 15 dias até pagar", cor: "#7C3AED", bg: "#F5F3FF", icone: "⛔" },
-  ];
-
   return (
     <div>
+      {toastRegua && <ToastMsg {...toastRegua} />}
       <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Cobranças</h1>
+
       <div style={{ background: "linear-gradient(135deg, #EFF6FF, #F0FDF4)", border: "1px solid #BFDBFE", borderRadius: 16, padding: 18, marginBottom: 18 }}>
-        <div style={{ fontWeight: 800, fontSize: 16, color: "#1E40AF", marginBottom: 8 }}>🤖 Régua Automática</div>
-        <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, marginBottom: 14 }}>
-          Dispara automaticamente com QR Code Pix real (não envia sábado nem domingo).<br />
-          <strong>D-3 · D0 · D+5 · D+15 · D+30</strong> com variação de mensagens.<br />
-          Configure etapas em cada cliente clicando em <strong>"Régua"</strong>.
+        <div style={{ fontWeight: 800, fontSize: 16, color: "#1E40AF", marginBottom: 4 }}>🤖 Régua Automática</div>
+        <div style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.6, marginBottom: 16 }}>
+          Dispara sozinha todo dia, com QR Code Pix real (nunca no sábado ou domingo). Clique num dia abaixo pra ligar ou desligar — vale pra <strong>todos os clientes</strong> que não têm ajuste individual na tela de Clientes.
         </div>
-        <Btn small variant="outline" onClick={() => setMostrarReguaVisual(p => !p)} style={{ width: "100%", justifyContent: "center", marginBottom: 12 }}>
-          {mostrarReguaVisual ? "▲ Esconder como funciona" : "👀 Ver como funciona, passo a passo"}
+
+        {carregandoRegua ? (
+          <div style={{ textAlign: "center", padding: 20, color: "#64748B", fontSize: 13 }}>Carregando régua...</div>
+        ) : (
+          <>
+            <div style={{ background: "#fff", borderRadius: 14, padding: "16px 12px", border: "1px solid #E2E8F0", marginBottom: 10, overflowX: "auto" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", marginBottom: 10, letterSpacing: 0.4 }}>EDITANDO — clique num dia pra ativar/desativar</div>
+              <ReguaTimeline etapas={reguaPendente} onToggle={toggleEtapaPendente} editavel etapasInfo={ETAPAS_VISUAL} />
+            </div>
+
+            {houveAlteracao && (
+              <div className="cf-fade" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                <Btn onClick={confirmarAlteracaoRegua} disabled={salvandoRegua} style={{ flex: 1, justifyContent: "center" }}>
+                  {salvandoRegua ? "Salvando..." : "✅ Confirmar alteração"}
+                </Btn>
+                <Btn variant="ghost" onClick={descartarAlteracao} disabled={salvandoRegua}>Descartar</Btn>
+              </div>
+            )}
+
+            <div style={{ background: "#fff", borderRadius: 14, padding: "16px 12px", border: "1px solid #E2E8F0", marginBottom: 14, overflowX: "auto" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#16A34A", marginBottom: 10, letterSpacing: 0.4 }}>✅ RÉGUA ATUAL — como está funcionando agora</div>
+              <ReguaTimeline etapas={reguaGlobal} etapasInfo={ETAPAS_VISUAL} />
+            </div>
+          </>
+        )}
+
+        <Btn small variant="outline" onClick={() => setMostrarReguaVisual(p => !p)} style={{ width: "100%", justifyContent: "center" }}>
+          {mostrarReguaVisual ? "▲ Esconder exemplos de mensagem" : "👀 Ver exemplo de mensagem de cada etapa"}
         </Btn>
         {mostrarReguaVisual && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
             {ETAPAS_VISUAL.map((e, i) => {
               const exemplo = MENSAGENS_PADRAO[e.etapa] ? MENSAGENS_PADRAO[e.etapa]("Maria Silva", "150.00") : "";
               return (
@@ -1976,39 +2038,8 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
             <div style={{ fontSize: 12, color: "#64748B", textAlign: "center", marginTop: 4 }}>💡 Exemplo com dados fictícios — cada cliente recebe com o nome e valor reais dele.</div>
           </div>
         )}
-        <Btn onClick={dispararRegua} disabled={disparando} style={{ width: "100%", justifyContent: "center" }}>
-          {disparando ? "⏳ Disparando..." : "▶ Disparar régua agora"}
-        </Btn>
-        {resultadoRegua && !disparando && <div style={{ marginTop: 10, background: "#fff", borderRadius: 8, padding: 10, fontSize: 13, color: "#16A34A", fontWeight: 600 }}>✅ {resultadoRegua}</div>}
-
-        {filaEnvio && (
-          <div className="cf-fade" style={{ marginTop: 14, background: "#0B2B24", borderRadius: 14, padding: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{disparando ? "🔴 Enviando agora, em ordem..." : "Envio concluído"}</div>
-              <div style={{ fontSize: 12, color: "#4ADE80", fontWeight: 700 }}>{filaEnvio.filter(f => f.status !== "aguardando").length}/{filaEnvio.length}</div>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 99, height: 6, overflow: "hidden", marginBottom: 14 }}>
-              <div style={{ width: (filaEnvio.filter(f => f.status !== "aguardando").length / filaEnvio.length * 100) + "%", background: "linear-gradient(90deg, #0E8F63, #4ADE80)", height: "100%", borderRadius: 99, transition: "width .6s ease" }} />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
-              {filaEnvio.map((f, i) => (
-                <div key={f.cliente_id + f.etapa} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: f.status === "aguardando" ? "rgba(255,255,255,0.03)" : "rgba(74,222,128,0.08)", borderRadius: 8, opacity: f.status === "aguardando" ? 0.6 : 1 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0, background: f.status === "enviado" ? "#4ADE80" : f.status === "erro" ? "#DC2626" : "rgba(255,255,255,0.1)", color: f.status === "aguardando" ? "#7C8B87" : "#052B1E" }}>
-                    {f.status === "enviado" ? "✓" : f.status === "erro" ? "!" : i + 1}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.nome}</div>
-                    <div style={{ fontSize: 10.5, color: "#7C8B87" }}>{f.etapa.toUpperCase()} · {fmt(f.valor)}</div>
-                  </div>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: f.status === "enviado" ? "#4ADE80" : f.status === "erro" ? "#F87171" : "#7C8B87", flexShrink: 0 }}>
-                    {f.status === "enviado" ? "Enviado" : f.status === "erro" ? "Falhou" : "Na fila"}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+
       {sucesso && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 14, color: "#16A34A", fontWeight: 600 }}>✅ Cobrança enviada!</div>}
       <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
         <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>Enviar cobrança avulsa</h3>
