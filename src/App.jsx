@@ -280,6 +280,30 @@ function api(path, options = {}, token = "") {
   }).then(r => r.json()).catch(() => ({ erro: "Erro de conexão" }));
 }
 
+// ─── META PIXEL (Facebook Ads) ────────────────────────────────────────────────
+// Mesmo Pixel ID já instalado na landing (cobrarfacil.com.br). Como é um domínio
+// diferente (app.cobrarfacil.com.br), o script precisa ser carregado de novo aqui.
+// Só dispara PageView automático — eventos de funil (InitiateCheckout,
+// AddPaymentInfo) ficam isolados dentro do Checkout, e o Purchase continua só
+// no servidor (webhook do Pagar.me), sem duplicidade.
+const META_PIXEL_ID = "1358058159760621";
+
+function carregarPixelMeta() {
+  if (typeof window === "undefined" || window.fbq) return;
+  (function (f, b, e, v, n, t, s) {
+    if (f.fbq) return;
+    n = f.fbq = function () {
+      n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+    };
+    if (!f._fbq) f._fbq = n;
+    n.push = n; n.loaded = true; n.version = "2.0"; n.queue = [];
+    t = b.createElement(e); t.async = true; t.src = v;
+    s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
+  })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
+  window.fbq("init", META_PIXEL_ID);
+  window.fbq("track", "PageView");
+}
+
 function TrocarSenha({ token, onSucesso }) {
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
@@ -587,6 +611,21 @@ function Checkout({ planoInicial, onVoltar }) {
     anual:      { nome: "Anual",      valor: 116400, label: "R$97/mês",   economia: "Economize R$600", parcelas: 3 },
   };
   const planoSel = planos[plano];
+
+  // Dispara assim que a tela de checkout carrega — confirma que a pessoa
+  // realmente chegou aqui (não só clicou no link da landing ou no card do plano).
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.fbq) {
+      window.fbq("track", "InitiateCheckout", {
+        content_name: "Checkout CobrarFácil - Plano " + planoSel.nome,
+        content_category: "SaaS Cobranca Automatizada",
+        value: planoSel.valor / 100,
+        currency: "BRL",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const pagar = async () => {
     setErro(""); setLoading(true);
     try {
@@ -637,7 +676,19 @@ function Checkout({ planoInicial, onVoltar }) {
               <Inp label="CPF *" value={dados.cpf} onChange={e => setDados(p => ({ ...p, cpf: e.target.value }))} placeholder="000.000.000-00" />
               <Inp label="WhatsApp *" value={dados.telefone} onChange={e => setDados(p => ({ ...p, telefone: e.target.value }))} placeholder="(44) 99999-0000" />
               {erro && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "10px 14px", fontSize: 14, marginBottom: 14 }}>{erro}</div>}
-              <Btn onClick={() => { if (!dados.nome || !dados.email || !dados.cpf || !dados.telefone) { setErro("Preencha todos os campos"); return; } setErro(""); setStep(2); }} style={{ width: "100%", justifyContent: "center" }}>Continuar →</Btn>
+              <Btn onClick={() => {
+                if (!dados.nome || !dados.email || !dados.cpf || !dados.telefone) { setErro("Preencha todos os campos"); return; }
+                setErro("");
+                if (typeof window !== "undefined" && window.fbq) {
+                  window.fbq("track", "AddPaymentInfo", {
+                    content_name: "Checkout CobrarFácil - Plano " + planoSel.nome,
+                    content_category: "SaaS Cobranca Automatizada",
+                    value: planoSel.valor / 100,
+                    currency: "BRL",
+                  });
+                }
+                setStep(2);
+              }} style={{ width: "100%", justifyContent: "center" }}>Continuar →</Btn>
             </div>
           )}
           {step === 2 && (
@@ -2453,6 +2504,9 @@ export default function CobrarFacil() {
   const [clienteParaCobrar, setClienteParaCobrar] = useState(null);
   const [clienteParaEditar, setClienteParaEditar] = useState(null);
   const isMobile = useMobile();
+
+  // Pixel base — dispara uma vez por sessão de app aberta (PageView único do SPA).
+  useEffect(() => { carregarPixelMeta(); }, []);
 
   useEffect(() => {
     try {
