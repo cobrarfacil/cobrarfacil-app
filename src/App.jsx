@@ -1093,6 +1093,14 @@ function Dashboard({ clientes, token }) {
         );
       })()}
 
+      {/* Lembrete: a baixa é manual (sem integração bancária automática) — se
+          o lojista esquecer de marcar "Pago", o sistema continua cobrando
+          quem já pagou E o valor não aparece aqui como recebido. */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: "10px 12px", marginBottom: 14, fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
+        <span style={{ fontSize: 14, flexShrink: 0 }}>💡</span>
+        <span><strong>Não esqueça de dar baixa:</strong> quando o cliente mandar o comprovante do Pix pelo WhatsApp, marque "✓ Pago" na lista de Clientes. Sem isso, o sistema continua cobrando quem já pagou, e o valor não aparece aqui como recebido.</span>
+      </div>
+
       {/* Stats secundárias — cards com affordance clara de clicável */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 14 }}>
         {[
@@ -1978,6 +1986,7 @@ function Historico({ historico, setHistorico, token }) {
   const etapaLabel = { "d-3": "D-3", "d0": "D0", "d+3": "D+3", "d+15": "D+15", "d+30": "D+30" };
   const [novosIds, setNovosIds] = useState(new Set());
   const idsAnteriores = useRef(new Set(historico.map(h => h.id)));
+  const [modalConversa, setModalConversa] = useState(null);
 
   // Atualiza sozinho a cada 5s — mensagens que a régua ou o cron mandarem
   // aparecem aqui na hora, sem precisar sair da tela e voltar.
@@ -1999,6 +2008,7 @@ function Historico({ historico, setHistorico, token }) {
 
   return (
     <div>
+      {modalConversa && <ModalConversa key={modalConversa.id} cliente={modalConversa} token={token} onClose={() => setModalConversa(null)} />}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Histórico</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: "#4ADE80" }}>
@@ -2014,9 +2024,12 @@ function Historico({ historico, setHistorico, token }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 6 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: "#0B2B24" }}>{h.cliente_nome || "—"}</div>
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     {h.etapa && <span style={{ background: "#EFF6FF", color: "#1E40AF", padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}>{etapaLabel[h.etapa] || h.etapa}</span>}
                     {h.status === "erro" ? <span style={{ background: "#FEE2E2", color: "#DC2626", fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 20 }}>✕ Falhou</span> : <span style={{ background: "#DCFCE7", color: "#16A34A", fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 20 }}>{novosIds.has(h.id) ? "🆕 Enviado agora" : "✓ Enviado"}</span>}
+                    {h.cliente_id && (
+                      <button onClick={() => setModalConversa({ id: h.cliente_id, nome: h.cliente_nome })} style={{ background: "#ECFDF5", color: "#059669", border: "1.5px solid #A7F3D0", borderRadius: 7, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}><Ic.eye /></button>
+                    )}
                   </div>
                 </div>
                 <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6 }}>{new Date(h.criado_em).toLocaleString("pt-BR")}</div>
