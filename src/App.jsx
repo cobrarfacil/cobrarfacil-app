@@ -5,8 +5,6 @@ const BACKEND_URL = "https://cobrarfacil-backend-production.up.railway.app";
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtData = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR") : "—";
 
-// CSS global — micro-interações que dão sensação de resposta/qualidade sem
-// precisar reescrever cada componente em inline style.
 const GLOBAL_STYLES = `
   .cf-btn { transition: transform .12s ease, box-shadow .12s ease, filter .12s ease, opacity .12s ease; }
   .cf-btn:active:not(:disabled) { transform: scale(0.96); filter: brightness(0.96); }
@@ -23,6 +21,7 @@ const GLOBAL_STYLES = `
 const statusColor = {
   pendente:   { bg: "#FEF3C7", text: "#D97706", label: "Pendente" },
   atrasado:   { bg: "#FEE2E2", text: "#DC2626", label: "Atrasado" },
+  aguardando_confirmacao: { bg: "#DBEAFE", text: "#1D4ED8", label: "⏳ Aguardando confirmação" },
   pago:       { bg: "#DCFCE7", text: "#16A34A", label: "Pago" },
   blacklist:  { bg: "#1F2937", text: "#F9FAFB", label: "🚫 Blacklist" },
 };
@@ -30,14 +29,11 @@ const statusColor = {
 const ETAPAS_INFO = {
   "d-3":  { label: "3 dias antes",  tom: "Amigável",  cor: "#3B82F6" },
   "d0":   { label: "No dia",        tom: "Urgente",   cor: "#EF4444" },
-  "d+3":  { label: "3 dias após",   tom: "Cordial",   cor: "#F59E0B" },
+  "d+5":  { label: "5 dias após",   tom: "Cordial",   cor: "#F59E0B" },
   "d+15": { label: "15 dias após",  tom: "Firme",     cor: "#DC2626" },
   "d+30": { label: "30 dias após",  tom: "Final",     cor: "#7F1D1D" },
 };
 
-// ─── IMPORTAÇÃO INTELIGENTE DE PLANILHA ──────────────────────────────────────
-// Detecta automaticamente as colunas certas mesmo em planilhas de outros
-// sistemas (ex: exportação de sistema de salão), não só do nosso modelo.
 function normalizarCabecalho(str) {
   return String(str || "")
     .toLowerCase()
@@ -46,9 +42,6 @@ function normalizarCabecalho(str) {
     .replace(/[^a-z0-9]/g, "");
 }
 
-// "unico": campo já vem sempre positivo (nosso modelo). "sinalizado": pode vir
-// negativo (dívida) ou positivo (crédito, não cobrar) — comum em sistemas de
-// salão que controlam saldo do cliente.
 const ALIASES_COLUNA = {
   nome:      { tipo: "texto", aliases: ["nome", "cliente", "name", "nomecliente", "clientenome"] },
   telefone:  { tipo: "texto", aliases: ["telefone", "celular", "whatsapp", "fone", "contato", "tel", "numero", "numerocelular"] },
@@ -106,7 +99,6 @@ function mapearLinhaPlanilha(linhaOriginal) {
   const email = pegarBruto(ALIASES_COLUNA.email.aliases);
   const parcelasBruto = pegarBruto(ALIASES_COLUNA.parcelas.aliases);
 
-  // Valor: tenta coluna "única" (sempre positiva) primeiro, depois "sinalizada"
   let valorAbs = null, pular = false, motivoPular = "";
   const valorUnicoBruto = pegarBruto(ALIASES_COLUNA.valor.aliases);
   if (valorUnicoBruto) {
@@ -120,7 +112,6 @@ function mapearLinhaPlanilha(linhaOriginal) {
     }
   }
 
-  // Vencimento: usa coluna explícita se existir; senão, infere da última movimentação
   let vencimento = parseDataBR(pegarBruto(ALIASES_COLUNA.vencimento.aliases));
   let vencimentoInferido = false;
   if (!vencimento) {
@@ -130,7 +121,7 @@ function mapearLinhaPlanilha(linhaOriginal) {
 
   if (!nome) pular = true, motivoPular = motivoPular || "Sem nome";
   if (!telefone) pular = true, motivoPular = motivoPular || "Sem telefone";
-  if (valorAbs === null || valorAbs === 0) pular = pular || false; // valor 0 ainda é válido de importar, só não teria pra que cobrar — deixa passar, lojista decide
+  if (valorAbs === null || valorAbs === 0) pular = pular || false;
 
   return {
     nome, telefone, cpf, email,
@@ -143,10 +134,6 @@ function mapearLinhaPlanilha(linhaOriginal) {
   };
 }
 
-// ─── DETECTA SE ESSA LINHA JÁ EXISTE NO CADASTRO (mesmo telefone ou nome) ────
-// Compara pelos últimos 8 dígitos do telefone (ignora diferença de DDI/DDD já
-// incluso ou não) e por nome exato (sem o sufixo "— Parcela X/Y"). Se achar,
-// o lojista decide o que fazer — não substitui nem ignora sozinho.
 function anotarDuplicado(linha, clientesExistentes) {
   const telNorm = String(linha.telefone || "").replace(/\D/g, "").slice(-8);
   const nomeNorm = String(linha.nome || "").trim().toLowerCase();
@@ -166,7 +153,7 @@ function anotarDuplicado(linha, clientesExistentes) {
       pago: ehPago,
       dataPagamento: match.ultima_cobranca,
     },
-    decisao: ehPago ? "nao_incluir" : "manter", // decisão padrão segura — lojista pode trocar
+    decisao: ehPago ? "nao_incluir" : "manter",
   };
 }
 
@@ -180,7 +167,7 @@ const TIPOS_PIX = {
 const MENSAGENS_PADRAO = {
   "d-3":  (n, v) => "Olá " + n.split(" ")[0] + "! 😊 Sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* vence em 3 dias. Qualquer dúvida é só chamar!",
   "d0":   (n, v) => "🔔 " + n.split(" ")[0] + ", hoje é o dia! Sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* vence hoje. Pague agora e fique em dia!",
-  "d+3":  (n, v) => "Olá " + n.split(" ")[0] + "! Notamos que sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* ainda está em aberto. Podemos resolver juntos? 🤝",
+  "d+5":  (n, v) => "Olá " + n.split(" ")[0] + "! Notamos que sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* ainda está em aberto. Podemos resolver juntos? 🤝",
   "d+15": (n, v) => n.split(" ")[0] + ", sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* está em atraso há 15 dias. Vamos resolver? 📞",
   "d+30": (n, v) => "AVISO: " + n.split(" ")[0] + ", seu débito de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* está há 30 dias em atraso. Entre em contato urgente.",
 };
@@ -613,8 +600,6 @@ function Checkout({ planoInicial, onVoltar }) {
   const pixUrl  = resultado?.charges?.[0]?.last_transaction?.qr_code_url;
   const [pagamentoConfirmado, setPagamentoConfirmado] = useState(false);
 
-  // Confirma sozinho quando o Pix cai — sem navegar pra lugar nenhum. O login
-  // continua manual, porque a senha só chega por WhatsApp alguns segundos depois.
   useEffect(() => {
     if (!pixCode || pagamentoConfirmado || !dados.email) return;
     const interval = setInterval(async () => {
@@ -1050,11 +1035,6 @@ function Dashboard({ clientes, token }) {
 
       {detalhe && <ModalDetalheLista titulo={detalhe.titulo} lista={detalhe.lista} onClose={() => setDetalhe(null)} />}
 
-      {/* HERO — valor recebido, número absoluto que só cresce. Trocamos o
-          "% do total histórico" porque comparar dinheiro recebido contra
-          dívida antiga (parte dela praticamente impossível de cobrar) sempre
-          gera um número baixo e desanimador, mesmo com o sistema funcionando
-          bem — nenhuma agência de cobrança usa essa conta como KPI principal. */}
       {(() => {
         const OPCOES_PERIODO = {
           hoje:   { label: "Hoje",       valor: metricas?.recebido_hoje },
@@ -1093,15 +1073,11 @@ function Dashboard({ clientes, token }) {
         );
       })()}
 
-      {/* Lembrete: a baixa é manual (sem integração bancária automática) — se
-          o lojista esquecer de marcar "Pago", o sistema continua cobrando
-          quem já pagou E o valor não aparece aqui como recebido. */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: "10px 12px", marginBottom: 14, fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
         <span style={{ fontSize: 14, flexShrink: 0 }}>💡</span>
         <span><strong>Não esqueça de dar baixa:</strong> quando o cliente mandar o comprovante do Pix pelo WhatsApp, marque "✓ Pago" na lista de Clientes. Sem isso, o sistema continua cobrando quem já pagou, e o valor não aparece aqui como recebido.</span>
       </div>
 
-      {/* Stats secundárias — cards com affordance clara de clicável */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 14 }}>
         {[
           { label: "Em atraso", value: fmt(metricas?.atrasados?.valor ?? 0), sub: (metricas?.atrasados?.qtd ?? atrasados.length) + " clientes", icon: <Ic.alert />, color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", lista: atrasados, titulo: "Clientes em atraso" },
@@ -1118,7 +1094,6 @@ function Dashboard({ clientes, token }) {
         ))}
       </div>
 
-      {/* Vencimentos — uma linha compacta, não 3 blocos */}
       {metricas && (
         <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9", marginBottom: 14 }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 12 }}>📅 Próximos vencimentos</div>
@@ -1137,7 +1112,6 @@ function Dashboard({ clientes, token }) {
         </div>
       )}
 
-      {/* Tudo o resto fica dobrado — não força scroll pra quem só quer o resumo */}
       <button onClick={() => setMostrarCompleto(p => !p)} className="cf-btn" style={{ width: "100%", background: "none", border: "1.5px dashed #CBD5E1", borderRadius: 12, padding: "11px", color: "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: mostrarCompleto ? 12 : 0 }}>
         {mostrarCompleto ? "▲ Esconder relatório completo" : "▼ Ver relatório completo e filtrar por período"}
       </button>
@@ -1244,7 +1218,7 @@ function ModalRegua({ cliente, token, onClose }) {
       {loading ? <div style={{ textAlign: "center", padding: 40, color: "#64748B" }}>Carregando...</div> : (
         <div>
           <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#1E40AF" }}>
-            💡 Dispara automaticamente às 8h. Desative etapas ou personalize mensagens.
+            💡 Dispara automaticamente (não envia sábado nem domingo). Desative etapas ou personalize mensagens.
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {etapas.map(e => {
@@ -1370,7 +1344,6 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
 
   useEffect(() => { if (modalEditar) setEditando({ ...modalEditar }); }, [modalEditar]);
 
-  // Chegou aqui vindo do "✏️ Editar" no Relatório de erros — abre o modal direto
   useEffect(() => {
     if (clienteParaEditar) { setModalEditar(clienteParaEditar); setClienteParaEditar(null); }
   }, [clienteParaEditar]);
@@ -1452,10 +1425,6 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
         }
         const buffer = await file.arrayBuffer();
 
-        // Alguns sistemas de gestão (comum em software de salão mais antigo)
-        // exportam um arquivo com extensão .xls que por dentro é uma TABELA HTML,
-        // não um Excel binário de verdade. O SheetJS não lê isso. Detecta e usa
-        // outro caminho de leitura nesse caso.
         const inicioArquivo = new TextDecoder("utf-8", { fatal: false }).decode(buffer.slice(0, 1024)).toLowerCase();
         const pareceHtml = inicioArquivo.includes("<html") || inicioArquivo.includes("<table") || inicioArquivo.includes("<!doctype");
 
@@ -1501,13 +1470,11 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
       return;
     }
 
-    // Compara cada linha contra os clientes que já existem (mesmo telefone ou nome)
     const comDuplicados = linhasMapeadas.map(linha => anotarDuplicado(linha, clientes));
     setCsvPreview(comDuplicados);
   };
 
   const importarCSV = async () => {
-    // Separa em 3 grupos, de acordo com a decisão tomada em cada linha duplicada
     const substituicoes = csvPreview.filter(c => c.duplicado && c.decisao === "substituir");
     const novos = csvPreview.filter(c => !c.pular && (!c.duplicado || c.decisao === "manter" || c.decisao === "incluir"));
 
@@ -1558,7 +1525,6 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
       window.XLSX.utils.book_append_sheet(wb, ws, "Clientes");
       window.XLSX.writeFile(wb, "modelo_clientes_cobrarfacil.xlsx");
     } catch {
-      // Fallback CSV se a lib não carregar
       const csv = "nome,telefone,valor,cpf,email,vencimento,parcelas\nJoão Silva,44999990000,300.00,123.456.789-00,joao@email.com,2026-07-01,3";
       const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -1585,7 +1551,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
 
       <div style={{ display: "flex", gap: 8, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
         <input placeholder="🔍 Buscar..." value={busca} onChange={e => setBusca(e.target.value)} style={{ flex: 1, minWidth: 120, border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", background: "#F8FAFC" }} />
-        {["todos", "pendente", "atrasado", "pago", "blacklist"].map(f => (
+        {["todos", "pendente", "atrasado", "aguardando_confirmacao", "pago", "blacklist"].map(f => (
           <button key={f} onClick={() => setFiltro(f)} style={{ background: filtro === f ? "#1E40AF" : "#F1F5F9", color: filtro === f ? "#fff" : "#64748B", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
             {f === "todos" ? "Todos" : f === "blacklist" ? "🚫 Blacklist" : statusColor[f]?.label || f}
           </button>
@@ -1616,7 +1582,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
               {c.status !== "blacklist" && <button onClick={() => setModalRegua(c)} style={{ background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.regua /> Régua</button>}
               <button onClick={() => setModalEditar(c)} style={{ background: "#F8FAFC", color: "#374151", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.edit /> Editar</button>
               {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => setModalProrrogar(c)} style={{ background: "#FFFBEB", color: "#D97706", border: "1.5px solid #FDE68A", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>📅 Prorrogar</button>}
-              {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => onCobranca(c)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.send /> Cobrar</button>}
+              {c.status !== "pago" && c.status !== "blacklist" && c.status !== "aguardando_confirmacao" && <button onClick={() => onCobranca(c)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.send /> Cobrar</button>}
               {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => marcarPago(c)} style={{ background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>✓ Pago</button>}
               <button onClick={() => setModalConversa(c)} style={{ background: "#ECFDF5", color: "#0E8F63", border: "1.5px solid #A7F3D0", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.eye /></button>
               <button onClick={() => deletarCliente(c.id)} style={{ background: "#FEF2F2", color: "#DC2626", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.trash /></button>
@@ -1814,6 +1780,87 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
   );
 }
 
+function Pagamentos({ setClientes, token }) {
+  const [lista, setLista] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processando, setProcessando] = useState(null);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+
+  const carregar = async () => {
+    setLoading(true);
+    const data = await api("/pagamentos/aguardando-confirmacao", {}, token);
+    if (Array.isArray(data)) setLista(data);
+    setLoading(false);
+  };
+  useEffect(() => { carregar(); }, []);
+
+  const confirmar = async (c) => {
+    setProcessando(c.id);
+    const data = await api("/clientes/" + c.id + "/confirmar-pagamento", { method: "POST" }, token);
+    setProcessando(null);
+    if (data.sucesso) {
+      setLista(prev => prev.filter(x => x.id !== c.id));
+      setClientes(prev => prev.map(x => x.id === c.id ? { ...x, status: "pago" } : x));
+      showToast("✅ Pago! Lojista e devedor notificados via WhatsApp!");
+    } else showToast(data.erro || "Erro", "error");
+  };
+
+  const rejeitar = async (c) => {
+    setProcessando(c.id);
+    const data = await api("/clientes/" + c.id + "/pagamento/rejeitar", { method: "POST" }, token);
+    setProcessando(null);
+    if (data.sucesso) {
+      setLista(prev => prev.filter(x => x.id !== c.id));
+      setClientes(prev => prev.map(x => x.id === c.id ? { ...x, status: data.status } : x));
+      showToast("Voltou pra régua normalmente.");
+    } else showToast(data.erro || "Erro", "error");
+  };
+
+  return (
+    <div>
+      {toast && <ToastMsg {...toast} />}
+      <h1 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Pagamentos aguardando confirmação</h1>
+      <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>
+        O sistema identificou uma possível mensagem de comprovante e pausou a cobrança automaticamente. Confirme o recebimento ou rejeite pra voltar pra régua.
+      </p>
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 40, color: "#64748B" }}>Carregando...</div>
+      ) : lista.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 48, color: "#94A3B8" }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>📭</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Nada aguardando confirmação</div>
+          <div style={{ fontSize: 13 }}>Quando um cliente mandar um comprovante, ele aparece aqui automaticamente.</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {lista.map(c => (
+            <div key={c.id} style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #BFDBFE", padding: "14px 16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: "#0B2B24" }}>{c.nome}</div>
+                  <div style={{ fontSize: 12, color: "#94A3B8" }}>{c.telefone}</div>
+                  {c.vencimento && <div style={{ fontSize: 12, color: "#64748B" }}>Vencimento: {fmtData(c.vencimento.split("T")[0])}</div>}
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#1D4ED8" }}>{fmt(c.total_divida)}</div>
+              </div>
+              {c.ultima_mensagem && (
+                <div style={{ background: "#EFF6FF", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#1E40AF", marginBottom: 12, fontStyle: "italic" }}>
+                  "{c.ultima_mensagem}"{c.ultima_mensagem_em ? " · " + new Date(c.ultima_mensagem_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn variant="green" small onClick={() => confirmar(c)} disabled={processando === c.id} style={{ flex: 1, justifyContent: "center" }}><Ic.check /> Confirmar recebimento</Btn>
+                <Btn variant="ghost" small onClick={() => rejeitar(c)} disabled={processando === c.id} style={{ flex: 1, justifyContent: "center" }}>Rejeitar</Btn>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, setClientePreSelecionado, token }) {
   const [clienteSel, setClienteSel] = useState(clientePreSelecionado?.id?.toString() || "");
   const [msg, setMsg] = useState("");
@@ -1826,7 +1873,6 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
 
   useEffect(() => { if (clientePreSelecionado) { setClienteSel(clientePreSelecionado.id.toString()); setClientePreSelecionado(null); } }, []);
 
-  // Pré-preenche a mensagem quando um cliente é selecionado, pra não começar em branco
   useEffect(() => {
     if (!clienteSel) { setMsg(""); return; }
     const cliente = clientes.find(c => c.id.toString() === clienteSel);
@@ -1845,12 +1891,10 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
     setEnviando(false);
   };
 
-  // Busca a fila, mostra quem vai ser cobrado e em que ordem, dispara de
-  // verdade, e depois acompanha em tempo real quem já foi confirmado —
-  // ótimo pra mostrar numa demonstração que o sistema está funcionando.
   const dispararRegua = async () => {
     setResultadoRegua(null);
     const filaData = await api("/cobrancas/fila", {}, token);
+    if (filaData.aviso) { setResultadoRegua(filaData.aviso); return; }
     if (!filaData.fila || filaData.fila.length === 0) {
       setResultadoRegua("Nenhuma cobrança pendente agora — todo mundo já foi contatado ou está fora da régua hoje.");
       return;
@@ -1871,7 +1915,7 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
           return achado ? { ...item, status: achado.status === "enviado" ? "enviado" : "erro" } : item;
         }) : prev);
       }
-      if (tentativas > 80) clearInterval(pollRef.current); // ~4min de segurança
+      if (tentativas > 80) clearInterval(pollRef.current);
     }, 3000);
   };
 
@@ -1893,7 +1937,7 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   const ETAPAS_VISUAL = [
     { etapa: "d-3",  label: "D-3",  quando: "3 dias antes do vencimento", cor: "#3B82F6", bg: "#EFF6FF", icone: "🔔" },
     { etapa: "d0",   label: "D0",   quando: "No dia do vencimento",        cor: "#EF4444", bg: "#FEF2F2", icone: "📅" },
-    { etapa: "d+3",  label: "D+3",  quando: "3 dias em atraso",            cor: "#F59E0B", bg: "#FFFBEB", icone: "⚠️" },
+    { etapa: "d+5",  label: "D+5",  quando: "5 dias em atraso",            cor: "#F59E0B", bg: "#FFFBEB", icone: "⚠️" },
     { etapa: "d+15", label: "D+15", quando: "15 dias em atraso",           cor: "#DC2626", bg: "#FEF2F2", icone: "🚨" },
     { etapa: "d+30", label: "D+30", quando: "30+ dias — repete a cada 15 dias até pagar", cor: "#7C3AED", bg: "#F5F3FF", icone: "⛔" },
   ];
@@ -1904,8 +1948,8 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
       <div style={{ background: "linear-gradient(135deg, #EFF6FF, #F0FDF4)", border: "1px solid #BFDBFE", borderRadius: 16, padding: 18, marginBottom: 18 }}>
         <div style={{ fontWeight: 800, fontSize: 16, color: "#1E40AF", marginBottom: 8 }}>🤖 Régua Automática</div>
         <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, marginBottom: 14 }}>
-          Dispara automaticamente todo dia às 8h com QR Code Pix real.<br />
-          <strong>D-3 · D0 · D+3 · D+15 · D+30</strong> com variação de mensagens.<br />
+          Dispara automaticamente com QR Code Pix real (não envia sábado nem domingo).<br />
+          <strong>D-3 · D0 · D+5 · D+15 · D+30</strong> com variação de mensagens.<br />
           Configure etapas em cada cliente clicando em <strong>"Régua"</strong>.
         </div>
         <Btn small variant="outline" onClick={() => setMostrarReguaVisual(p => !p)} style={{ width: "100%", justifyContent: "center", marginBottom: 12 }}>
@@ -1970,7 +2014,7 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
         <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>Enviar cobrança avulsa</h3>
         <Sel label="Cliente" value={clienteSel} onChange={e => setClienteSel(e.target.value)}>
           <option value="">Selecione...</option>
-          {clientes.filter(c => c.status !== "pago" && c.status !== "blacklist").map(c => <option key={c.id} value={c.id}>{c.nome} — {fmt(c.total_divida)}</option>)}
+          {clientes.filter(c => c.status !== "pago" && c.status !== "blacklist" && c.status !== "aguardando_confirmacao").map(c => <option key={c.id} value={c.id}>{c.nome} — {fmt(c.total_divida)}</option>)}
         </Sel>
         <div style={{ marginBottom: 14 }}>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>Mensagem</label>
@@ -1983,13 +2027,11 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
 }
 
 function Historico({ historico, setHistorico, token }) {
-  const etapaLabel = { "d-3": "D-3", "d0": "D0", "d+3": "D+3", "d+15": "D+15", "d+30": "D+30" };
+  const etapaLabel = { "d-3": "D-3", "d0": "D0", "d+5": "D+5", "d+15": "D+15", "d+30": "D+30" };
   const [novosIds, setNovosIds] = useState(new Set());
   const idsAnteriores = useRef(new Set(historico.map(h => h.id)));
   const [modalConversa, setModalConversa] = useState(null);
 
-  // Atualiza sozinho a cada 5s — mensagens que a régua ou o cron mandarem
-  // aparecem aqui na hora, sem precisar sair da tela e voltar.
   useEffect(() => {
     const intervalo = setInterval(async () => {
       const h = await api("/cobrancas/historico", {}, token);
@@ -2194,9 +2236,6 @@ function Configuracoes({ usuario, token }) {
   const [trocandoSenha, setTrocandoSenha] = useState(false);
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500); };
 
-  // Checa o status REAL da conexão direto na Evolution API ao abrir a tela —
-  // não confia mais só no que ficou salvo no navegador, que podia dizer
-  // "desconectado" mesmo com o WhatsApp funcionando normalmente no servidor.
   useEffect(() => {
     api("/whatsapp/status", {}, token).then(data => {
       if (data.state === "open" || data.instance?.state === "open") setInstanciaWpp("conectado");
@@ -2215,8 +2254,6 @@ function Configuracoes({ usuario, token }) {
   const expiraEm = usuario?.expira_em ? fmtData(usuario.expira_em.split("T")[0]) : "—";
   const diasRestantes = usuario?.expira_em ? Math.floor((new Date(usuario.expira_em) - new Date()) / 86400000) : null;
 
-  // Busca a chave Pix e o nome do negócio reais, salvos no banco — não depende
-  // mais do localStorage do navegador
   useEffect(() => {
     api("/usuarios/me", {}, token).then(data => {
       if (data.pix_key) {
@@ -2250,7 +2287,6 @@ function Configuracoes({ usuario, token }) {
     else setWppStatus("Erro ao gerar QR Code. Tente novamente.");
     setLoadingQr(false);
   };
-  // Confirma a conexão sozinho, checando a cada 3s — o usuário não precisa clicar em nada
   useEffect(() => {
     if (!qrCode) return;
     const interval = setInterval(async () => {
@@ -2376,10 +2412,10 @@ function Configuracoes({ usuario, token }) {
 
 export default function CobrarFacil() {
   const [sessao, setSessao] = useState(null);
-  const [impersonando, setImpersonando] = useState(null); // { token, usuario } do lojista, quando admin clica "Acessar pra ajudar"
+  const [impersonando, setImpersonando] = useState(null);
   const [trocandoSenha, setTrocandoSenha] = useState(false);
-  const [onboardingCompleto, setOnboardingCompleto] = useState(null); // null=verificando, true/false depois
-  const [configPendente, setConfigPendente] = useState(false); // true quando pulou sem terminar — mostra aviso fixo
+  const [onboardingCompleto, setOnboardingCompleto] = useState(null);
+  const [configPendente, setConfigPendente] = useState(false);
   const [tela, setTela] = useState("dashboard");
   const [clientes, setClientes] = useState([]);
   const [historico, setHistorico] = useState([]);
@@ -2404,12 +2440,10 @@ export default function CobrarFacil() {
     }
   }, [sessao, impersonando]);
 
-  // Verifica se o primeiro acesso já foi todo configurado — pula essa checagem
-  // durante impersonação (suporte não deve ser travado pelo assistente).
   useEffect(() => {
     if (impersonando) { setOnboardingCompleto(true); return; }
     if (!sessao || sessao.isAdmin) { setOnboardingCompleto(null); return; }
-    if (trocandoSenha) return; // espera trocar senha primeiro
+    if (trocandoSenha) return;
     (async () => {
       const [me, wpp, clis] = await Promise.all([
         api("/usuarios/me", {}, sessao.token),
@@ -2420,7 +2454,7 @@ export default function CobrarFacil() {
       const completo = conectado && !!me.nome_empresa && !!me.pix_key && Array.isArray(clis) && clis.length > 0;
       const skipKey = "cobrarfacil_onboarding_pulado_" + (sessao.usuario?.email || "");
       const pulouAntes = !completo && localStorage.getItem(skipKey) === "true";
-      setConfigPendente(!completo); // usado pro aviso fixo, independente de ter pulado ou não
+      setConfigPendente(!completo);
       setOnboardingCompleto(completo || pulouAntes);
     })();
   }, [sessao, impersonando, trocandoSenha]);
@@ -2456,6 +2490,7 @@ export default function CobrarFacil() {
     { key: "dashboard", label: "Painel",     icon: <Ic.dash /> },
     { key: "clientes",  label: "Clientes",   icon: <Ic.clients /> },
     { key: "cobrancas", label: "Cobranças",  icon: <Ic.charge /> },
+    { key: "pagamentos", label: "Pagamentos", icon: <Ic.money /> },
     { key: "historico", label: "Histórico",  icon: <Ic.history /> },
     { key: "relatorio", label: "Relatório",  icon: <Ic.report /> },
     { key: "config",    label: "Config.",    icon: <Ic.settings /> },
@@ -2468,6 +2503,7 @@ export default function CobrarFacil() {
       case "dashboard": return <Dashboard clientes={clientes} token={sessaoEfetiva.token} />;
       case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={sessaoEfetiva.token} />;
       case "cobrancas": return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessaoEfetiva.token} />;
+      case "pagamentos": return <Pagamentos setClientes={setClientes} token={sessaoEfetiva.token} />;
       case "historico": return <Historico historico={historico} setHistorico={setHistorico} token={sessaoEfetiva.token} />;
       case "relatorio": return <Relatorio token={sessaoEfetiva.token} clientes={clientes} onEditarCliente={irParaEditar} />;
       case "config":    return <Configuracoes usuario={sessaoEfetiva.usuario} token={sessaoEfetiva.token} />;
