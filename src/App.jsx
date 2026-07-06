@@ -16,6 +16,7 @@ const GLOBAL_STYLES = `
   .cf-fade { animation: cfFadeUp .5s cubic-bezier(.16,1,.3,1) both; }
   @keyframes cfBarGrow { from { width: 0%; } }
   .cf-bar { animation: cfBarGrow 1.1s cubic-bezier(.16,1,.3,1) both; }
+  @keyframes cfPulseRing { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 70% { box-shadow: 0 0 0 6px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
   * { -webkit-tap-highlight-color: transparent; }
 `;
 
@@ -1073,36 +1074,36 @@ function Dashboard({ clientes, token }) {
         </div>
       </div>
 
-      {/* Stats secundárias compactas */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 12 }}>
+      {/* Stats secundárias — cards com affordance clara de clicável */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 14 }}>
         {[
-          { label: "Em atraso", value: fmt(metricas?.atrasados?.valor ?? 0), sub: (metricas?.atrasados?.qtd ?? atrasados.length) + " clientes", icon: <Ic.alert />, color: "#DC2626", bg: "#FEF2F2", lista: atrasados, titulo: "Clientes em atraso" },
-          { label: "Total de clientes", value: clientes.length, sub: null, icon: <Ic.users />, color: "#7C3AED", bg: "#F5F3FF", lista: clientes, titulo: "Todos os clientes" },
+          { label: "Em atraso", value: fmt(metricas?.atrasados?.valor ?? 0), sub: (metricas?.atrasados?.qtd ?? atrasados.length) + " clientes", icon: <Ic.alert />, color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", lista: atrasados, titulo: "Clientes em atraso" },
+          { label: "Total de clientes", value: clientes.length, sub: "cadastrados", icon: <Ic.users />, color: "#7C3AED", bg: "#F5F3FF", border: "#DDD6FE", lista: clientes, titulo: "Todos os clientes" },
         ].map(c => (
-          <div key={c.label} className="cf-card" onClick={() => setDetalhe({ titulo: c.titulo, lista: c.lista })} style={{ background: "#fff", borderRadius: 14, padding: "13px 14px", border: "1px solid #F1F5F9", boxShadow: "0 1px 6px rgba(0,0,0,0.05)", cursor: "pointer" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 7 }}>
-              <div style={{ width: 26, height: 26, background: c.bg, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: c.color, flexShrink: 0 }}>{c.icon}</div>
-              <span style={{ fontSize: 11.5, color: "#64748B", fontWeight: 600 }}>{c.label}</span>
+          <div key={c.label} className="cf-card" onClick={() => setDetalhe({ titulo: c.titulo, lista: c.lista })} style={{ background: "#fff", borderRadius: 16, padding: "16px", border: "1px solid #F1F5F9", boxShadow: "0 1px 8px rgba(0,0,0,0.05)", cursor: "pointer", position: "relative" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+              <div style={{ width: 34, height: 34, background: c.bg, border: "1px solid " + c.border, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: c.color, flexShrink: 0 }}>{c.icon}</div>
+              <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#F8FAFC", display: "flex", alignItems: "center", justifyContent: "center", color: "#CBD5E1", fontSize: 12 }}>→</div>
             </div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#0B2B24" }}>{c.value}</div>
-            {c.sub && <div style={{ fontSize: 10.5, color: c.color, fontWeight: 700 }}>{c.sub}</div>}
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#0B2B24", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "-0.5px", marginBottom: 3 }}>{c.value}</div>
+            <div style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>{c.label}{c.sub ? " · " + c.sub : ""}</div>
           </div>
         ))}
       </div>
 
       {/* Vencimentos — uma linha compacta, não 3 blocos */}
       {metricas && (
-        <div style={{ background: "#fff", borderRadius: 16, padding: 14, border: "1px solid #F1F5F9", marginBottom: 12 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 10 }}>📅 Próximos vencimentos</div>
-          <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9", marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 12 }}>📅 Próximos vencimentos</div>
+          <div style={{ display: "flex", gap: 10 }}>
             {[
-              { label: "Hoje", dados: metricas.vence_hoje, cor: "#EF4444", bg: "#FEF2F2", lista: venceHojeList },
-              { label: "7 dias", dados: metricas.vence_semana, cor: "#F59E0B", bg: "#FFFBEB", lista: venceSemanaList },
-              { label: "30 dias", dados: metricas.vence_mes, cor: "#3B82F6", bg: "#EFF6FF", lista: venceMesList },
+              { label: "Hoje", dados: metricas.vence_hoje, cor: "#EF4444", bg: "#FEF2F2", border: "#FECACA", lista: venceHojeList },
+              { label: "7 dias", dados: metricas.vence_semana, cor: "#D97706", bg: "#FFFBEB", border: "#FDE68A", lista: venceSemanaList },
+              { label: "30 dias", dados: metricas.vence_mes, cor: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE", lista: venceMesList },
             ].map(v => (
-              <div key={v.label} className="cf-card" onClick={() => setDetalhe({ titulo: v.label, lista: v.lista })} style={{ flex: 1, background: v.bg, borderRadius: 10, padding: "9px 6px", textAlign: "center", cursor: "pointer" }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: v.cor, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(v.dados?.valor ?? 0)}</div>
-                <div style={{ fontSize: 9.5, color: v.cor, fontWeight: 700 }}>{v.label} · {v.dados?.qtd ?? 0}</div>
+              <div key={v.label} className="cf-card" onClick={() => setDetalhe({ titulo: v.label, lista: v.lista })} style={{ flex: 1, background: v.bg, border: "1px solid " + v.border, borderRadius: 12, padding: "12px 8px", textAlign: "center", cursor: "pointer" }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: v.cor, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(v.dados?.valor ?? 0)}</div>
+                <div style={{ fontSize: 10, color: v.cor, fontWeight: 700, marginTop: 2 }}>{v.label} · {v.dados?.qtd ?? 0}</div>
               </div>
             ))}
           </div>
@@ -1793,6 +1794,8 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   const [sucesso, setSucesso] = useState(false);
   const [disparando, setDisparando] = useState(false);
   const [resultadoRegua, setResultadoRegua] = useState(null);
+  const [filaEnvio, setFilaEnvio] = useState(null);
+  const pollRef = useRef(null);
 
   useEffect(() => { if (clientePreSelecionado) { setClienteSel(clientePreSelecionado.id.toString()); setClientePreSelecionado(null); } }, []);
 
@@ -1815,12 +1818,49 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
     setEnviando(false);
   };
 
+  // Busca a fila, mostra quem vai ser cobrado e em que ordem, dispara de
+  // verdade, e depois acompanha em tempo real quem já foi confirmado —
+  // ótimo pra mostrar numa demonstração que o sistema está funcionando.
   const dispararRegua = async () => {
-    setDisparando(true); setResultadoRegua(null);
-    const data = await api("/cobrancas/regua", { method: "POST", body: JSON.stringify({}) }, token);
-    setResultadoRegua(data.mensagem || "Régua iniciada!");
-    setDisparando(false);
+    setResultadoRegua(null);
+    const filaData = await api("/cobrancas/fila", {}, token);
+    if (!filaData.fila || filaData.fila.length === 0) {
+      setResultadoRegua("Nenhuma cobrança pendente agora — todo mundo já foi contatado ou está fora da régua hoje.");
+      return;
+    }
+    setDisparando(true);
+    setFilaEnvio(filaData.fila.map(f => ({ ...f, status: "aguardando" })));
+    await api("/cobrancas/regua", { method: "POST", body: JSON.stringify({}) }, token);
+
+    let tentativas = 0;
+    pollRef.current = setInterval(async () => {
+      tentativas++;
+      const hist = await api("/cobrancas/historico", {}, token);
+      if (Array.isArray(hist)) {
+        setHistorico(hist);
+        setFilaEnvio(prev => prev ? prev.map(item => {
+          if (item.status !== "aguardando") return item;
+          const achado = hist.find(h => h.cliente_id === item.cliente_id && h.etapa === item.etapa);
+          return achado ? { ...item, status: achado.status === "enviado" ? "enviado" : "erro" } : item;
+        }) : prev);
+      }
+      if (tentativas > 80) clearInterval(pollRef.current); // ~4min de segurança
+    }, 3000);
   };
+
+  useEffect(() => {
+    if (!filaEnvio || !disparando) return;
+    const restam = filaEnvio.filter(f => f.status === "aguardando").length;
+    if (restam === 0) {
+      setDisparando(false);
+      clearInterval(pollRef.current);
+      const enviados = filaEnvio.filter(f => f.status === "enviado").length;
+      const erros = filaEnvio.filter(f => f.status === "erro").length;
+      setResultadoRegua(enviados + " enviada(s) com sucesso" + (erros > 0 ? " · " + erros + " com erro" : "") + ".");
+    }
+  }, [filaEnvio, disparando]);
+
+  useEffect(() => () => clearInterval(pollRef.current), []);
 
   const [mostrarReguaVisual, setMostrarReguaVisual] = useState(false);
   const ETAPAS_VISUAL = [
@@ -1868,7 +1908,35 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
         <Btn onClick={dispararRegua} disabled={disparando} style={{ width: "100%", justifyContent: "center" }}>
           {disparando ? "⏳ Disparando..." : "▶ Disparar régua agora"}
         </Btn>
-        {resultadoRegua && <div style={{ marginTop: 10, background: "#fff", borderRadius: 8, padding: 10, fontSize: 13, color: "#16A34A", fontWeight: 600 }}>✅ {resultadoRegua}</div>}
+        {resultadoRegua && !disparando && <div style={{ marginTop: 10, background: "#fff", borderRadius: 8, padding: 10, fontSize: 13, color: "#16A34A", fontWeight: 600 }}>✅ {resultadoRegua}</div>}
+
+        {filaEnvio && (
+          <div className="cf-fade" style={{ marginTop: 14, background: "#0B2B24", borderRadius: 14, padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{disparando ? "🔴 Enviando agora, em ordem..." : "Envio concluído"}</div>
+              <div style={{ fontSize: 12, color: "#4ADE80", fontWeight: 700 }}>{filaEnvio.filter(f => f.status !== "aguardando").length}/{filaEnvio.length}</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 99, height: 6, overflow: "hidden", marginBottom: 14 }}>
+              <div style={{ width: (filaEnvio.filter(f => f.status !== "aguardando").length / filaEnvio.length * 100) + "%", background: "linear-gradient(90deg, #0E8F63, #4ADE80)", height: "100%", borderRadius: 99, transition: "width .6s ease" }} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
+              {filaEnvio.map((f, i) => (
+                <div key={f.cliente_id + f.etapa} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: f.status === "aguardando" ? "rgba(255,255,255,0.03)" : "rgba(74,222,128,0.08)", borderRadius: 8, opacity: f.status === "aguardando" ? 0.6 : 1 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0, background: f.status === "enviado" ? "#4ADE80" : f.status === "erro" ? "#DC2626" : "rgba(255,255,255,0.1)", color: f.status === "aguardando" ? "#7C8B87" : "#052B1E" }}>
+                    {f.status === "enviado" ? "✓" : f.status === "erro" ? "!" : i + 1}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.nome}</div>
+                    <div style={{ fontSize: 10.5, color: "#7C8B87" }}>{f.etapa.toUpperCase()} · {fmt(f.valor)}</div>
+                  </div>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: f.status === "enviado" ? "#4ADE80" : f.status === "erro" ? "#F87171" : "#7C8B87", flexShrink: 0 }}>
+                    {f.status === "enviado" ? "Enviado" : f.status === "erro" ? "Falhou" : "Na fila"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       {sucesso && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 14, color: "#16A34A", fontWeight: 600 }}>✅ Cobrança enviada!</div>}
       <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
@@ -1887,15 +1955,41 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   );
 }
 
-function Historico({ historico }) {
+function Historico({ historico, setHistorico, token }) {
   const etapaLabel = { "d-3": "D-3", "d0": "D0", "d+3": "D+3", "d+15": "D+15", "d+30": "D+30" };
+  const [novosIds, setNovosIds] = useState(new Set());
+  const idsAnteriores = useRef(new Set(historico.map(h => h.id)));
+
+  // Atualiza sozinho a cada 5s — mensagens que a régua ou o cron mandarem
+  // aparecem aqui na hora, sem precisar sair da tela e voltar.
+  useEffect(() => {
+    const intervalo = setInterval(async () => {
+      const h = await api("/cobrancas/historico", {}, token);
+      if (Array.isArray(h)) {
+        const idsNovos = h.filter(item => !idsAnteriores.current.has(item.id)).map(item => item.id);
+        if (idsNovos.length > 0) {
+          setNovosIds(new Set(idsNovos));
+          setTimeout(() => setNovosIds(new Set()), 4000);
+        }
+        idsAnteriores.current = new Set(h.map(item => item.id));
+        setHistorico(h);
+      }
+    }, 5000);
+    return () => clearInterval(intervalo);
+  }, [token]);
+
   return (
     <div>
-      <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Histórico</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Histórico</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: "#4ADE80" }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "cfPulseRing 2s infinite" }} /> AO VIVO
+        </div>
+      </div>
       <p style={{ margin: "0 0 16px", color: "#64748B", fontSize: 14 }}>{historico.length} mensagens enviadas</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {historico.map(h => (
-          <div key={h.id} style={{ background: "#fff", borderRadius: 14, padding: "14px 16px", border: "1px solid #F1F5F9" }}>
+          <div key={h.id} className={novosIds.has(h.id) ? "cf-fade" : ""} style={{ background: novosIds.has(h.id) ? "#F0FDF4" : "#fff", borderRadius: 14, padding: "14px 16px", border: novosIds.has(h.id) ? "1px solid #86EFAC" : "1px solid #F1F5F9", transition: "background .6s ease" }}>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ width: 36, height: 36, background: "#F0FDF4", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#16A34A", flexShrink: 0 }}><Ic.whatsapp /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1903,7 +1997,7 @@ function Historico({ historico }) {
                   <div style={{ fontWeight: 700, fontSize: 14, color: "#0B2B24" }}>{h.cliente_nome || "—"}</div>
                   <div style={{ display: "flex", gap: 6 }}>
                     {h.etapa && <span style={{ background: "#EFF6FF", color: "#1E40AF", padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}>{etapaLabel[h.etapa] || h.etapa}</span>}
-                    <span style={{ background: "#DCFCE7", color: "#16A34A", fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 20 }}>✓ Enviado</span>
+                    {h.status === "erro" ? <span style={{ background: "#FEE2E2", color: "#DC2626", fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 20 }}>✕ Falhou</span> : <span style={{ background: "#DCFCE7", color: "#16A34A", fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 20 }}>{novosIds.has(h.id) ? "🆕 Enviado agora" : "✓ Enviado"}</span>}
                   </div>
                 </div>
                 <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 6 }}>{new Date(h.criado_em).toLocaleString("pt-BR")}</div>
@@ -2342,7 +2436,7 @@ export default function CobrarFacil() {
       case "dashboard": return <Dashboard clientes={clientes} token={sessaoEfetiva.token} />;
       case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={sessaoEfetiva.token} />;
       case "cobrancas": return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessaoEfetiva.token} />;
-      case "historico": return <Historico historico={historico} />;
+      case "historico": return <Historico historico={historico} setHistorico={setHistorico} token={sessaoEfetiva.token} />;
       case "relatorio": return <Relatorio token={sessaoEfetiva.token} clientes={clientes} onEditarCliente={irParaEditar} />;
       case "config":    return <Configuracoes usuario={sessaoEfetiva.usuario} token={sessaoEfetiva.token} />;
       default: return null;
