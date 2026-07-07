@@ -76,6 +76,12 @@ function parseDataBR(bruto) {
   return null;
 }
 
+function somarDias(dataISO, dias) {
+  const d = new Date(dataISO + "T12:00:00");
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().split("T")[0];
+}
+
 function mapearLinhaPlanilha(linhaOriginal) {
   const mapaNormalizado = {};
   Object.keys(linhaOriginal).forEach(chaveOriginal => {
@@ -112,11 +118,19 @@ function mapearLinhaPlanilha(linhaOriginal) {
     }
   }
 
+  // A planilha pode trazer vencimento explícito, ou só uma data de referência
+  // (última movimentação, data de cadastro, data de abertura da dívida). Essa
+  // segunda NUNCA é o vencimento em si — é o início da dívida. Quando só ela
+  // existe, o vencimento é sempre calculado como abertura + 30 dias, nunca
+  // usado direto.
   let vencimento = parseDataBR(pegarBruto(ALIASES_COLUNA.vencimento.aliases));
   let vencimentoInferido = false;
   if (!vencimento) {
-    const dataRef = parseDataBR(pegarBruto(ALIASES_COLUNA.dataReferencia.aliases));
-    if (dataRef) { vencimento = dataRef; vencimentoInferido = true; }
+    const dataAbertura = parseDataBR(pegarBruto(ALIASES_COLUNA.dataReferencia.aliases));
+    if (dataAbertura) {
+      vencimento = somarDias(dataAbertura, 30);
+      vencimentoInferido = true;
+    }
   }
 
   if (!nome) pular = true, motivoPular = motivoPular || "Sem nome";
@@ -1733,7 +1747,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
           {csvPreview.length === 0 ? (
             <div>
               <div style={{ background: "#F0FDF4", borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 13, color: "#166534" }}>
-                <strong>Funciona com qualquer planilha</strong> — nossa ou de outro sistema (ex: sistema de salão). O sistema reconhece sozinho colunas como Nome/Cliente, Telefone/Celular, Valor/Dívida/Saldo. Sem coluna de vencimento? Usamos a data da última movimentação como referência. Você confere tudo antes de confirmar.
+                <strong>Funciona com qualquer planilha</strong> — nossa ou de outro sistema (ex: sistema de salão). O sistema reconhece sozinho colunas como Nome/Cliente, Telefone/Celular, Valor/Dívida/Saldo. Sem coluna de vencimento? Usamos a data de abertura da dívida (última movimentação/cadastro) e calculamos o vencimento automaticamente, 30 dias depois. Você confere tudo antes de confirmar.
               </div>
               <button onClick={baixarModelo} style={{ width: "100%", background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 10, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 14 }}>
                 📥 Baixar modelo de planilha (Excel)
@@ -1765,7 +1779,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                     )}
                     {comDataInferida > 0 && (
                       <div style={{ background: "#FFFBEB", borderRadius: 10, padding: "10px 14px", marginBottom: 10, fontSize: 12, color: "#92400E" }}>
-                        💡 {comDataInferida} não tinham data de vencimento na planilha — usamos a última movimentação registrada como referência (marcados com 📅 abaixo).
+                        💡 {comDataInferida} não tinham vencimento na planilha — calculamos automaticamente somando 30 dias à data de abertura da dívida (última movimentação registrada), marcados com 📅 abaixo.
                       </div>
                     )}
                     {pulados.length > 0 && (
@@ -1810,7 +1824,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                           <div key={i} style={{ padding: "8px 12px", background: r.pular ? "#FEF2F2" : (i % 2 === 0 ? "#F8FAFC" : "#fff"), fontSize: 13, borderBottom: "1px solid #F1F5F9", opacity: r.pular ? 0.7 : 1 }}>
                             <strong>{r.nome || "(sem nome)"}</strong> · {r.telefone || "sem telefone"} · R$ {r.total_divida?.toFixed(2) || "0,00"}
                             {r.parcelas > 1 ? " (" + r.parcelas + "x)" : ""}
-                            {r.vencimento ? (r.vencimentoInferido ? " · 📅 " + r.vencimento + " (inferida)" : " · vence " + r.vencimento) : " · sem data"}
+                            {r.vencimento ? (r.vencimentoInferido ? " · 📅 vence " + r.vencimento + " (calculado: abertura +30d)" : " · vence " + r.vencimento) : " · sem data"}
                             {r.pular && <span style={{ color: "#DC2626", fontWeight: 700 }}> · ⚠️ {r.motivoPular}</span>}
                           </div>
                         );
