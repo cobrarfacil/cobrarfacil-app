@@ -2963,13 +2963,29 @@ function Marketing({ token }) {
   const [csvPreview, setCsvPreview] = useState([]);
   const fileRef = useRef();
 
-  // Mensagem única escrita (ou escolhida) pelo lojista. As variações contra
-  // spam são geradas automaticamente por trás na hora de disparar — o lojista
-  // não precisa ver nem mexer nelas, só escreve uma mensagem normal.
+  // Mensagem principal escrita (ou escolhida) pelo lojista. As 3 variações
+  // aparecem embaixo, geradas sozinhas a partir dela — o lojista pode editar
+  // qualquer uma antes de disparar. variacoesManual guarda só as que ele
+  // mexeu na mão; as que não mexeu continuam acompanhando a mensagem principal.
   const [mensagem, setMensagem] = useState(TEMPLATES_MARKETING[0].texto);
+  const [variacoesManual, setVariacoesManual] = useState([null, null, null]);
   const [selecionados, setSelecionados] = useState(new Set());
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
+
+  const variacoesAuto = gerarVariacoesMensagem(mensagem);
+  const variacoesFinais = variacoesAuto.map((v, i) => variacoesManual[i] ?? v);
+
+  const editarVariacao = (i, texto) => {
+    setVariacoesManual(prev => prev.map((v, idx) => idx === i ? texto : v));
+  };
+  const restaurarVariacao = (i) => {
+    setVariacoesManual(prev => prev.map((v, idx) => idx === i ? null : v));
+  };
+  const mudarMensagemPrincipal = (texto) => {
+    setMensagem(texto);
+    setVariacoesManual([null, null, null]);
+  };
 
   const carregarContatos = async () => {
     setLoading(true);
@@ -3047,13 +3063,13 @@ function Marketing({ token }) {
   const limparSelecao = () => setSelecionados(new Set());
 
   const enviarCampanha = async () => {
-    if (!mensagem.trim() || contatos.length === 0) return;
+    const mensagensValidas = variacoesFinais.filter(v => v && v.trim());
+    if (mensagensValidas.length === 0 || contatos.length === 0) return;
     setEnviando(true);
     const ids = selecionados.size > 0 ? Array.from(selecionados) : [];
-    const variacoes = gerarVariacoesMensagem(mensagem);
-    const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagens: variacoes, contato_ids: ids }) }, token);
+    const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagens: mensagensValidas, contato_ids: ids }) }, token);
     setEnviando(false);
-    if (data.sucesso) { setEnviado(true); setTimeout(() => setEnviado(false), 4000); showToast("Campanha iniciada! Os envios serão feitos com intervalos de segurança, igual à régua."); }
+    if (data.sucesso) { setEnviado(true); setTimeout(() => setEnviado(false), 4000); showToast("Campanha iniciada! Os envios serão feitos intercalando as 3 variações, com intervalo de segurança — igual à régua."); }
     else showToast(data.erro || "Erro ao disparar", "error");
   };
 
@@ -3128,20 +3144,33 @@ function Marketing({ token }) {
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 10 }}>💡 Modelos prontos — clique pra usar</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
                     {TEMPLATES_MARKETING.map((t, i) => (
-                      <button key={i} onClick={() => setMensagem(t.texto)} style={{ background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 8, padding: "6px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t.titulo}</button>
+                      <button key={i} onClick={() => mudarMensagemPrincipal(t.texto)} style={{ background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 8, padding: "6px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t.titulo}</button>
                     ))}
                   </div>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>Mensagem</label>
-                  <textarea value={mensagem} onChange={e => setMensagem(e.target.value)} rows={5} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", background: "#F8FAFC", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 10 }} />
-                  <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "#1E40AF", marginBottom: 10 }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>Mensagem principal</label>
+                  <textarea value={mensagem} onChange={e => mudarMensagemPrincipal(e.target.value)} rows={4} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", background: "#F8FAFC", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 10 }} />
+                  <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "#1E40AF" }}>
                     💡 Use <strong>{"{nome}"}</strong> na mensagem — o sistema substitui automaticamente pelo primeiro nome de cada contato ao enviar.
-                  </div>
-                  <div style={{ background: "#F0FDF4", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "#166534" }}>
-                    🛡️ Antes de disparar, o sistema já gera sozinho pequenas variações dessa mensagem e intercala entre elas nos envios — você não precisa fazer nada, é automático e reduz o risco de bloqueio por spam.
                   </div>
                 </div>
 
-                <Btn onClick={enviarCampanha} disabled={enviando || !mensagem.trim()} style={{ width: "100%", justifyContent: "center" }}>
+                <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 14 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 4 }}>🔀 3 variações geradas automaticamente</div>
+                  <div style={{ fontSize: 12, color: "#64748B", marginBottom: 14 }}>Criadas sozinhas a partir da mensagem principal — o sistema intercala entre as 3 nos envios, o que reduz bastante o risco de bloqueio por spam. Pode editar qualquer uma antes de disparar.</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {variacoesFinais.map((v, i) => (
+                      <div key={i} style={{ background: "#F8FAFC", borderRadius: 10, padding: 12, border: "1px solid #E2E8F0" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <span style={{ fontSize: 11.5, fontWeight: 700, color: "#374151" }}>Variação {i + 1}</span>
+                          {variacoesManual[i] !== null && <button onClick={() => restaurarVariacao(i)} style={{ background: "none", border: "none", color: "#1E40AF", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>↺ Restaurar automática</button>}
+                        </div>
+                        <textarea value={v} onChange={e => editarVariacao(i, e.target.value)} rows={2} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none", background: "#fff", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Btn onClick={enviarCampanha} disabled={enviando || variacoesFinais.every(v => !v.trim())} style={{ width: "100%", justifyContent: "center" }}>
                   {enviando ? "Enviando..." : <><Ic.send /> Disparar pra {destinatarios} contato(s)</>}
                 </Btn>
               </div>
