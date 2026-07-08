@@ -206,13 +206,35 @@ const TEMPLATES_MARKETING = [
 ];
 
 // ─── MARKETING: GERADOR DE 3 VARIAÇÕES AUTOMÁTICAS ──────────────────────────
-// Zero IA, zero custo por mensagem — é regra fixa, igual ao princípio já usado
-// na régua de cobrança (2 variações por etapa). A partir de UMA mensagem que o
-// lojista escreve, gera outras 2 trocando a saudação inicial (ou o fechamento,
-// se não achar saudação conhecida), pra reduzir o risco de bloqueio por spam
-// quando manda a mesma campanha pra vários contatos.
+// Zero IA, zero custo por mensagem — regra fixa, mesmo princípio já usado na
+// régua de cobrança (2 variações por etapa). A partir de UMA mensagem que o
+// lojista escreve, reconhece trechos comuns de mensagem de marketing (saudação,
+// oferta, chamada pra ação etc.) e troca cada um por um sinônimo — ao longo da
+// mensagem inteira, não só no início — pra reduzir o risco de bloqueio por spam.
+// Trechos digitados livremente que não batem com nenhum padrão conhecido
+// continuam iguais nas 3 variações: reescrever qualquer frase preservando o
+// sentido, de forma 100% confiável, exigiria um modelo de IA de verdade — o
+// que tem custo por chamada e hoje não faz parte do sistema.
 const ABERTURAS_MARKETING = ["Olá", "Oi", "E aí"];
 const FECHOS_MARKETING = [" 😊", " 🙌", " 👍"];
+
+// Cada grupo é uma lista de frases equivalentes — a que for encontrada na
+// mensagem original vira o ponto de partida, e as outras 2 variações usam as
+// próximas da lista (em rotação), sempre mantendo o mesmo sentido.
+const GRUPOS_MARKETING = [
+  ["temos", "preparamos", "separamos"],
+  ["condição especial", "oferta especial", "promoção exclusiva"],
+  ["novidade exclusiva", "novidade especial", "novidade imperdível"],
+  ["sentimos sua falta", "estamos com saudades", "faz tempo que não te vemos"],
+  ["espero que esteja bem", "espero que esteja tudo bem", "tudo bem com você?"],
+  ["quer saber mais?", "posso te contar mais?", "tem interesse em saber mais?"],
+  ["vem conferir!", "vem dar uma olhada!", "não perca essa!"],
+  ["preparada pra você", "pensada especialmente pra você", "feita sob medida pra você"],
+  ["pra clientes como você", "pra você que é nosso cliente", "pra quem já é nosso cliente"],
+  ["entre em contato", "me chama", "manda uma mensagem"],
+  ["vem nos visitar", "vem dar um pulo aqui", "te esperamos"],
+  ["marcar um horário", "agendar um horário", "reservar um horário"],
+];
 
 function detectarAberturaMarketing(texto) {
   for (const ab of ["Olá", "Ola", "Oi", "Opa", "E aí", "Eae", "Bom dia", "Boa tarde", "Boa noite"]) {
@@ -223,31 +245,80 @@ function detectarAberturaMarketing(texto) {
   return { encontrada: false };
 }
 
+function aplicarCaseMarketing(original, novo) {
+  if (original && /[a-zA-ZÀ-ÿ]/.test(original[0]) && original[0] === original[0].toUpperCase()) {
+    return novo.charAt(0).toUpperCase() + novo.slice(1);
+  }
+  return novo;
+}
+
+function localizarGrupoMarketing(texto, grupo) {
+  const textoMin = texto.toLowerCase();
+  for (let idx = 0; idx < grupo.length; idx++) {
+    const posicao = textoMin.indexOf(grupo[idx].toLowerCase());
+    if (posicao !== -1) return { posicao, comprimento: grupo[idx].length, matchedIdx: idx };
+  }
+  return null;
+}
+
+// Aplica um grupo de sinônimos nas 3 variações — a variação 1 nunca muda
+// (continua sendo exatamente o que o lojista escreveu); a 2 e a 3 rotacionam
+// pra outros sinônimos do mesmo grupo, a partir de qual variante foi achada
+// no texto original.
+function aplicarGrupoMarketing(variacoesAtuais, grupo) {
+  const encontradoBase = localizarGrupoMarketing(variacoesAtuais[0], grupo);
+  if (!encontradoBase) return variacoesAtuais;
+
+  return variacoesAtuais.map((texto, i) => {
+    if (i === 0) return texto;
+    const encontrado = localizarGrupoMarketing(texto, grupo);
+    if (!encontrado) return texto;
+    const novoIdx = (encontradoBase.matchedIdx + i) % grupo.length;
+    const original = texto.slice(encontrado.posicao, encontrado.posicao + encontrado.comprimento);
+    const novo = aplicarCaseMarketing(original, grupo[novoIdx]);
+    return texto.slice(0, encontrado.posicao) + novo + texto.slice(encontrado.posicao + encontrado.comprimento);
+  });
+}
+
 function gerarVariacoesMensagem(base) {
   const texto = String(base || "").trim();
   if (!texto) return ["", "", ""];
 
-  const variacoes = [texto];
-  const info = detectarAberturaMarketing(texto);
+  let variacoes = [texto, texto, texto];
 
+  // Saudação inicial — fica restrita ao começo da frase de propósito
+  const info = detectarAberturaMarketing(texto);
   if (info.encontrada) {
     const resto = texto.slice(info.comprimento);
-    const usadas = new Set([texto.slice(0, info.comprimento).trim().toLowerCase()]);
+    const aberturaOriginal = texto.slice(0, info.comprimento).trim();
+    const usadas = new Set([aberturaOriginal.toLowerCase()]);
+    const escolhidas = [aberturaOriginal];
     for (const ab of ABERTURAS_MARKETING) {
-      if (variacoes.length >= 3) break;
+      if (escolhidas.length >= 3) break;
       if (usadas.has(ab.toLowerCase())) continue;
       usadas.add(ab.toLowerCase());
-      variacoes.push(ab + resto);
+      escolhidas.push(ab);
     }
+    while (escolhidas.length < 3) escolhidas.push(escolhidas[escolhidas.length - 1]);
+    variacoes = escolhidas.map(ab => ab + resto);
   }
 
-  let i = 0;
-  while (variacoes.length < 3) {
-    variacoes.push(texto + FECHOS_MARKETING[i % FECHOS_MARKETING.length]);
-    i++;
+  // Troca outros trechos reconhecidos ao longo do corpo da mensagem
+  for (const grupo of GRUPOS_MARKETING) {
+    variacoes = aplicarGrupoMarketing(variacoes, grupo);
   }
 
-  return variacoes.slice(0, 3);
+  // Limpa pontuação duplicada que pode sobrar quando o sinônimo escolhido já
+  // termina em "?" ou "!" e o texto original tinha um "." ou "," logo depois
+  variacoes = variacoes.map(v => v.replace(/([!?])[.,]+/g, "$1"));
+
+  // Se nada foi reconhecido (mensagem toda fora dos padrões conhecidos),
+  // garante pelo menos uma diferença visível no fechamento
+  if (variacoes[0] === variacoes[1] && variacoes[1] === variacoes[2]) {
+    variacoes = [texto, texto + FECHOS_MARKETING[0], texto + FECHOS_MARKETING[1]];
+  }
+
+  return variacoes;
 }
 
 function useMobile() {
