@@ -205,6 +205,51 @@ const TEMPLATES_MARKETING = [
   { titulo: "Novidade exclusiva", texto: "Olá {nome}! Temos uma novidade exclusiva pra clientes como você. Posso te contar mais?" },
 ];
 
+// ─── MARKETING: GERADOR DE 3 VARIAÇÕES AUTOMÁTICAS ──────────────────────────
+// Zero IA, zero custo por mensagem — é regra fixa, igual ao princípio já usado
+// na régua de cobrança (2 variações por etapa). A partir de UMA mensagem que o
+// lojista escreve, gera outras 2 trocando a saudação inicial (ou o fechamento,
+// se não achar saudação conhecida), pra reduzir o risco de bloqueio por spam
+// quando manda a mesma campanha pra vários contatos.
+const ABERTURAS_MARKETING = ["Olá", "Oi", "E aí"];
+const FECHOS_MARKETING = [" 😊", " 🙌", " 👍"];
+
+function detectarAberturaMarketing(texto) {
+  for (const ab of ["Olá", "Ola", "Oi", "Opa", "E aí", "Eae", "Bom dia", "Boa tarde", "Boa noite"]) {
+    const regex = new RegExp("^(\\s*)" + ab + "(?=[!,.\\s]|$)", "i");
+    const match = texto.match(regex);
+    if (match) return { encontrada: true, comprimento: match[0].length };
+  }
+  return { encontrada: false };
+}
+
+function gerarVariacoesMensagem(base) {
+  const texto = String(base || "").trim();
+  if (!texto) return ["", "", ""];
+
+  const variacoes = [texto];
+  const info = detectarAberturaMarketing(texto);
+
+  if (info.encontrada) {
+    const resto = texto.slice(info.comprimento);
+    const usadas = new Set([texto.slice(0, info.comprimento).trim().toLowerCase()]);
+    for (const ab of ABERTURAS_MARKETING) {
+      if (variacoes.length >= 3) break;
+      if (usadas.has(ab.toLowerCase())) continue;
+      usadas.add(ab.toLowerCase());
+      variacoes.push(ab + resto);
+    }
+  }
+
+  let i = 0;
+  while (variacoes.length < 3) {
+    variacoes.push(texto + FECHOS_MARKETING[i % FECHOS_MARKETING.length]);
+    i++;
+  }
+
+  return variacoes.slice(0, 3);
+}
+
 function useMobile() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -2847,10 +2892,24 @@ function Marketing({ token }) {
   const [csvPreview, setCsvPreview] = useState([]);
   const fileRef = useRef();
 
-  const [mensagem, setMensagem] = useState(TEMPLATES_MARKETING[0].texto);
+  // Mensagem base escrita pelo lojista + as 3 variações geradas a partir dela.
+  // variacoesManual guarda só as que o lojista editou manualmente na mão —
+  // as que ele não mexeu continuam acompanhando a mensagem base ao vivo.
+  const [mensagemBase, setMensagemBase] = useState(TEMPLATES_MARKETING[0].texto);
+  const [variacoesManual, setVariacoesManual] = useState([null, null, null]);
   const [selecionados, setSelecionados] = useState(new Set());
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
+
+  const variacoesAuto = gerarVariacoesMensagem(mensagemBase);
+  const variacoesFinais = variacoesAuto.map((v, i) => variacoesManual[i] ?? v);
+
+  const editarVariacao = (i, texto) => {
+    setVariacoesManual(prev => prev.map((v, idx) => idx === i ? texto : v));
+  };
+  const restaurarVariacao = (i) => {
+    setVariacoesManual(prev => prev.map((v, idx) => idx === i ? null : v));
+  };
 
   const carregarContatos = async () => {
     setLoading(true);
@@ -2928,12 +2987,13 @@ function Marketing({ token }) {
   const limparSelecao = () => setSelecionados(new Set());
 
   const enviarCampanha = async () => {
-    if (!mensagem.trim() || contatos.length === 0) return;
+    const mensagensValidas = variacoesFinais.filter(v => v && v.trim());
+    if (mensagensValidas.length === 0 || contatos.length === 0) return;
     setEnviando(true);
     const ids = selecionados.size > 0 ? Array.from(selecionados) : [];
-    const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagem, contato_ids: ids }) }, token);
+    const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagens: mensagensValidas, contato_ids: ids }) }, token);
     setEnviando(false);
-    if (data.sucesso) { setEnviado(true); setTimeout(() => setEnviado(false), 4000); showToast("Campanha iniciada! Os envios serão feitos com intervalos de segurança."); }
+    if (data.sucesso) { setEnviado(true); setTimeout(() => setEnviado(false), 4000); showToast("Campanha iniciada! Os envios serão feitos com intervalos de segurança, igual à régua."); }
     else showToast(data.erro || "Erro ao disparar", "error");
   };
 
@@ -2946,17 +3006,30 @@ function Marketing({ token }) {
       <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Envie mensagens promocionais pra sua base de clientes — separado da cobrança, é um bônus do seu plano.</p>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
-        {[["contatos", "Contatos (" + contatos.length + ")"], ["campanha", "Enviar campanha"]].map(([k, l]) => (
+        {[["contatos", "Contatos (" + contatos.length + ")"], ["campanha", "🚀 Disparar campanha"]].map(([k, l]) => (
           <button key={k} onClick={() => setAba(k)} style={{ background: "none", border: "none", borderBottom: "2px solid " + (aba === k ? "#16A34A" : "transparent"), color: aba === k ? "#16A34A" : "#64748B", fontWeight: 700, fontSize: 13.5, padding: "10px 12px", cursor: "pointer" }}>{l}</button>
         ))}
       </div>
 
       {aba === "contatos" && (
         <div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
             <Btn small onClick={() => setModalAdd(true)}><Ic.plus /> Novo contato</Btn>
             <Btn small variant="ghost" onClick={() => setModalImport(true)}><Ic.upload /> Importar planilha</Btn>
+            {contatos.length > 0 && <Btn small variant="green" onClick={() => setAba("campanha")}><Ic.send /> Disparar campanha</Btn>}
           </div>
+
+          {contatos.length > 0 && (
+            <div onClick={() => setAba("campanha")} className="cf-card" style={{ cursor: "pointer", background: "linear-gradient(135deg, #DCFCE7, #F0FDF4)", border: "2px solid #86EFAC", borderRadius: 14, padding: "12px 16px", marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ fontSize: 22, flexShrink: 0 }}>📣</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 13.5, color: "#166534" }}>{contatos.length} contato(s) prontos pra receber uma campanha</div>
+                <div style={{ fontSize: 12, color: "#166534" }}>Escreva a mensagem, o sistema gera 3 variações e dispara sozinho</div>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#166534", flexShrink: 0 }}>Disparar →</span>
+            </div>
+          )}
+
           {loading ? (
             <div style={{ textAlign: "center", padding: 40, color: "#64748B" }}>Carregando...</div>
           ) : contatos.length === 0 ? (
@@ -2983,30 +3056,49 @@ function Marketing({ token }) {
 
       {aba === "campanha" && (
         <div>
-          {enviado && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 14, color: "#16A34A", fontWeight: 600 }}>✅ Campanha iniciada! Os envios acontecem aos poucos, com intervalo de segurança entre cada um.</div>}
+          {enviado && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 14, color: "#16A34A", fontWeight: 600 }}>✅ Campanha iniciada! Os envios acontecem aos poucos, com intervalo de segurança entre cada um — igual à régua de cobrança, pra não bloquear seu WhatsApp.</div>}
           {contatos.length === 0 ? (
             <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: 16, fontSize: 13.5, color: "#92400E" }}>
               Você ainda não tem contatos cadastrados. Vá na aba "Contatos" pra adicionar antes de enviar uma campanha.
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
-              <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 10 }}>💡 Modelos prontos — clique pra usar</div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-                  {TEMPLATES_MARKETING.map((t, i) => (
-                    <button key={i} onClick={() => setMensagem(t.texto)} style={{ background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 8, padding: "6px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t.titulo}</button>
-                  ))}
+              <div>
+                <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 14 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 10 }}>💡 Modelos prontos — clique pra usar</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                    {TEMPLATES_MARKETING.map((t, i) => (
+                      <button key={i} onClick={() => { setMensagemBase(t.texto); setVariacoesManual([null, null, null]); }} style={{ background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 8, padding: "6px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t.titulo}</button>
+                    ))}
+                  </div>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>Escreva sua mensagem</label>
+                  <textarea value={mensagemBase} onChange={e => { setMensagemBase(e.target.value); setVariacoesManual([null, null, null]); }} rows={4} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", background: "#F8FAFC", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 10 }} />
+                  <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "#1E40AF" }}>
+                    💡 Use <strong>{"{nome}"}</strong> na mensagem — o sistema substitui automaticamente pelo primeiro nome de cada contato ao enviar.
+                  </div>
                 </div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>Mensagem</label>
-                <textarea value={mensagem} onChange={e => setMensagem(e.target.value)} rows={5} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", background: "#F8FAFC", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 10 }} />
-                <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "#1E40AF", marginBottom: 16 }}>
-                  💡 Use <strong>{"{nome}"}</strong> na mensagem — o sistema substitui automaticamente pelo primeiro nome de cada contato ao enviar.
+
+                <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 14 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 4 }}>🔀 3 variações geradas automaticamente</div>
+                  <div style={{ fontSize: 12, color: "#64748B", marginBottom: 14 }}>O sistema intercala entre essas 3 nos envios — reduz bastante o risco de bloqueio por spam. Pode editar qualquer uma antes de disparar.</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {variacoesFinais.map((v, i) => (
+                      <div key={i} style={{ background: "#F8FAFC", borderRadius: 10, padding: 12, border: "1px solid #E2E8F0" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <span style={{ fontSize: 11.5, fontWeight: 700, color: "#374151" }}>Variação {i + 1}</span>
+                          {variacoesManual[i] !== null && <button onClick={() => restaurarVariacao(i)} style={{ background: "none", border: "none", color: "#1E40AF", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>↺ Restaurar automática</button>}
+                        </div>
+                        <textarea value={v} onChange={e => editarVariacao(i, e.target.value)} rows={2} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none", background: "#fff", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <Btn onClick={enviarCampanha} disabled={enviando || !mensagem.trim()} style={{ width: "100%", justifyContent: "center" }}>
+
+                <Btn onClick={enviarCampanha} disabled={enviando || variacoesFinais.every(v => !v.trim())} style={{ width: "100%", justifyContent: "center" }}>
                   {enviando ? "Enviando..." : <><Ic.send /> Disparar pra {destinatarios} contato(s)</>}
                 </Btn>
               </div>
-              <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9" }}>
+              <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9", alignSelf: "start" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>Destinatários</div>
                   <div style={{ display: "flex", gap: 6 }}>
