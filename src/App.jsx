@@ -186,6 +186,25 @@ const MENSAGENS_PADRAO = {
   "d+30": (n, v) => "AVISO: " + n.split(" ")[0] + ", seu débito de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* está há 30 dias em atraso. Entre em contato urgente.",
 };
 
+// Segunda variação de cada etapa — igual ao que o backend já usa (server.js,
+// função mensagemCobranca) pra alternar entre 2 textos por etapa e reduzir
+// risco de bloqueio por spam no WhatsApp. Aqui é só pra exibir o exemplo.
+const MENSAGENS_VARIACAO_2 = {
+  "d-3":  (n, v) => "Oi " + n.split(" ")[0] + "! Sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* vence em 3 dias. Que tal regularizar antes? 🙏",
+  "d0":   (n, v) => n.split(" ")[0] + ", sua conta de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* vence HOJE. Não perca o prazo! 😊",
+  "d+5":  (n, v) => n.split(" ")[0] + ", sua conta com você venceu há alguns dias (*R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "*). Entre em contato pra regularizar!",
+  "d+15": (n, v) => "Atenção " + n.split(" ")[0] + "! ⚠️ Seu débito de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* está há 15 dias em atraso. Regularize hoje.",
+  "d+30": (n, v) => n.split(" ")[0] + ", seu débito de *R$ " + parseFloat(v).toFixed(2).replace(".", ",") + "* está em aberto há 30 dias. Precisamos resolver urgente.",
+};
+
+// Modelos prontos pra campanhas de Marketing — {nome} é substituído
+// automaticamente pelo primeiro nome do contato na hora do envio.
+const TEMPLATES_MARKETING = [
+  { titulo: "Condição especial", texto: "Olá {nome}! 😊 Temos uma condição especial preparada pra você. Quer saber mais?" },
+  { titulo: "Sentimos sua falta", texto: "Oi {nome}! Espero que esteja bem. Estamos com saudades e pensamos em você — separamos uma condição bem especial. Vem conferir!" },
+  { titulo: "Novidade exclusiva", texto: "Olá {nome}! Temos uma novidade exclusiva pra clientes como você. Posso te contar mais?" },
+];
+
 function useMobile() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -221,6 +240,7 @@ const Ic = {
   edit:     () => <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   trash:    () => <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>,
   report:   () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+  megaphone:() => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 11v2a2 2 0 0 0 2 2h1l3 6h2l-1-6h4l6 4V5l-6 4H6a2 2 0 0 0-2 2z"/><path d="M11 19a2.5 2.5 0 0 1-4.9-1"/></svg>,
 };
 
 const Badge = ({ status }) => {
@@ -1103,30 +1123,26 @@ function Dashboard({ clientes, historico, token, onNavigate }) {
 
   const aguardandoConfirmacao = clientes.filter(c => c.status === "aguardando_confirmacao");
 
+  // Lista COMPLETA de devedores em ordem de valor — separada e diferente da
+  // lista normal de Clientes, usada só nesse card do Painel.
+  const todosDevedoresOrdenados = clientes
+    .filter(c => c.status !== "pago" && c.status !== "blacklist")
+    .slice()
+    .sort((a, b) => parseFloat(b.total_divida || 0) - parseFloat(a.total_divida || 0));
+
   const focoHoje = [
-    aguardandoConfirmacao.length > 0 && {
-      key: "aguardando",
-      emoji: "⏳", cor: "#1D4ED8", bg: "#DBEAFE", border: "#BFDBFE",
-      titulo: aguardandoConfirmacao.length + (aguardandoConfirmacao.length > 1 ? " pagamentos aguardando confirmação" : " pagamento aguardando confirmação"),
-      sub: "Cliente(s) enviaram comprovante",
-      onClick: () => onNavigate && onNavigate("pagamentos"),
-    },
     errosHoje.length > 0 && {
       key: "erros",
       emoji: "⚠️", cor: "#DC2626", bg: "#FEF2F2", border: "#FECACA",
       titulo: errosHoje.length + (errosHoje.length > 1 ? " cobranças não enviadas hoje" : " cobrança não enviada hoje"),
-      sub: "Falha no envio — verifique o motivo",
-      onClick: () => onNavigate && onNavigate("relatorio"),
+      sub: "Falha no envio — verifique o motivo em Cobranças",
+      onClick: () => onNavigate && onNavigate("cobrancas"),
     },
   ].filter(Boolean);
 
   const atividadeRecente = (historico || []).slice(0, 5);
 
-  const maioresDevedores = clientes
-    .filter(c => c.status !== "pago" && c.status !== "blacklist")
-    .slice()
-    .sort((a, b) => parseFloat(b.total_divida || 0) - parseFloat(a.total_divida || 0))
-    .slice(0, 5);
+  const maioresDevedores = todosDevedoresOrdenados.slice(0, 5);
 
   const agora = new Date();
   const cobrancasEsteMes = (historico || []).filter(h => {
@@ -1143,6 +1159,16 @@ function Dashboard({ clientes, historico, token, onNavigate }) {
 
       {detalhe && <ModalDetalheLista titulo={detalhe.titulo} lista={detalhe.lista} onClose={() => setDetalhe(null)} />}
 
+      {/* Banner permanente — a detecção automática de comprovante é um diferencial do sistema, então tem acesso direto sempre visível aqui, não só quando há algo pendente. */}
+      <div onClick={() => onNavigate && onNavigate("pagamentos")} className="cf-card" style={{ cursor: "pointer", background: "linear-gradient(135deg, #DBEAFE, #EFF6FF)", border: "2px solid #93C5FD", borderRadius: 16, padding: "14px 18px", marginBottom: 14, display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ fontSize: 26, flexShrink: 0 }}>🎯</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 14, color: "#1D4ED8" }}>Detecção automática de comprovantes</div>
+          <div style={{ fontSize: 12.5, color: "#1E40AF" }}>{aguardandoConfirmacao.length > 0 ? aguardandoConfirmacao.length + " pagamento(s) aguardando sua confirmação" : "Veja os pagamentos que o sistema já identificou sozinho"}</div>
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8", flexShrink: 0 }}>Ver agora →</span>
+      </div>
+
       {(() => {
         const pagosEsteMes = pagos.filter(c => {
           if (!c.ultima_cobranca) return false;
@@ -1154,7 +1180,7 @@ function Dashboard({ clientes, historico, token, onNavigate }) {
           { label: "Em aberto", value: fmt(metricas?.total_em_aberto ?? total), sub: abertos.length + " clientes", subCor: "#64748B", icon: <Ic.money />, cor: "#0284C7", bg: "#EFF6FF", border: "#BFDBFE", onClick: () => setDetalhe({ titulo: "Clientes em aberto", lista: abertos }) },
           { label: "Clientes em atraso", value: metricas?.atrasados?.qtd ?? atrasados.length, sub: fmt(metricas?.atrasados?.valor ?? 0), subCor: "#DC2626", icon: <Ic.alert />, cor: "#DC2626", bg: "#FEF2F2", border: "#FECACA", onClick: () => setDetalhe({ titulo: "Clientes em atraso", lista: atrasados }) },
           { label: "Taxa de recuperação", value: taxaRecuperacao !== null ? taxaRecuperacao + "%" : "—", sub: "dos clientes cadastrados", subCor: "#64748B", icon: <Ic.trend />, cor: "#7C3AED", bg: "#F5F3FF", border: "#DDD6FE", onClick: () => setDetalhe({ titulo: "Clientes recuperados (pagos)", lista: pagos }) },
-          { label: "Cobranças enviadas", value: cobrancasEsteMes.length, sub: "este mês", subCor: "#64748B", icon: <Ic.send />, cor: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE", onClick: () => onNavigate && onNavigate("historico") },
+          { label: "Cobranças enviadas", value: cobrancasEsteMes.length, sub: "este mês", subCor: "#64748B", icon: <Ic.send />, cor: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE", onClick: () => onNavigate && onNavigate("conversas") },
         ];
         return (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 14 }}>
@@ -1217,7 +1243,7 @@ function Dashboard({ clientes, historico, token, onNavigate }) {
         <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>🕐 Atividade recente</div>
-            {onNavigate && <button onClick={() => onNavigate("historico")} style={{ background: "none", border: "none", color: "#1E40AF", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Ver tudo →</button>}
+            {onNavigate && <button onClick={() => onNavigate("conversas")} style={{ background: "none", border: "none", color: "#1E40AF", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Ver tudo →</button>}
           </div>
           {atividadeRecente.length === 0 ? (
             <div style={{ textAlign: "center", color: "#94A3B8", fontSize: 12.5, padding: "20px 0" }}>Nenhuma cobrança enviada ainda</div>
@@ -1241,7 +1267,7 @@ function Dashboard({ clientes, historico, token, onNavigate }) {
         <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>📊 Clientes que mais devem</div>
-            {onNavigate && <button onClick={() => onNavigate("clientes")} style={{ background: "none", border: "none", color: "#1E40AF", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Ver todos →</button>}
+            <button onClick={() => setDetalhe({ titulo: "Clientes que mais devem (por valor, do maior pro menor)", lista: todosDevedoresOrdenados })} style={{ background: "none", border: "none", color: "#1E40AF", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Ver todos →</button>
           </div>
           {maioresDevedores.length === 0 ? (
             <div style={{ textAlign: "center", color: "#94A3B8", fontSize: 12.5, padding: "20px 0" }}>Nenhum cliente em aberto</div>
@@ -1314,8 +1340,12 @@ function Dashboard({ clientes, historico, token, onNavigate }) {
           <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
             <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>Situação geral</h3>
             <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              {[{ label: "Pagos", count: pagos.length, color: "#16A34A", bg: "#F0FDF4" }, { label: "Pendentes", count: clientes.filter(c => c.status === "pendente").length, color: "#D97706", bg: "#FFFBEB" }, { label: "Atrasados", count: atrasados.length, color: "#DC2626", bg: "#FEF2F2" }].map(s => (
-                <div key={s.label} style={{ flex: 1, background: s.bg, borderRadius: 12, padding: "12px 8px", textAlign: "center" }}>
+              {[
+                { label: "Pagos", count: pagos.length, color: "#16A34A", bg: "#F0FDF4", lista: pagos },
+                { label: "Pendentes", count: clientes.filter(c => c.status === "pendente").length, color: "#D97706", bg: "#FFFBEB", lista: clientes.filter(c => c.status === "pendente") },
+                { label: "Atrasados", count: atrasados.length, color: "#DC2626", bg: "#FEF2F2", lista: atrasados },
+              ].map(s => (
+                <div key={s.label} onClick={() => setDetalhe({ titulo: s.label, lista: s.lista })} className="cf-card" style={{ flex: 1, background: s.bg, borderRadius: 12, padding: "12px 8px", textAlign: "center", cursor: "pointer" }}>
                   <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{s.count}</div>
                   <div style={{ fontSize: 12, color: s.color, fontWeight: 600 }}>{s.label}</div>
                 </div>
@@ -2016,7 +2046,6 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                   {c.status !== "pago" && <Btn variant="green" small onClick={() => marcarPago(c)} style={{ justifyContent: "center" }}><Ic.check /> Confirmar pagamento</Btn>}
                   {c.status !== "blacklist" && <Btn variant="ghost" small onClick={() => alternarPausaRegua(c.id)} style={{ justifyContent: "center" }}>{reguaPausada ? "▶ Retomar régua" : "⏸ Pausar régua"}</Btn>}
                   {c.status === "aguardando_confirmacao" && <Btn variant="ghost" small onClick={() => rejeitarComprovanteDetalhe(c.id)} style={{ justifyContent: "center" }}>✕ Rejeitar comprovante</Btn>}
-                  <a href={"tel:" + c.telefone} style={{ textDecoration: "none" }}><Btn variant="ghost" small style={{ justifyContent: "center", width: "100%" }}>📞 Ligar para cliente</Btn></a>
                 </div>
               </div>
             );
@@ -2343,9 +2372,6 @@ function Conversas({ clientes, setClientes, token, isMobile }) {
         {clienteCompleto.status !== "pago" && (
           <Btn variant="green" small onClick={() => marcarPago(clienteCompleto.id)} style={{ justifyContent: "center" }}><Ic.check /> Confirmar pagamento</Btn>
         )}
-        <a href={"tel:" + clienteCompleto.telefone} style={{ textDecoration: "none" }}>
-          <Btn variant="ghost" small style={{ justifyContent: "center", width: "100%" }}>📞 Ligar para cliente</Btn>
-        </a>
       </div>
     </div>
   );
@@ -2422,10 +2448,19 @@ function Pagamentos({ setClientes, token }) {
   return (
     <div>
       {toast && <ToastMsg {...toast} />}
-      <h1 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Pagamentos aguardando confirmação</h1>
-      <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>
-        O sistema identificou uma possível mensagem de comprovante e pausou a cobrança automaticamente. Confirme o recebimento ou rejeite pra voltar pra régua.
-      </p>
+      <h1 style={{ margin: "0 0 14px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Pagamentos aguardando confirmação</h1>
+
+      {/* Diferencial exclusivo do sistema — deixado bem visível de propósito */}
+      <div style={{ background: "linear-gradient(135deg, #DBEAFE, #EFF6FF)", border: "2px solid #93C5FD", borderRadius: 16, padding: "16px 20px", marginBottom: 20, display: "flex", gap: 14, alignItems: "flex-start" }}>
+        <div style={{ fontSize: 30, flexShrink: 0 }}>🎯</div>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: "#1D4ED8", marginBottom: 4 }}>Detecção automática de comprovante — um diferencial exclusivo do CobrarFácil</div>
+          <div style={{ fontSize: 13.5, color: "#1E40AF", lineHeight: 1.6 }}>
+            O sistema identificou uma possível mensagem de comprovante e <strong>pausou a cobrança automaticamente</strong> pra esse cliente. Confirme o recebimento ou rejeite pra voltar pra régua normalmente.
+          </div>
+        </div>
+      </div>
+
       {loading ? (
         <div style={{ textAlign: "center", padding: 40, color: "#64748B" }}>Carregando...</div>
       ) : lista.length === 0 ? (
@@ -2508,7 +2543,7 @@ function ReguaTimeline({ etapas, etapasInfo, onToggle, editavel }) {
   );
 }
 
-function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, setClientePreSelecionado, token }) {
+function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, setClientePreSelecionado, token, onEditarCliente }) {
   const [clienteSel, setClienteSel] = useState(clientePreSelecionado?.id?.toString() || "");
   const [msg, setMsg] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -2525,9 +2560,12 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   const [taxaRecuperacao, setTaxaRecuperacao] = useState(null);
   const [horarioInicio, setHorarioInicio] = useState("");
   const [horarioFim, setHorarioFim] = useState("");
-  const [salvandoHorario, setSalvandoHorario] = useState(false);
-  const [toastHorario, setToastHorario] = useState(null);
-  const showToastHorario = (msg, type = "success") => { setToastHorario({ msg, type }); setTimeout(() => setToastHorario(null), 3000); };
+
+  // ─── Relatório de falhas de envio (movido pra dentro de Cobranças) ─────────
+  const [mostrarFalhas, setMostrarFalhas] = useState(false);
+  const [errosEnvio, setErrosEnvio] = useState(null);
+  const [dataErros, setDataErros] = useState(new Date().toISOString().split("T")[0]);
+  const [blacklist, setBlacklist] = useState([]);
 
   useEffect(() => {
     api("/relatorio/inadimplencia", {}, token).then(d => { if (d.taxa_recuperacao !== undefined) setTaxaRecuperacao(d.taxa_recuperacao); });
@@ -2535,14 +2573,29 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
       if (d.horario_inicio) setHorarioInicio(d.horario_inicio);
       if (d.horario_fim) setHorarioFim(d.horario_fim);
     });
+    // Carrega a contagem de falhas de hoje já de cara, pra mostrar no card
+    api("/relatorio/erros-envio?data=" + new Date().toISOString().split("T")[0], {}, token).then(d => { if (d.erros) setErrosEnvio(d); });
   }, [token]);
 
-  const salvarHorario = async () => {
-    setSalvandoHorario(true);
-    const data = await api("/usuarios/config-regua", { method: "PUT", body: JSON.stringify({ horario_inicio: horarioInicio || null, horario_fim: horarioFim || null }) }, token);
-    setSalvandoHorario(false);
-    if (data.sucesso) showToastHorario("✅ Horário salvo! Vale a partir da próxima passada da régua.");
-    else showToastHorario(data.erro || "Erro ao salvar", "error");
+  const abrirFalhas = async () => {
+    setMostrarFalhas(true);
+    const [e, b] = await Promise.all([
+      api("/relatorio/erros-envio?data=" + dataErros, {}, token),
+      api("/blacklist", {}, token),
+    ]);
+    if (e.erros) setErrosEnvio(e);
+    if (Array.isArray(b)) setBlacklist(b);
+  };
+
+  const buscarErrosData = async (novaData) => {
+    setDataErros(novaData);
+    const e = await api("/relatorio/erros-envio?data=" + novaData, {}, token);
+    if (e.erros) setErrosEnvio(e);
+  };
+
+  const removerBlacklist = async (id) => {
+    await api("/blacklist/" + id, { method: "DELETE" }, token);
+    setBlacklist(prev => prev.filter(b => b.id !== id));
   };
 
   const ETAPAS_VISUAL = [
@@ -2604,20 +2657,17 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
 
   const clientesAtivos = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist").length;
   const cobrancasHoje = (historico || []).filter(h => new Date(h.criado_em).toDateString() === new Date().toDateString()).length;
-  const horarioLabel = horarioInicio && horarioFim ? horarioInicio + " às " + horarioFim : "Sem restrição de horário";
+  const horarioLabel = horarioInicio && horarioFim ? horarioInicio + " às " + horarioFim : "8h às 19h (padrão do sistema)";
 
   const TABS = [
     { key: "geral", label: "Visão geral" },
-    { key: "etapas", label: "Etapas da régua" },
     { key: "mensagens", label: "Mensagens" },
-    { key: "horarios", label: "Horários" },
     { key: "avulsa", label: "Cobrança avulsa" },
   ];
 
   return (
     <div>
       {toastRegua && <ToastMsg {...toastRegua} />}
-      {toastHorario && <ToastMsg {...toastHorario} />}
       <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Cobrança Automática</h1>
       <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Configure sua régua de cobrança, edite mensagens e automatize todo o processo.</p>
 
@@ -2631,74 +2681,119 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 16 }}>
             {[
-              { label: "Régua ativa para", value: clientesAtivos, sub: "clientes", icon: <Ic.users />, cor: "#16A34A", bg: "#F0FDF4", border: "#BBF7D0" },
-              { label: "Horário configurado", value: horarioLabel, sub: "", icon: <Ic.settings />, cor: "#0284C7", bg: "#EFF6FF", border: "#BFDBFE", pequeno: true },
-              { label: "Taxa de recuperação", value: taxaRecuperacao !== null ? taxaRecuperacao + "%" : "—", sub: "dos clientes", icon: <Ic.trend />, cor: "#7C3AED", bg: "#F5F3FF", border: "#DDD6FE" },
-              { label: "Cobranças hoje", value: cobrancasHoje, sub: "enviadas", icon: <Ic.send />, cor: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE" },
+              { label: "Régua ativa para", value: clientesAtivos, sub: "clientes", icon: <Ic.users />, cor: "#16A34A", bg: "#F0FDF4", border: "#BBF7D0", onClick: null },
+              { label: "Relatório de falhas", value: errosEnvio ? errosEnvio.total : "—", sub: "envios com erro hoje", icon: <Ic.report />, cor: (errosEnvio && errosEnvio.total > 0) ? "#DC2626" : "#0284C7", bg: (errosEnvio && errosEnvio.total > 0) ? "#FEF2F2" : "#EFF6FF", border: (errosEnvio && errosEnvio.total > 0) ? "#FECACA" : "#BFDBFE", onClick: abrirFalhas },
+              { label: "Taxa de recuperação", value: taxaRecuperacao !== null ? taxaRecuperacao + "%" : "—", sub: "dos clientes", icon: <Ic.trend />, cor: "#7C3AED", bg: "#F5F3FF", border: "#DDD6FE", onClick: null },
+              { label: "Cobranças hoje", value: cobrancasHoje, sub: "enviadas", icon: <Ic.send />, cor: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE", onClick: null },
             ].map(c => (
-              <div key={c.label} style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9" }}>
+              <div key={c.label} onClick={c.onClick || undefined} className="cf-card" style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9", cursor: c.onClick ? "pointer" : "default" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                   <span style={{ fontSize: 11.5, color: "#64748B", fontWeight: 600 }}>{c.label}</span>
                   <span style={{ width: 28, height: 28, borderRadius: "50%", background: c.bg, border: "1px solid " + c.border, color: c.cor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{c.icon}</span>
                 </div>
-                <div style={{ fontSize: c.pequeno ? 14 : 20, fontWeight: 800, color: "#0B2B24" }}>{c.value}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#0B2B24" }}>{c.value}</div>
                 {c.sub && <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600 }}>{c.sub}</div>}
               </div>
             ))}
           </div>
 
-          <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#16A34A", marginBottom: 12, letterSpacing: 0.4 }}>✅ RÉGUA ATUAL — como está funcionando agora</div>
-            {carregandoRegua ? (
-              <div style={{ textAlign: "center", padding: 20, color: "#64748B", fontSize: 13 }}>Carregando...</div>
-            ) : (
-              <div style={{ overflowX: "auto" }}><ReguaTimeline etapas={reguaGlobal} etapasInfo={ETAPAS_VISUAL} /></div>
-            )}
-            <div style={{ fontSize: 12.5, color: "#64748B", marginTop: 14, lineHeight: 1.6 }}>
-              Dispara sozinha todo dia dentro do horário configurado, com QR Code Pix real — nunca no sábado ou domingo. Pra ligar/desligar uma etapa, vai na aba <strong>Etapas da régua</strong>.
+          <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#16A34A", marginBottom: 4, letterSpacing: 0.4 }}>✅ RÉGUA DE COBRANÇA</div>
+            <div style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.6, marginBottom: 16 }}>
+              Clique num dia abaixo pra ligar ou desligar essa etapa — vale pra <strong>todos os clientes</strong> que não têm ajuste individual na tela de Clientes. Dispara sozinha todo dia, com QR Code Pix real, nunca no sábado ou domingo.
             </div>
+            {carregandoRegua ? (
+              <div style={{ textAlign: "center", padding: 20, color: "#64748B", fontSize: 13 }}>Carregando régua...</div>
+            ) : (
+              <>
+                <div style={{ overflowX: "auto" }}>
+                  <ReguaTimeline etapas={reguaPendente} onToggle={toggleEtapaPendente} editavel etapasInfo={ETAPAS_VISUAL} />
+                </div>
+                {houveAlteracao && (
+                  <div className="cf-fade" style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                    <Btn onClick={confirmarAlteracaoRegua} disabled={salvandoRegua} style={{ flex: 1, justifyContent: "center" }}>
+                      {salvandoRegua ? "Salvando..." : "✅ Confirmar alteração"}
+                    </Btn>
+                    <Btn variant="ghost" onClick={descartarAlteracao} disabled={salvandoRegua}>Descartar</Btn>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        </div>
-      )}
 
-      {aba === "etapas" && (
-        <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
-          <div style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.6, marginBottom: 16 }}>
-            Clique num dia abaixo pra ligar ou desligar — vale pra <strong>todos os clientes</strong> que não têm ajuste individual na tela de Clientes.
-          </div>
-          {carregandoRegua ? (
-            <div style={{ textAlign: "center", padding: 20, color: "#64748B", fontSize: 13 }}>Carregando régua...</div>
-          ) : (
-            <>
-              <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "16px 12px", border: "1px solid #E2E8F0", marginBottom: 10, overflowX: "auto" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", marginBottom: 10, letterSpacing: 0.4 }}>EDITANDO — clique num dia pra ativar/desativar</div>
-                <ReguaTimeline etapas={reguaPendente} onToggle={toggleEtapaPendente} editavel etapasInfo={ETAPAS_VISUAL} />
+          {mostrarFalhas && (
+            <div className="cf-fade" style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>⚠️ Cobranças que falharam</h3>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input type="date" value={dataErros} onChange={e => buscarErrosData(e.target.value)} style={{ border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "6px 10px", fontSize: 13 }} />
+                  <button onClick={() => setMostrarFalhas(false)} style={{ background: "#F1F5F9", border: "none", borderRadius: 8, width: 30, height: 30, cursor: "pointer", color: "#64748B" }}><Ic.close /></button>
+                </div>
               </div>
-
-              {houveAlteracao && (
-                <div className="cf-fade" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  <Btn onClick={confirmarAlteracaoRegua} disabled={salvandoRegua} style={{ flex: 1, justifyContent: "center" }}>
-                    {salvandoRegua ? "Salvando..." : "✅ Confirmar alteração"}
-                  </Btn>
-                  <Btn variant="ghost" onClick={descartarAlteracao} disabled={salvandoRegua}>Descartar</Btn>
+              {!errosEnvio || errosEnvio.total === 0 ? (
+                <div style={{ textAlign: "center", color: "#16A34A", padding: 20, fontSize: 14, fontWeight: 600, background: "#F0FDF4", borderRadius: 10 }}>✅ Nenhuma falha nesse dia — todas as cobranças foram entregues.</div>
+              ) : (
+                <div>
+                  <div style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#991B1B", fontWeight: 600 }}>
+                    {errosEnvio.total} cliente(s) não foram cobrados nesse dia — corrija os dados abaixo.
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {errosEnvio.erros.map(e => {
+                      const clienteCompleto = clientes?.find(c => c.id === e.cliente_id);
+                      return (
+                        <div key={e.id} style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: "#0B2B24" }}>{e.cliente_nome || "Cliente removido"}</div>
+                            <div style={{ fontSize: 12, color: "#64748B" }}>{e.cliente_telefone || "—"} · {new Date(e.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+                          </div>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            <div style={{ background: "#FEE2E2", color: "#DC2626", padding: "4px 10px", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>{e.erro_motivo}</div>
+                            {clienteCompleto && onEditarCliente && (
+                              <button onClick={() => onEditarCliente(clienteCompleto)} style={{ background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>✏️ Editar</button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ marginTop: 12, fontSize: 12, color: "#64748B" }}>💡 Clique em "Editar" pra corrigir na hora. Na próxima passada da régua, o sistema tenta cobrar de novo automaticamente.</div>
                 </div>
               )}
-
-              <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "16px 12px", border: "1px solid #E2E8F0", overflowX: "auto" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#16A34A", marginBottom: 10, letterSpacing: 0.4 }}>✅ RÉGUA ATUAL — como está funcionando agora</div>
-                <ReguaTimeline etapas={reguaGlobal} etapasInfo={ETAPAS_VISUAL} />
-              </div>
-            </>
+              {blacklist.length > 0 && (
+                <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #F1F5F9" }}>
+                  <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>🚫 Blacklist ({blacklist.length})</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {blacklist.map(b => (
+                      <div key={b.id} style={{ background: "#1F2937", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: "#F9FAFB" }}>{b.nome}</div>
+                          <div style={{ fontSize: 11.5, color: "#9CA3AF" }}>{b.telefone} · {b.motivo}</div>
+                        </div>
+                        <button onClick={() => removerBlacklist(b.id)} style={{ background: "#374151", color: "#D1D5DB", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>Remover</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
+
+          <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "14px 18px", border: "1px solid #E2E8F0", fontSize: 13, color: "#64748B" }}>
+            ⏰ <strong>Horário de envio automático:</strong> {horarioLabel}. A régua nunca dispara aos sábados e domingos — isso já vem programado no sistema.
+          </div>
         </div>
       )}
 
       {aba === "mensagens" && (
         <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
-          <div style={{ fontSize: 13.5, color: "#374151", marginBottom: 16 }}>Exemplo da mensagem que cada etapa envia — o nome e valor reais do cliente entram automaticamente no lugar de "Maria Silva" e "R$ 150,00".</div>
+          <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: "14px 16px", marginBottom: 16, fontSize: 13, color: "#166534", lineHeight: 1.6 }}>
+            🛡️ <strong>Suas mensagens já usam variáveis</strong> — nome do cliente, valor da dívida e nome do seu negócio entram automaticamente em cada envio. Além disso, cada etapa alterna entre duas variações de texto, o que reduz bastante o risco de bloqueio por spam no WhatsApp.
+          </div>
+          <div style={{ fontSize: 13.5, color: "#374151", marginBottom: 16 }}>Veja as duas variações que cada etapa pode enviar — o nome e valor reais do cliente entram automaticamente no lugar de "Maria Silva" e "R$ 150,00":</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {ETAPAS_VISUAL.map((e, i) => {
-              const exemplo = MENSAGENS_PADRAO[e.etapa] ? MENSAGENS_PADRAO[e.etapa]("Maria Silva", "150.00") : "";
+            {ETAPAS_VISUAL.map((e) => {
+              const exemplo1 = MENSAGENS_PADRAO[e.etapa] ? MENSAGENS_PADRAO[e.etapa]("Maria Silva", "150.00") : "";
+              const exemplo2 = MENSAGENS_VARIACAO_2[e.etapa] ? MENSAGENS_VARIACAO_2[e.etapa]("Maria Silva", "150.00") : "";
               return (
                 <div key={e.etapa} style={{ background: "#F8FAFC", borderRadius: 12, padding: 14, border: "1.5px solid " + e.cor + "33", position: "relative" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -2708,28 +2803,13 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
                       <div style={{ fontSize: 12, color: "#64748B" }}>{e.quando}</div>
                     </div>
                   </div>
-                  <div style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#374151", fontStyle: "italic" }}>"{exemplo}"</div>
+                  <div style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#374151", fontStyle: "italic", marginBottom: 6 }}>Variação 1: "{exemplo1}"</div>
+                  <div style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#374151", fontStyle: "italic" }}>Variação 2: "{exemplo2}"</div>
                 </div>
               );
             })}
           </div>
           <div style={{ fontSize: 12, color: "#64748B", marginTop: 12 }}>💡 Pra personalizar a mensagem de um cliente específico, abre o cliente em Clientes → aba Régua.</div>
-        </div>
-      )}
-
-      {aba === "horarios" && (
-        <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", maxWidth: 420 }}>
-          <div style={{ fontSize: 13.5, color: "#374151", marginBottom: 16, lineHeight: 1.6 }}>
-            Define a janela de horário em que a régua pode disparar cobranças. Fora desse intervalo (e sábado/domingo, que já é bloqueado sempre), nada é enviado. Deixe em branco pra não ter restrição de horário.
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-            <Inp label="Início" type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} />
-            <Inp label="Fim" type="time" value={horarioFim} onChange={e => setHorarioFim(e.target.value)} />
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn onClick={salvarHorario} disabled={salvandoHorario} style={{ flex: 1, justifyContent: "center" }}>{salvandoHorario ? "Salvando..." : "💾 Salvar horário"}</Btn>
-            {(horarioInicio || horarioFim) && <Btn variant="ghost" onClick={() => { setHorarioInicio(""); setHorarioFim(""); }} disabled={salvandoHorario}>Limpar</Btn>}
-          </div>
         </div>
       )}
 
@@ -2749,6 +2829,251 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
             <Btn onClick={enviar} disabled={enviando || !clienteSel || !msg} style={{ width: "100%", justifyContent: "center" }}>{enviando ? "Enviando..." : <><Ic.send /> Enviar via WhatsApp</>}</Btn>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function Marketing({ token }) {
+  const [aba, setAba] = useState("contatos");
+  const [contatos, setContatos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+
+  const [modalAdd, setModalAdd] = useState(false);
+  const [novoContato, setNovoContato] = useState({ nome: "", telefone: "" });
+  const [modalImport, setModalImport] = useState(false);
+  const [csvPreview, setCsvPreview] = useState([]);
+  const fileRef = useRef();
+
+  const [mensagem, setMensagem] = useState(TEMPLATES_MARKETING[0].texto);
+  const [selecionados, setSelecionados] = useState(new Set());
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+
+  const carregarContatos = async () => {
+    setLoading(true);
+    const data = await api("/marketing/contatos", {}, token);
+    if (Array.isArray(data)) setContatos(data);
+    setLoading(false);
+  };
+  useEffect(() => { carregarContatos(); }, []);
+
+  const addContato = async () => {
+    if (!novoContato.nome || !novoContato.telefone) return;
+    const data = await api("/marketing/contatos", { method: "POST", body: JSON.stringify(novoContato) }, token);
+    if (data.id) { setContatos(prev => [data, ...prev]); setModalAdd(false); setNovoContato({ nome: "", telefone: "" }); showToast("Contato adicionado!"); }
+    else showToast(data.erro || "Erro", "error");
+  };
+
+  const removerContato = async (id) => {
+    if (!confirm("Remover este contato da lista de marketing?")) return;
+    await api("/marketing/contatos/" + id, { method: "DELETE" }, token);
+    setContatos(prev => prev.filter(c => c.id !== id));
+    setSelecionados(prev => { const n = new Set(prev); n.delete(id); return n; });
+  };
+
+  const handleCSV = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const nomeArquivo = file.name.toLowerCase();
+    let linhasMapeadas = null;
+    try {
+      if (nomeArquivo.endsWith(".xlsx") || nomeArquivo.endsWith(".xls")) {
+        if (!window.XLSX) {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+            script.onload = resolve; script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+        const buffer = await file.arrayBuffer();
+        const workbook = window.XLSX.read(buffer, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = window.XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
+        linhasMapeadas = json.map(mapearLinhaPlanilha);
+      } else {
+        const texto = await file.text();
+        const linhas = texto.split("\n").filter(l => l.trim());
+        const header = linhas[0].split(/[,;]/);
+        linhasMapeadas = linhas.slice(1).map(linha => {
+          const cols = linha.split(/[,;]/); const obj = {};
+          header.forEach((h, i) => { obj[h.trim()] = (cols[i] || "").trim().replace(/"/g, ""); });
+          return mapearLinhaPlanilha(obj);
+        });
+      }
+    } catch (err) {
+      showToast("Erro ao ler o arquivo. Tente um CSV simples com colunas Nome e Telefone.", "error");
+      return;
+    }
+    if (!linhasMapeadas || linhasMapeadas.length === 0) { showToast("Nenhum contato encontrado no arquivo.", "error"); return; }
+    setCsvPreview(linhasMapeadas);
+  };
+
+  const importarCSV = async () => {
+    const lista = csvPreview.filter(c => !c.pular).map(c => ({ nome: c.nome, telefone: c.telefone }));
+    if (lista.length === 0) { showToast("Nenhum contato válido no arquivo.", "error"); return; }
+    const data = await api("/marketing/contatos/importar", { method: "POST", body: JSON.stringify({ contatos: lista }) }, token);
+    if (data.sucesso) {
+      showToast(data.importados + " contato(s) importado(s)" + (data.duplicados ? " · " + data.duplicados + " já existiam" : ""));
+      setCsvPreview([]); setModalImport(false); carregarContatos();
+    } else showToast(data.erro || "Erro ao importar", "error");
+  };
+
+  const toggleSelecionado = (id) => {
+    setSelecionados(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+  const selecionarTodos = () => setSelecionados(new Set(contatos.map(c => c.id)));
+  const limparSelecao = () => setSelecionados(new Set());
+
+  const enviarCampanha = async () => {
+    if (!mensagem.trim() || contatos.length === 0) return;
+    setEnviando(true);
+    const ids = selecionados.size > 0 ? Array.from(selecionados) : [];
+    const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagem, contato_ids: ids }) }, token);
+    setEnviando(false);
+    if (data.sucesso) { setEnviado(true); setTimeout(() => setEnviado(false), 4000); showToast("Campanha iniciada! Os envios serão feitos com intervalos de segurança."); }
+    else showToast(data.erro || "Erro ao disparar", "error");
+  };
+
+  const destinatarios = selecionados.size > 0 ? selecionados.size : contatos.length;
+
+  return (
+    <div>
+      {toast && <ToastMsg {...toast} />}
+      <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Marketing</h1>
+      <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Envie mensagens promocionais pra sua base de clientes — separado da cobrança, é um bônus do seu plano.</p>
+
+      <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
+        {[["contatos", "Contatos (" + contatos.length + ")"], ["campanha", "Enviar campanha"]].map(([k, l]) => (
+          <button key={k} onClick={() => setAba(k)} style={{ background: "none", border: "none", borderBottom: "2px solid " + (aba === k ? "#16A34A" : "transparent"), color: aba === k ? "#16A34A" : "#64748B", fontWeight: 700, fontSize: 13.5, padding: "10px 12px", cursor: "pointer" }}>{l}</button>
+        ))}
+      </div>
+
+      {aba === "contatos" && (
+        <div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <Btn small onClick={() => setModalAdd(true)}><Ic.plus /> Novo contato</Btn>
+            <Btn small variant="ghost" onClick={() => setModalImport(true)}><Ic.upload /> Importar planilha</Btn>
+          </div>
+          {loading ? (
+            <div style={{ textAlign: "center", padding: 40, color: "#64748B" }}>Carregando...</div>
+          ) : contatos.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 48, color: "#94A3B8" }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>📣</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Nenhum contato ainda</div>
+              <div style={{ fontSize: 13 }}>Adicione manualmente ou importe uma planilha pra começar</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {contatos.map(c => (
+                <div key={c.id} style={{ background: "#fff", borderRadius: 12, border: "1px solid #F1F5F9", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "#0B2B24" }}>{c.nome}</div>
+                    <div style={{ fontSize: 12, color: "#94A3B8" }}>{c.telefone}</div>
+                  </div>
+                  <button onClick={() => removerContato(c.id)} style={{ background: "#FEF2F2", color: "#DC2626", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.trash /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {aba === "campanha" && (
+        <div>
+          {enviado && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 14, color: "#16A34A", fontWeight: 600 }}>✅ Campanha iniciada! Os envios acontecem aos poucos, com intervalo de segurança entre cada um.</div>}
+          {contatos.length === 0 ? (
+            <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: 16, fontSize: 13.5, color: "#92400E" }}>
+              Você ainda não tem contatos cadastrados. Vá na aba "Contatos" pra adicionar antes de enviar uma campanha.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
+              <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 10 }}>💡 Modelos prontos — clique pra usar</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                  {TEMPLATES_MARKETING.map((t, i) => (
+                    <button key={i} onClick={() => setMensagem(t.texto)} style={{ background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 8, padding: "6px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t.titulo}</button>
+                  ))}
+                </div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>Mensagem</label>
+                <textarea value={mensagem} onChange={e => setMensagem(e.target.value)} rows={5} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", background: "#F8FAFC", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 10 }} />
+                <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "#1E40AF", marginBottom: 16 }}>
+                  💡 Use <strong>{"{nome}"}</strong> na mensagem — o sistema substitui automaticamente pelo primeiro nome de cada contato ao enviar.
+                </div>
+                <Btn onClick={enviarCampanha} disabled={enviando || !mensagem.trim()} style={{ width: "100%", justifyContent: "center" }}>
+                  {enviando ? "Enviando..." : <><Ic.send /> Disparar pra {destinatarios} contato(s)</>}
+                </Btn>
+              </div>
+              <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>Destinatários</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={selecionarTodos} style={{ background: "none", border: "none", color: "#1E40AF", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Todos</button>
+                    <button onClick={limparSelecao} style={{ background: "none", border: "none", color: "#64748B", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Limpar</button>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11.5, color: "#94A3B8", marginBottom: 10 }}>{selecionados.size === 0 ? "Nenhum selecionado = envia pra todos" : selecionados.size + " selecionado(s)"}</div>
+                <div style={{ maxHeight: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+                  {contatos.map(c => (
+                    <div key={c.id} onClick={() => toggleSelecionado(c.id)} style={{ display: "flex", alignItems: "center", gap: 8, background: selecionados.has(c.id) ? "#EFF6FF" : "#F8FAFC", border: "1px solid " + (selecionados.has(c.id) ? "#BFDBFE" : "transparent"), borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 4, border: "1.5px solid " + (selecionados.has(c.id) ? "#1E40AF" : "#CBD5E1"), background: selecionados.has(c.id) ? "#1E40AF" : "#fff", flexShrink: 0 }} />
+                      <div style={{ fontSize: 12.5, color: "#0B2B24", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.nome}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {modalAdd && (
+        <Modal title="Novo Contato" onClose={() => setModalAdd(false)}>
+          <Inp label="Nome *" value={novoContato.nome} onChange={e => setNovoContato(p => ({ ...p, nome: e.target.value }))} placeholder="Nome completo" />
+          <Inp label="WhatsApp *" value={novoContato.telefone} onChange={e => setNovoContato(p => ({ ...p, telefone: e.target.value }))} placeholder="(44) 99999-0000" />
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn variant="ghost" onClick={() => setModalAdd(false)} style={{ flex: 1, justifyContent: "center" }}>Cancelar</Btn>
+            <Btn onClick={addContato} disabled={!novoContato.nome || !novoContato.telefone} style={{ flex: 1, justifyContent: "center" }}>Adicionar</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {modalImport && (
+        <Modal title="Importar Contatos" onClose={() => { setModalImport(false); setCsvPreview([]); }} wide>
+          {csvPreview.length === 0 ? (
+            <div>
+              <div style={{ background: "#F0FDF4", borderRadius: 10, padding: 14, marginBottom: 14, fontSize: 13, color: "#166534" }}>
+                Suba a mesma planilha que já usa pra cobrança, ou uma nova só com Nome e Telefone — o sistema reconhece as colunas automaticamente.
+              </div>
+              <div onClick={() => fileRef.current?.click()} style={{ border: "2px dashed #E2E8F0", borderRadius: 12, padding: 40, textAlign: "center", cursor: "pointer", background: "#F8FAFC" }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>📊</div>
+                <div style={{ fontWeight: 700, color: "#0B2B24" }}>Clique para selecionar</div>
+                <div style={{ fontSize: 13, color: "#64748B" }}>Arquivo .xlsx, .xls ou .csv</div>
+              </div>
+              <input ref={fileRef} type="file" accept=".csv,.txt,.xlsx,.xls" onChange={handleCSV} style={{ display: "none" }} />
+            </div>
+          ) : (
+            <div>
+              <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#1E40AF", fontWeight: 600 }}>
+                {csvPreview.filter(c => !c.pular).length} contato(s) prontos para importar
+              </div>
+              <div style={{ maxHeight: 340, overflow: "auto", marginBottom: 14, border: "1px solid #F1F5F9", borderRadius: 8 }}>
+                {csvPreview.map((r, i) => (
+                  <div key={i} style={{ padding: "8px 12px", background: r.pular ? "#FEF2F2" : (i % 2 === 0 ? "#F8FAFC" : "#fff"), fontSize: 13, borderBottom: "1px solid #F1F5F9" }}>
+                    <strong>{r.nome || "(sem nome)"}</strong> · {r.telefone || "sem telefone"}
+                    {r.pular && <span style={{ color: "#DC2626", fontWeight: 700 }}> · ⚠️ {r.motivoPular}</span>}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <Btn variant="ghost" onClick={() => setCsvPreview([])} style={{ flex: 1, justifyContent: "center" }}>← Voltar</Btn>
+                <Btn onClick={importarCSV} style={{ flex: 1, justifyContent: "center" }}>✅ Confirmar importação</Btn>
+              </div>
+            </div>
+          )}
+        </Modal>
       )}
     </div>
   );
@@ -3223,8 +3548,7 @@ export default function CobrarFacil() {
     { key: "cobrancas", label: "Cobranças",  icon: <Ic.charge /> },
     { key: "conversas", label: "Conversas",  icon: <Ic.whatsapp /> },
     { key: "pagamentos", label: "Pagamentos", icon: <Ic.money /> },
-    { key: "historico", label: "Histórico",  icon: <Ic.history /> },
-    { key: "relatorio", label: "Relatório",  icon: <Ic.report /> },
+    { key: "marketing", label: "Marketing",  icon: <Ic.megaphone /> },
     { key: "config",    label: "Config.",    icon: <Ic.settings /> },
   ];
 
@@ -3234,11 +3558,10 @@ export default function CobrarFacil() {
     switch(tela) {
       case "dashboard": return <Dashboard clientes={clientes} historico={historico} token={sessaoEfetiva.token} onNavigate={setTela} />;
       case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={sessaoEfetiva.token} isMobile={isMobile} />;
-      case "cobrancas": return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessaoEfetiva.token} />;
+      case "cobrancas": return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessaoEfetiva.token} onEditarCliente={irParaEditar} />;
       case "conversas": return <Conversas clientes={clientes} setClientes={setClientes} token={sessaoEfetiva.token} isMobile={isMobile} />;
       case "pagamentos": return <Pagamentos setClientes={setClientes} token={sessaoEfetiva.token} />;
-      case "historico": return <Historico historico={historico} setHistorico={setHistorico} token={sessaoEfetiva.token} />;
-      case "relatorio": return <Relatorio token={sessaoEfetiva.token} clientes={clientes} onEditarCliente={irParaEditar} />;
+      case "marketing": return <Marketing token={sessaoEfetiva.token} />;
       case "config":    return <Configuracoes usuario={sessaoEfetiva.usuario} token={sessaoEfetiva.token} />;
       default: return null;
     }
