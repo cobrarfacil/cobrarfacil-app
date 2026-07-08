@@ -1063,7 +1063,6 @@ function Dashboard({ clientes, historico, token, onNavigate }) {
   const [filtrando, setFiltrando] = useState(false);
   const [detalhe, setDetalhe] = useState(null);
   const [mostrarCompleto, setMostrarCompleto] = useState(false);
-  const [periodoHero, setPeriodoHero] = useState("mes");
   const [errosHoje, setErrosHoje] = useState([]);
 
   useEffect(() => {
@@ -1073,6 +1072,11 @@ function Dashboard({ clientes, historico, token, onNavigate }) {
   useEffect(() => {
     const hojeStr = new Date().toISOString().split("T")[0];
     api("/relatorio/erros-envio?data=" + hojeStr, {}, token).then(d => { if (Array.isArray(d.erros)) setErrosHoje(d.erros); });
+  }, [token]);
+
+  const [taxaRecuperacao, setTaxaRecuperacao] = useState(null);
+  useEffect(() => {
+    api("/relatorio/inadimplencia", {}, token).then(d => { if (d.taxa_recuperacao !== undefined) setTaxaRecuperacao(d.taxa_recuperacao); });
   }, [token]);
 
   const filtrarPeriodo = async () => {
@@ -1124,6 +1128,12 @@ function Dashboard({ clientes, historico, token, onNavigate }) {
     .sort((a, b) => parseFloat(b.total_divida || 0) - parseFloat(a.total_divida || 0))
     .slice(0, 5);
 
+  const agora = new Date();
+  const cobrancasEsteMes = (historico || []).filter(h => {
+    const d = new Date(h.criado_em);
+    return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+  });
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
@@ -1134,39 +1144,30 @@ function Dashboard({ clientes, historico, token, onNavigate }) {
       {detalhe && <ModalDetalheLista titulo={detalhe.titulo} lista={detalhe.lista} onClose={() => setDetalhe(null)} />}
 
       {(() => {
-        const OPCOES_PERIODO = {
-          hoje:   { label: "Hoje",       valor: metricas?.recebido_hoje },
-          semana: { label: "7 dias",     valor: metricas?.recebido_semana },
-          mes:    { label: "Este mês",   valor: metricas?.recebido_mes },
-          total:  { label: "Desde sempre", valor: metricas?.total_recebido ?? totalPagoSoma },
-        };
-        const valorHero = OPCOES_PERIODO[periodoHero]?.valor ?? 0;
+        const pagosEsteMes = pagos.filter(c => {
+          if (!c.ultima_cobranca) return false;
+          const d = new Date(c.ultima_cobranca);
+          return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+        });
+        const cards = [
+          { label: "Recebido este mês", value: fmt(metricas?.recebido_mes ?? 0), sub: pagosEsteMes.length + (pagosEsteMes.length === 1 ? " pagamento este mês" : " pagamentos este mês"), subCor: "#16A34A", icon: <Ic.charge />, cor: "#16A34A", bg: "#F0FDF4", border: "#BBF7D0", onClick: () => setDetalhe({ titulo: "Pagamentos confirmados este mês", lista: pagosEsteMes }) },
+          { label: "Em aberto", value: fmt(metricas?.total_em_aberto ?? total), sub: abertos.length + " clientes", subCor: "#64748B", icon: <Ic.money />, cor: "#0284C7", bg: "#EFF6FF", border: "#BFDBFE", onClick: () => setDetalhe({ titulo: "Clientes em aberto", lista: abertos }) },
+          { label: "Clientes em atraso", value: metricas?.atrasados?.qtd ?? atrasados.length, sub: fmt(metricas?.atrasados?.valor ?? 0), subCor: "#DC2626", icon: <Ic.alert />, cor: "#DC2626", bg: "#FEF2F2", border: "#FECACA", onClick: () => setDetalhe({ titulo: "Clientes em atraso", lista: atrasados }) },
+          { label: "Taxa de recuperação", value: taxaRecuperacao !== null ? taxaRecuperacao + "%" : "—", sub: "dos clientes cadastrados", subCor: "#64748B", icon: <Ic.trend />, cor: "#7C3AED", bg: "#F5F3FF", border: "#DDD6FE", onClick: () => setDetalhe({ titulo: "Clientes recuperados (pagos)", lista: pagos }) },
+          { label: "Cobranças enviadas", value: cobrancasEsteMes.length, sub: "este mês", subCor: "#64748B", icon: <Ic.send />, cor: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE", onClick: () => onNavigate && onNavigate("historico") },
+        ];
         return (
-          <div className="cf-fade" style={{ background: "linear-gradient(160deg, #081512 0%, #0E2620 55%, #023B32 100%)", borderRadius: 22, padding: "24px 22px", marginBottom: 12, boxShadow: "0 16px 36px rgba(2,20,16,0.4), inset 0 1px 0 rgba(255,255,255,0.06)", border: "1px solid rgba(74,222,128,0.12)", position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: -50, right: -40, width: 180, height: 180, background: "radial-gradient(circle, rgba(74,222,128,0.22), transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", bottom: -60, left: -40, width: 160, height: 160, background: "radial-gradient(circle, rgba(14,143,99,0.18), transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, position: "relative" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 700, color: "#4ADE80", letterSpacing: 1.3, textTransform: "uppercase", background: "rgba(74,222,128,0.1)", padding: "4px 10px", borderRadius: 99, border: "1px solid rgba(74,222,128,0.2)" }}>● RECEBIDO</div>
-              <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.06)", borderRadius: 99, padding: 3 }}>
-                {Object.entries(OPCOES_PERIODO).map(([key, o]) => (
-                  <button key={key} onClick={() => setPeriodoHero(key)} className="cf-btn" style={{ border: "none", background: periodoHero === key ? "#4ADE80" : "transparent", color: periodoHero === key ? "#052B1E" : "#7C8B87", fontSize: 10.5, fontWeight: 700, padding: "4px 9px", borderRadius: 99, cursor: "pointer" }}>{o.label}</button>
-                ))}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 14 }}>
+            {cards.map(c => (
+              <div key={c.label} className="cf-card" onClick={c.onClick} style={{ background: "#fff", borderRadius: 16, padding: "16px", border: "1px solid #F1F5F9", boxShadow: "0 1px 8px rgba(0,0,0,0.05)", cursor: "pointer" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <span style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>{c.label}</span>
+                  <span style={{ width: 30, height: 30, borderRadius: "50%", background: c.bg, border: "1px solid " + c.border, color: c.cor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{c.icon}</span>
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#0B2B24", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "-0.5px", marginBottom: 4 }}>{c.value}</div>
+                <div style={{ fontSize: 12, color: c.subCor, fontWeight: 600 }}>{c.sub}</div>
               </div>
-            </div>
-            <div onClick={() => setDetalhe({ titulo: "Clientes que pagaram", lista: pagos })} style={{ cursor: "pointer", position: "relative", marginBottom: 18 }}>
-              <span style={{ fontSize: 42, fontWeight: 900, color: "#fff", fontFamily: "'JetBrains Mono', 'SF Mono', monospace", letterSpacing: -1.5, lineHeight: 1 }}>{fmt(valorHero)}</span>
-            </div>
-            <div style={{ display: "flex", gap: 16, position: "relative", paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-              <div onClick={() => setDetalhe({ titulo: "Clientes em aberto", lista: abertos })} style={{ flex: 1, cursor: "pointer" }}>
-                <div style={{ fontSize: 10.5, color: "#7C8B87", marginBottom: 4, fontWeight: 700, letterSpacing: "0.4px" }}>EM ABERTO</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(metricas?.total_em_aberto ?? total)}</div>
-              </div>
-              <div style={{ width: 1, background: "rgba(255,255,255,0.1)" }} />
-              <div onClick={() => setDetalhe({ titulo: "Clientes em atraso", lista: atrasados })} style={{ flex: 1, cursor: "pointer" }}>
-                <div style={{ fontSize: 10.5, color: "#7C8B87", marginBottom: 4, fontWeight: 700, letterSpacing: "0.4px" }}>EM ATRASO</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "#FCA5A5", fontFamily: "'JetBrains Mono', monospace" }}>{fmt(metricas?.atrasados?.valor ?? 0)}</div>
-              </div>
-            </div>
+            ))}
           </div>
         );
       })()}
@@ -1193,22 +1194,6 @@ function Dashboard({ clientes, historico, token, onNavigate }) {
           </div>
         </div>
       )}
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 14 }}>
-        {[
-          { label: "Em atraso", value: fmt(metricas?.atrasados?.valor ?? 0), sub: (metricas?.atrasados?.qtd ?? atrasados.length) + " clientes", icon: <Ic.alert />, color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", lista: atrasados, titulo: "Clientes em atraso" },
-          { label: "Total de clientes", value: clientes.length, sub: "cadastrados", icon: <Ic.users />, color: "#7C3AED", bg: "#F5F3FF", border: "#DDD6FE", lista: clientes, titulo: "Todos os clientes" },
-        ].map(c => (
-          <div key={c.label} className="cf-card" onClick={() => setDetalhe({ titulo: c.titulo, lista: c.lista })} style={{ background: "#fff", borderRadius: 16, padding: "16px", border: "1px solid #F1F5F9", boxShadow: "0 1px 8px rgba(0,0,0,0.05)", cursor: "pointer", position: "relative" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-              <div style={{ width: 34, height: 34, background: c.bg, border: "1px solid " + c.border, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: c.color, flexShrink: 0 }}>{c.icon}</div>
-              <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#F8FAFC", display: "flex", alignItems: "center", justifyContent: "center", color: "#CBD5E1", fontSize: 12 }}>→</div>
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#0B2B24", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "-0.5px", marginBottom: 3 }}>{c.value}</div>
-            <div style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>{c.label}{c.sub ? " · " + c.sub : ""}</div>
-          </div>
-        ))}
-      </div>
 
       {metricas && (
         <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9", marginBottom: 14 }}>
