@@ -1930,6 +1930,182 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
   );
 }
 
+function Conversas({ clientes, setClientes, token, isMobile }) {
+  const [lista, setLista] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selecionado, setSelecionado] = useState(null);
+  const [mensagens, setMensagens] = useState([]);
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [novaMsg, setNovaMsg] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+
+  const carregarLista = async () => {
+    const data = await api("/conversas", {}, token);
+    if (Array.isArray(data)) setLista(data);
+    setLoading(false);
+  };
+  useEffect(() => { carregarLista(); }, []);
+
+  useEffect(() => {
+    if (!selecionado) return;
+    setLoadingMsgs(true);
+    api("/clientes/" + selecionado + "/conversa", {}, token).then(data => {
+      if (data.mensagens) setMensagens(data.mensagens);
+      setLoadingMsgs(false);
+    });
+  }, [selecionado]);
+
+  const enviar = async () => {
+    if (!novaMsg.trim() || !selecionado) return;
+    setEnviando(true);
+    const data = await api("/clientes/" + selecionado + "/enviar-mensagem", { method: "POST", body: JSON.stringify({ mensagem: novaMsg.trim() }) }, token);
+    if (data.sucesso) {
+      setMensagens(prev => [...prev, { direcao: "enviada", texto: novaMsg.trim(), criado_em: new Date().toISOString() }]);
+      setNovaMsg("");
+      carregarLista();
+    } else {
+      showToast("Não foi possível enviar — confira se o WhatsApp está conectado em Configurações", "error");
+    }
+    setEnviando(false);
+  };
+
+  const marcarPago = async (clienteId) => {
+    const data = await api("/clientes/" + clienteId + "/confirmar-pagamento", { method: "POST" }, token);
+    if (data.sucesso) {
+      setClientes(prev => prev.map(x => x.id === clienteId ? { ...x, status: "pago" } : x));
+      showToast("✅ Pago! Cliente notificado via WhatsApp.");
+      carregarLista();
+    } else showToast(data.erro || "Erro", "error");
+  };
+
+  const filtrados = lista.filter(c => c.nome.toLowerCase().includes(busca.toLowerCase()));
+  const convSelecionada = lista.find(c => c.cliente_id === selecionado);
+  const clienteCompleto = clientes.find(c => c.id === selecionado);
+
+  const ListaConversas = (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <input placeholder="🔍 Buscar conversa..." value={busca} onChange={e => setBusca(e.target.value)} style={{ border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", background: "#F8FAFC", marginBottom: 10 }} />
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 30, color: "#94A3B8", fontSize: 13 }}>Carregando...</div>
+        ) : filtrados.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 30, color: "#94A3B8", fontSize: 13 }}>
+            {lista.length === 0 ? "Nenhuma conversa ainda — aparece aqui assim que um cliente responder ou você mandar uma mensagem avulsa." : "Nada encontrado"}
+          </div>
+        ) : filtrados.map(c => (
+          <div key={c.cliente_id} onClick={() => setSelecionado(c.cliente_id)} className="cf-card" style={{ display: "flex", gap: 10, padding: "10px 12px", borderRadius: 12, cursor: "pointer", background: selecionado === c.cliente_id ? "#EFF6FF" : "transparent", border: "1px solid " + (selecionado === c.cliente_id ? "#BFDBFE" : "transparent") }}>
+            <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg, #DBEAFE, #BFDBFE)", color: "#1E40AF", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 15, flexShrink: 0 }}>{c.nome.charAt(0)}</div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}>
+                <span style={{ fontWeight: 700, fontSize: 13.5, color: "#0B2B24", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.nome}</span>
+                <span style={{ fontSize: 10.5, color: "#94A3B8", flexShrink: 0 }}>{new Date(c.ultima_mensagem_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>
+              </div>
+              <div style={{ fontSize: 12, color: c.ultima_mensagem_direcao === "recebida" ? "#0B2B24" : "#94A3B8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {c.ultima_mensagem_direcao === "enviada" && "Você: "}{c.ultima_mensagem}
+              </div>
+            </div>
+            {c.status === "aguardando_confirmacao" && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#1D4ED8", flexShrink: 0, marginTop: 4 }} />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const PainelChat = !selecionado ? (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#94A3B8", fontSize: 13.5, textAlign: "center", padding: 30 }}>
+      Selecione uma conversa à esquerda para ver as mensagens
+    </div>
+  ) : (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 12, borderBottom: "1px solid #F1F5F9", marginBottom: 10 }}>
+        {isMobile && <button onClick={() => setSelecionado(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#374151", padding: "0 4px 0 0" }}>←</button>}
+        <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #DBEAFE, #BFDBFE)", color: "#1E40AF", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>{convSelecionada?.nome?.charAt(0)}</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "#0B2B24" }}>{convSelecionada?.nome}</div>
+          <div style={{ fontSize: 11.5, color: "#94A3B8" }}>{convSelecionada?.telefone}</div>
+        </div>
+      </div>
+      {loadingMsgs ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#94A3B8", fontSize: 13 }}>Carregando...</div>
+      ) : (
+        <div style={{ flex: 1, background: "#E5DDD5", borderRadius: 10, padding: 12, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 10, minHeight: 200 }}>
+          {mensagens.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#64748B", fontSize: 13, margin: "auto" }}>Nenhuma mensagem ainda</div>
+          ) : mensagens.map((m, i) => (
+            <div key={i} style={{ alignSelf: m.direcao === "enviada" ? "flex-end" : "flex-start", maxWidth: "80%", background: m.direcao === "enviada" ? "#DCF8C6" : "#fff", borderRadius: 8, padding: "8px 12px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
+              <div style={{ fontSize: 13, color: "#0B2B24", whiteSpace: "pre-wrap" }}>{m.texto}</div>
+              <div style={{ fontSize: 10, color: "#94A3B8", textAlign: "right", marginTop: 3 }}>{new Date(m.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        <input value={novaMsg} onChange={e => setNovaMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && enviar()} placeholder="Digite uma mensagem..." style={{ flex: 1, border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none" }} />
+        <Btn onClick={enviar} disabled={enviando || !novaMsg.trim()} small><Ic.send /></Btn>
+      </div>
+    </div>
+  );
+
+  const PainelResumo = clienteCompleto && (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>Resumo do cliente</div>
+      <Badge status={clienteCompleto.status} />
+      <div style={{ background: "#F8FAFC", borderRadius: 10, padding: "10px 12px" }}>
+        <div style={{ fontSize: 11, color: "#94A3B8" }}>Valor da dívida</div>
+        <div style={{ fontSize: 17, fontWeight: 800, color: "#0B2B24" }}>{fmt(clienteCompleto.total_divida)}</div>
+      </div>
+      {clienteCompleto.vencimento && (
+        <div style={{ background: "#F8FAFC", borderRadius: 10, padding: "10px 12px" }}>
+          <div style={{ fontSize: 11, color: "#94A3B8" }}>Vencimento</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0B2B24" }}>{fmtData(clienteCompleto.vencimento.split("T")[0])}</div>
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+        {clienteCompleto.status !== "pago" && (
+          <Btn variant="green" small onClick={() => marcarPago(clienteCompleto.id)} style={{ justifyContent: "center" }}><Ic.check /> Confirmar pagamento</Btn>
+        )}
+        <a href={"tel:" + clienteCompleto.telefone} style={{ textDecoration: "none" }}>
+          <Btn variant="ghost" small style={{ justifyContent: "center", width: "100%" }}>📞 Ligar para cliente</Btn>
+        </a>
+      </div>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <div style={{ height: "calc(100vh - 150px)" }}>
+        {toast && <ToastMsg {...toast} />}
+        {!selecionado ? (
+          <>
+            <h1 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 800, color: "#0B2B24" }}>Conversas</h1>
+            {ListaConversas}
+          </>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <div style={{ flex: "0 0 auto", maxHeight: "55%", display: "flex", flexDirection: "column" }}>{PainelChat}</div>
+            <div style={{ borderTop: "1px solid #F1F5F9", marginTop: 12, paddingTop: 12 }}>{PainelResumo}</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {toast && <ToastMsg {...toast} />}
+      <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Conversas</h1>
+      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr 240px", gap: 14, height: "calc(100vh - 180px)", minHeight: 480 }}>
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #F1F5F9", padding: 14, overflow: "hidden" }}>{ListaConversas}</div>
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #F1F5F9", padding: 14, overflow: "hidden" }}>{PainelChat}</div>
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #F1F5F9", padding: 14, overflowY: "auto" }}>{PainelResumo}</div>
+      </div>
+    </div>
+  );
+}
+
 function Pagamentos({ setClientes, token }) {
   const [lista, setLista] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2674,6 +2850,7 @@ export default function CobrarFacil() {
     { key: "dashboard", label: "Painel",     icon: <Ic.dash /> },
     { key: "clientes",  label: "Clientes",   icon: <Ic.clients /> },
     { key: "cobrancas", label: "Cobranças",  icon: <Ic.charge /> },
+    { key: "conversas", label: "Conversas",  icon: <Ic.whatsapp /> },
     { key: "pagamentos", label: "Pagamentos", icon: <Ic.money /> },
     { key: "historico", label: "Histórico",  icon: <Ic.history /> },
     { key: "relatorio", label: "Relatório",  icon: <Ic.report /> },
@@ -2687,6 +2864,7 @@ export default function CobrarFacil() {
       case "dashboard": return <Dashboard clientes={clientes} historico={historico} token={sessaoEfetiva.token} onNavigate={setTela} />;
       case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={sessaoEfetiva.token} />;
       case "cobrancas": return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessaoEfetiva.token} />;
+      case "conversas": return <Conversas clientes={clientes} setClientes={setClientes} token={sessaoEfetiva.token} isMobile={isMobile} />;
       case "pagamentos": return <Pagamentos setClientes={setClientes} token={sessaoEfetiva.token} />;
       case "historico": return <Historico historico={historico} setHistorico={setHistorico} token={sessaoEfetiva.token} />;
       case "relatorio": return <Relatorio token={sessaoEfetiva.token} clientes={clientes} onEditarCliente={irParaEditar} />;
