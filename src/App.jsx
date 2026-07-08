@@ -1475,7 +1475,7 @@ function MensagemEditorInline({ etapa, mensagemAtual, cliente, onSalvar }) {
   );
 }
 
-function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setClienteParaEditar, token }) {
+function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setClienteParaEditar, token, isMobile }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [modalAdd, setModalAdd] = useState(false);
@@ -1492,13 +1492,104 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
   const fileRef = useRef();
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
+  // ─── Painel de detalhe (desktop) ───────────────────────────────────────────
+  const [selecionado, setSelecionado] = useState(null);
+  const [abaDetalhe, setAbaDetalhe] = useState("conversa");
+  const [conversasMap, setConversasMap] = useState({});
+  const [mensagensDetalhe, setMensagensDetalhe] = useState([]);
+  const [loadingDetalhe, setLoadingDetalhe] = useState(false);
+  const [novaMsgDetalhe, setNovaMsgDetalhe] = useState("");
+  const [enviandoDetalhe, setEnviandoDetalhe] = useState(false);
+  const [reguaDetalhe, setReguaDetalhe] = useState([]);
+  const [reguaPausada, setReguaPausada] = useState(false);
+
+  useEffect(() => {
+    api("/conversas", {}, token).then(data => {
+      if (Array.isArray(data)) {
+        const mapa = {};
+        data.forEach(c => { mapa[c.cliente_id] = c; });
+        setConversasMap(mapa);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!selecionado) return;
+    setLoadingDetalhe(true);
+    Promise.all([
+      api("/clientes/" + selecionado + "/conversa", {}, token),
+      api("/clientes/" + selecionado + "/regua", {}, token),
+    ]).then(([conv, reg]) => {
+      if (conv.mensagens) setMensagensDetalhe(conv.mensagens);
+      if (reg.etapas) {
+        setReguaDetalhe(reg.etapas);
+        setReguaPausada(reg.etapas.every(e => !e.ativo));
+      }
+      setLoadingDetalhe(false);
+    });
+  }, [selecionado]);
+
+  // Etapa atual calculada no front, com a MESMA faixa de dias que o backend usa
+  // (etapaParaDiasAtraso em server.js) — não precisa de chamada nova pra isso.
+  const etapaAtualCliente = (c) => {
+    if (!c.vencimento) return null;
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const venc = new Date(c.vencimento.split("T")[0] + "T00:00:00");
+    const diasAtraso = Math.round((hoje - venc) / 86400000);
+    if (diasAtraso < -3) return null;
+    if (diasAtraso < 0) return "d-3";
+    if (diasAtraso === 0) return "d0";
+    if (diasAtraso < 5) return null;
+    if (diasAtraso < 15) return "d+5";
+    if (diasAtraso < 30) return "d+15";
+    return "d+30";
+  };
+
+  const enviarMensagemDetalhe = async () => {
+    if (!novaMsgDetalhe.trim() || !selecionado) return;
+    setEnviandoDetalhe(true);
+    const data = await api("/clientes/" + selecionado + "/enviar-mensagem", { method: "POST", body: JSON.stringify({ mensagem: novaMsgDetalhe.trim() }) }, token);
+    if (data.sucesso) {
+      setMensagensDetalhe(prev => [...prev, { direcao: "enviada", texto: novaMsgDetalhe.trim(), criado_em: new Date().toISOString() }]);
+      setNovaMsgDetalhe("");
+    } else showToast("Não foi possível enviar — confira o WhatsApp em Configurações", "error");
+    setEnviandoDetalhe(false);
+  };
+
+  const toggleEtapaDetalhe = async (etapa, ativo) => {
+    await api("/clientes/" + selecionado + "/regua/" + etapa, { method: "PUT", body: JSON.stringify({ ativo }) }, token);
+    setReguaDetalhe(prev => prev.map(e => e.etapa === etapa ? { ...e, ativo } : e));
+  };
+
+  const alternarPausaRegua = async (clienteId) => {
+    const data = await api("/clientes/" + clienteId + "/regua-pausar", { method: "PUT", body: JSON.stringify({ pausar: !reguaPausada }) }, token);
+    if (data.sucesso) {
+      setReguaPausada(data.pausada);
+      setReguaDetalhe(prev => prev.map(e => ({ ...e, ativo: !data.pausada })));
+      showToast(data.pausada ? "Régua pausada pra esse cliente." : "Régua retomada.");
+    }
+  };
+
+  const rejeitarComprovanteDetalhe = async (clienteId) => {
+    const data = await api("/clientes/" + clienteId + "/pagamento/rejeitar", { method: "POST" }, token);
+    if (data.sucesso) {
+      setClientes(prev => prev.map(x => x.id === clienteId ? { ...x, status: data.novo_status } : x));
+      showToast("Voltou pra régua normalmente.");
+    } else showToast(data.erro || "Erro", "error");
+  };
+
   useEffect(() => { if (modalEditar) setEditando({ ...modalEditar }); }, [modalEditar]);
 
   useEffect(() => {
     if (clienteParaEditar) { setModalEditar(clienteParaEditar); setClienteParaEditar(null); }
   }, [clienteParaEditar]);
 
-  const filtrados = clientes.filter(c => (filtro === "todos" || c.status === filtro) && c.nome.toLowerCase().includes(busca.toLowerCase()));
+  const filtrados = clientes.filter(c => {
+    if (busca && !c.nome.toLowerCase().includes(busca.toLowerCase())) return false;
+    if (filtro === "todos") return true;
+    if (filtro === "atrasado") return c.status === "atrasado" || c.status === "inadimplente";
+    return c.status === filtro;
+  });
 
   const addCliente = async () => {
     if (!novo.nome || !novo.telefone || !novo.total_divida) return;
@@ -1682,6 +1773,25 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
     }
   };
 
+  const contagens = {
+    todos: clientes.length,
+    pendente: clientes.filter(c => c.status === "pendente").length,
+    atrasado: clientes.filter(c => c.status === "atrasado" || c.status === "inadimplente").length,
+    aguardando_confirmacao: clientes.filter(c => c.status === "aguardando_confirmacao").length,
+    pago: clientes.filter(c => c.status === "pago").length,
+    blacklist: clientes.filter(c => c.status === "blacklist").length,
+  };
+  const CARDS_FILTRO = [
+    { key: "todos", label: "Todos", icon: "👥" },
+    { key: "pendente", label: "Em dia", icon: "✅" },
+    { key: "atrasado", label: "Atrasados", icon: "⚠️" },
+    { key: "aguardando_confirmacao", label: "Aguardando confirmação", icon: "⏳" },
+    { key: "pago", label: "Pagos", icon: "💰" },
+    { key: "blacklist", label: "Blacklist", icon: "🚫" },
+  ];
+  const thStyle = { padding: "10px 12px", fontSize: 10.5, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" };
+  const tdStyle = { padding: "10px 12px", verticalAlign: "middle", fontSize: 13 };
+
   return (
     <div>
       {toast && <ToastMsg {...toast} />}
@@ -1691,62 +1801,228 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Clientes</h1>
-          <p style={{ margin: "3px 0 0", fontSize: 13, color: "#64748B" }}>{clientes.length} cadastrados · {clientes.filter(c => c.status === "atrasado").length} em atraso</p>
+          <p style={{ margin: "3px 0 0", fontSize: 13, color: "#64748B" }}>Gerencie seus clientes e acompanhe a cobrança de cada um.</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Btn small variant="ghost" onClick={() => setModalImport(true)}><Ic.upload /></Btn>
-          <Btn small onClick={() => setModalAdd(true)}><Ic.plus /> Novo</Btn>
+          <Btn small variant="ghost" onClick={() => setModalImport(true)}><Ic.upload /> Importar</Btn>
+          <Btn small onClick={() => setModalAdd(true)}><Ic.plus /> Novo cliente</Btn>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
-        <input placeholder="🔍 Buscar..." value={busca} onChange={e => setBusca(e.target.value)} style={{ flex: 1, minWidth: 120, border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", background: "#F8FAFC" }} />
-        {["todos", "pendente", "atrasado", "aguardando_confirmacao", "pago", "blacklist"].map(f => (
-          <button key={f} onClick={() => setFiltro(f)} style={{ background: filtro === f ? "#1E40AF" : "#F1F5F9", color: filtro === f ? "#fff" : "#64748B", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-            {f === "todos" ? "Todos" : f === "blacklist" ? "🚫 Blacklist" : statusColor[f]?.label || f}
-          </button>
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
+        {CARDS_FILTRO.map(f => (
+          <div key={f.key} onClick={() => setFiltro(f.key)} className="cf-card" style={{ cursor: "pointer", background: "#fff", border: "2px solid " + (filtro === f.key ? "#16A34A" : "#F1F5F9"), borderRadius: 14, padding: "12px 16px", minWidth: 108, flexShrink: 0 }}>
+            <div style={{ fontSize: 17, marginBottom: 4 }}>{f.icon}</div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#0B2B24" }}>{contagens[f.key]}</div>
+            <div style={{ fontSize: 11, color: "#64748B", fontWeight: 600, whiteSpace: "nowrap" }}>{f.label}</div>
+          </div>
         ))}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {filtrados.map(c => (
-          <div key={c.id} style={{ background: "#fff", borderRadius: 14, border: "1px solid " + (c.status === "atrasado" ? "#FECACA" : c.status === "blacklist" ? "#1F2937" : "#F1F5F9"), padding: "14px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 40, height: 40, background: c.status === "blacklist" ? "#1F2937" : "linear-gradient(135deg, #DBEAFE, #BFDBFE)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: c.status === "blacklist" ? "#F9FAFB" : "#1E40AF", flexShrink: 0 }}>
-                  {c.status === "blacklist" ? "🚫" : c.nome.charAt(0)}
+      <input placeholder="🔍 Buscar cliente, telefone..." value={busca} onChange={e => setBusca(e.target.value)} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", background: "#F8FAFC", marginBottom: 14, boxSizing: "border-box" }} />
+
+      {isMobile ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {filtrados.map(c => (
+            <div key={c.id} style={{ background: "#fff", borderRadius: 14, border: "1px solid " + (c.status === "atrasado" ? "#FECACA" : c.status === "blacklist" ? "#1F2937" : "#F1F5F9"), padding: "14px 16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 40, height: 40, background: c.status === "blacklist" ? "#1F2937" : "linear-gradient(135deg, #DBEAFE, #BFDBFE)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: c.status === "blacklist" ? "#F9FAFB" : "#1E40AF", flexShrink: 0 }}>
+                    {c.status === "blacklist" ? "🚫" : c.nome.charAt(0)}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: "#0B2B24" }}>{c.nome}</div>
+                    <div style={{ fontSize: 12, color: "#94A3B8" }}>{c.telefone}</div>
+                    {c.vencimento && <div style={{ fontSize: 12, color: c.status === "atrasado" ? "#DC2626" : "#64748B" }}>Vence: {fmtData(c.vencimento.split("T")[0])}</div>}
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: "#0B2B24" }}>{c.nome}</div>
-                  <div style={{ fontSize: 12, color: "#94A3B8" }}>{c.telefone}</div>
-                  {c.vencimento && <div style={{ fontSize: 12, color: c.status === "atrasado" ? "#DC2626" : "#64748B" }}>Vence: {fmtData(c.vencimento.split("T")[0])}</div>}
+                <div style={{ fontSize: 18, fontWeight: 800, color: c.status === "atrasado" ? "#DC2626" : c.status === "pago" ? "#16A34A" : "#0B2B24" }}>{fmt(c.total_divida)}</div>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                <Badge status={c.status} />
+                {c.prorrogado && <span style={{ background: "#FEF3C7", color: "#D97706", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>📅 Prorrogado</span>}
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {c.status !== "blacklist" && <button onClick={() => setModalRegua(c)} style={{ background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.regua /> Régua</button>}
+                <button onClick={() => setModalEditar(c)} style={{ background: "#F8FAFC", color: "#374151", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.edit /> Editar</button>
+                {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => setModalProrrogar(c)} style={{ background: "#FFFBEB", color: "#D97706", border: "1.5px solid #FDE68A", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>📅 Prorrogar</button>}
+                {c.status !== "pago" && c.status !== "blacklist" && c.status !== "aguardando_confirmacao" && <button onClick={() => onCobranca(c)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.send /> Cobrar</button>}
+                {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => marcarPago(c)} style={{ background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>✓ Pago</button>}
+                <button onClick={() => setModalConversa(c)} style={{ background: "#ECFDF5", color: "#0E8F63", border: "1.5px solid #A7F3D0", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.eye /></button>
+                <button onClick={() => deletarCliente(c.id)} style={{ background: "#FEF2F2", color: "#DC2626", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.trash /></button>
+              </div>
+            </div>
+          ))}
+          {filtrados.length === 0 && (
+            <div style={{ textAlign: "center", padding: 48, color: "#94A3B8" }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>👥</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Nenhum cliente</div>
+              <div style={{ fontSize: 13 }}>Cadastre ou importe uma planilha CSV</div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: selecionado ? "1fr 340px" : "1fr", gap: 14, alignItems: "start" }}>
+          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #F1F5F9", overflow: "auto" }}>
+            {filtrados.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 48, color: "#94A3B8" }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>👥</div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Nenhum cliente</div>
+                <div style={{ fontSize: 13 }}>Cadastre ou importe uma planilha CSV</div>
+              </div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #F1F5F9", textAlign: "left" }}>
+                    <th style={thStyle}>Cliente</th>
+                    <th style={thStyle}>Valor</th>
+                    <th style={thStyle}>Atraso</th>
+                    <th style={thStyle}>Etapa</th>
+                    <th style={thStyle}>Última mensagem</th>
+                    <th style={thStyle}>Última resposta</th>
+                    <th style={thStyle}>Próxima ação</th>
+                    <th style={thStyle}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtrados.map(c => {
+                    const conv = conversasMap[c.id];
+                    const etapa = etapaAtualCliente(c);
+                    const infoEtapa = etapa ? ETAPAS_INFO[etapa] : null;
+                    const diasAtraso = c.vencimento ? Math.round((new Date() - new Date(c.vencimento.split("T")[0] + "T00:00:00")) / 86400000) : null;
+                    return (
+                      <tr key={c.id} onClick={() => { setSelecionado(c.id); setAbaDetalhe("conversa"); }} style={{ cursor: "pointer", background: selecionado === c.id ? "#EFF6FF" : "transparent", borderBottom: "1px solid #F8FAFC" }}>
+                        <td style={tdStyle}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 30, height: 30, borderRadius: "50%", background: c.status === "blacklist" ? "#1F2937" : "linear-gradient(135deg, #DBEAFE, #BFDBFE)", color: c.status === "blacklist" ? "#F9FAFB" : "#1E40AF", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, flexShrink: 0 }}>{c.status === "blacklist" ? "🚫" : c.nome.charAt(0)}</div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, color: "#0B2B24", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 150 }}>{c.nome}</div>
+                              <div style={{ fontSize: 11, color: "#94A3B8" }}>{c.telefone}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={tdStyle}><strong>{fmt(c.total_divida)}</strong></td>
+                        <td style={{ ...tdStyle, color: diasAtraso > 0 ? "#DC2626" : "#64748B" }}>{diasAtraso > 0 ? diasAtraso + " dias" : "—"}</td>
+                        <td style={tdStyle}>{infoEtapa ? infoEtapa.label : "—"}</td>
+                        <td style={{ ...tdStyle, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#64748B" }}>{conv ? (conv.ultima_mensagem_direcao === "enviada" ? "Você: " : "") + conv.ultima_mensagem : "—"}</td>
+                        <td style={tdStyle}>{conv && conv.ultima_mensagem_direcao === "recebida" ? new Date(conv.ultima_mensagem_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "Sem resposta"}</td>
+                        <td style={tdStyle}>{c.status === "aguardando_confirmacao" ? "Confirmar pagamento" : infoEtapa ? "Cobrança " + infoEtapa.label : "—"}</td>
+                        <td style={tdStyle}><Badge status={c.status} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {selecionado && (() => {
+            const c = clientes.find(x => x.id === selecionado);
+            if (!c) return null;
+            const diasAtraso = c.vencimento ? Math.round((new Date() - new Date(c.vencimento.split("T")[0] + "T00:00:00")) / 86400000) : null;
+            const etapa = etapaAtualCliente(c);
+            const infoEtapa = etapa ? ETAPAS_INFO[etapa] : null;
+            const comprovantes = mensagensDetalhe.filter(m => m.direcao === "recebida" && (/pix|comprovante|pagamento|paguei|transfer|ted|dep[oó]sito/i.test(m.texto) || m.texto.includes("[mídia recebida")));
+            return (
+              <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #F1F5F9", padding: 16, display: "flex", flexDirection: "column", height: "calc(100vh - 210px)", minHeight: 480 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #DBEAFE, #BFDBFE)", color: "#1E40AF", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>{c.nome.charAt(0)}</div>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: "#0B2B24" }}>{c.nome}</div>
+                      <div style={{ fontSize: 11.5, color: "#94A3B8" }}>{c.telefone}</div>
+                    </div>
+                  </div>
+                  <button onClick={() => setSelecionado(null)} style={{ background: "#F1F5F9", border: "none", borderRadius: 8, width: 28, height: 28, cursor: "pointer", color: "#64748B", flexShrink: 0 }}><Ic.close /></button>
+                </div>
+                <div style={{ marginBottom: 10 }}><Badge status={c.status} /></div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                  <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "8px 10px" }}><div style={{ fontSize: 10, color: "#94A3B8" }}>Valor</div><div style={{ fontWeight: 800, fontSize: 14, color: "#0B2B24" }}>{fmt(c.total_divida)}</div></div>
+                  <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "8px 10px" }}><div style={{ fontSize: 10, color: "#94A3B8" }}>Atraso</div><div style={{ fontWeight: 800, fontSize: 14, color: diasAtraso > 0 ? "#DC2626" : "#0B2B24" }}>{diasAtraso > 0 ? diasAtraso + " dias" : "Em dia"}</div></div>
+                  <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "8px 10px" }}><div style={{ fontSize: 10, color: "#94A3B8" }}>Etapa atual</div><div style={{ fontWeight: 700, fontSize: 12.5, color: "#0B2B24" }}>{infoEtapa?.label || "—"}</div></div>
+                  <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "8px 10px" }}><div style={{ fontSize: 10, color: "#94A3B8" }}>Última cobrança</div><div style={{ fontWeight: 700, fontSize: 12.5, color: "#0B2B24" }}>{c.ultima_cobranca ? new Date(c.ultima_cobranca).toLocaleDateString("pt-BR") : "—"}</div></div>
+                </div>
+                <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #F1F5F9", marginBottom: 10 }}>
+                  {[["conversa", "Conversa"], ["comprovantes", "Comprovantes"], ["regua", "Régua"], ["dados", "Dados"]].map(([k, l]) => (
+                    <button key={k} onClick={() => setAbaDetalhe(k)} style={{ background: "none", border: "none", borderBottom: "2px solid " + (abaDetalhe === k ? "#16A34A" : "transparent"), color: abaDetalhe === k ? "#16A34A" : "#94A3B8", fontWeight: 700, fontSize: 12, padding: "6px 6px", cursor: "pointer" }}>{l}</button>
+                  ))}
+                </div>
+                <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                  {loadingDetalhe ? <div style={{ textAlign: "center", color: "#94A3B8", padding: 20, fontSize: 13 }}>Carregando...</div> : (
+                    <>
+                      {abaDetalhe === "conversa" && (
+                        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                          <div style={{ flex: 1, background: "#E5DDD5", borderRadius: 10, padding: 10, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, marginBottom: 8, minHeight: 150 }}>
+                            {mensagensDetalhe.length === 0 ? <div style={{ textAlign: "center", color: "#64748B", fontSize: 12, margin: "auto" }}>Nenhuma mensagem ainda</div> : mensagensDetalhe.map((m, i) => (
+                              <div key={i} style={{ alignSelf: m.direcao === "enviada" ? "flex-end" : "flex-start", maxWidth: "85%", background: m.direcao === "enviada" ? "#DCF8C6" : "#fff", borderRadius: 8, padding: "6px 10px" }}>
+                                <div style={{ fontSize: 12, color: "#0B2B24", whiteSpace: "pre-wrap" }}>{m.texto}</div>
+                                <div style={{ fontSize: 9.5, color: "#94A3B8", textAlign: "right", marginTop: 2 }}>{new Date(m.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <input value={novaMsgDetalhe} onChange={e => setNovaMsgDetalhe(e.target.value)} onKeyDown={e => e.key === "Enter" && enviarMensagemDetalhe()} placeholder="Digite uma mensagem..." style={{ flex: 1, border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "8px 10px", fontSize: 12.5, outline: "none" }} />
+                            <Btn small onClick={enviarMensagemDetalhe} disabled={enviandoDetalhe || !novaMsgDetalhe.trim()}><Ic.send /></Btn>
+                          </div>
+                        </div>
+                      )}
+                      {abaDetalhe === "comprovantes" && (
+                        comprovantes.length === 0 ? (
+                          <div style={{ textAlign: "center", color: "#94A3B8", fontSize: 12.5, padding: 20 }}>Nenhum comprovante identificado ainda. Quando o cliente mandar uma imagem ou mensagem falando de Pix/pagamento, aparece aqui.</div>
+                        ) : (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {comprovantes.map((m, i) => (
+                              <div key={i} style={{ background: "#EFF6FF", borderRadius: 8, padding: "8px 10px", fontSize: 12, color: "#1E40AF" }}>
+                                <div>{m.texto}</div>
+                                <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 3 }}>{new Date(m.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
+                              </div>
+                            ))}
+                            <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 4 }}>💡 O sistema detecta que parece comprovante, mas ainda não guarda a imagem em si — só o texto/aviso da mensagem.</div>
+                          </div>
+                        )
+                      )}
+                      {abaDetalhe === "regua" && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {reguaDetalhe.map(e => {
+                            const info = ETAPAS_INFO[e.etapa] || {};
+                            return (
+                              <div key={e.etapa} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F8FAFC", borderRadius: 8, padding: "8px 10px" }}>
+                                <div>
+                                  <div style={{ fontWeight: 700, fontSize: 12.5, color: "#0B2B24" }}>{info.label || e.etapa}</div>
+                                  <div style={{ fontSize: 10.5, color: "#94A3B8" }}>{e.enviado ? "✅ Enviado" : "Pendente"}</div>
+                                </div>
+                                <div onClick={() => toggleEtapaDetalhe(e.etapa, !e.ativo)} style={{ width: 38, height: 22, borderRadius: 99, background: e.ativo ? (info.cor || "#1E40AF") : "#CBD5E1", cursor: "pointer", position: "relative", flexShrink: 0 }}>
+                                  <div style={{ position: "absolute", top: 2, left: e.ativo ? 18 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left .2s" }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {abaDetalhe === "dados" && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {[["Nome", c.nome], ["CPF", c.cpf || "—"], ["Telefone", c.telefone], ["E-mail", c.email || "—"], ["Valor", fmt(c.total_divida)], ["Vencimento", c.vencimento ? fmtData(c.vencimento.split("T")[0]) : "—"], ["Parcelas", (c.parcela_numero || 1) + "/" + (c.parcelas_total || 1)]].map(([k, v]) => (
+                            <div key={k} style={{ display: "flex", justifyContent: "space-between", background: "#F8FAFC", borderRadius: 8, padding: "8px 10px", fontSize: 12.5 }}>
+                              <span style={{ color: "#94A3B8" }}>{k}</span><span style={{ fontWeight: 700, color: "#0B2B24" }}>{v}</span>
+                            </div>
+                          ))}
+                          <Btn small variant="ghost" onClick={() => setModalEditar(c)} style={{ justifyContent: "center", marginTop: 4 }}><Ic.edit /> Editar dados</Btn>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10, paddingTop: 10, borderTop: "1px solid #F1F5F9" }}>
+                  {c.status !== "pago" && <Btn variant="green" small onClick={() => marcarPago(c)} style={{ justifyContent: "center" }}><Ic.check /> Confirmar pagamento</Btn>}
+                  {c.status !== "blacklist" && <Btn variant="ghost" small onClick={() => alternarPausaRegua(c.id)} style={{ justifyContent: "center" }}>{reguaPausada ? "▶ Retomar régua" : "⏸ Pausar régua"}</Btn>}
+                  {c.status === "aguardando_confirmacao" && <Btn variant="ghost" small onClick={() => rejeitarComprovanteDetalhe(c.id)} style={{ justifyContent: "center" }}>✕ Rejeitar comprovante</Btn>}
+                  <a href={"tel:" + c.telefone} style={{ textDecoration: "none" }}><Btn variant="ghost" small style={{ justifyContent: "center", width: "100%" }}>📞 Ligar para cliente</Btn></a>
                 </div>
               </div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: c.status === "atrasado" ? "#DC2626" : c.status === "pago" ? "#16A34A" : "#0B2B24" }}>{fmt(c.total_divida)}</div>
-            </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-              <Badge status={c.status} />
-              {c.prorrogado && <span style={{ background: "#FEF3C7", color: "#D97706", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>📅 Prorrogado</span>}
-            </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {c.status !== "blacklist" && <button onClick={() => setModalRegua(c)} style={{ background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.regua /> Régua</button>}
-              <button onClick={() => setModalEditar(c)} style={{ background: "#F8FAFC", color: "#374151", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.edit /> Editar</button>
-              {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => setModalProrrogar(c)} style={{ background: "#FFFBEB", color: "#D97706", border: "1.5px solid #FDE68A", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>📅 Prorrogar</button>}
-              {c.status !== "pago" && c.status !== "blacklist" && c.status !== "aguardando_confirmacao" && <button onClick={() => onCobranca(c)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.send /> Cobrar</button>}
-              {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => marcarPago(c)} style={{ background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>✓ Pago</button>}
-              <button onClick={() => setModalConversa(c)} style={{ background: "#ECFDF5", color: "#0E8F63", border: "1.5px solid #A7F3D0", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.eye /></button>
-              <button onClick={() => deletarCliente(c.id)} style={{ background: "#FEF2F2", color: "#DC2626", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.trash /></button>
-            </div>
-          </div>
-        ))}
-        {filtrados.length === 0 && (
-          <div style={{ textAlign: "center", padding: 48, color: "#94A3B8" }}>
-            <div style={{ fontSize: 40, marginBottom: 10 }}>👥</div>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Nenhum cliente</div>
-            <div style={{ fontSize: 13 }}>Cadastre ou importe uma planilha CSV</div>
-          </div>
-        )}
-      </div>
+            );
+          })()}
+        </div>
+      )}
 
       {modalAdd && (
         <Modal title="Novo Cliente" onClose={() => setModalAdd(false)}>
@@ -2245,7 +2521,29 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   const [toastRegua, setToastRegua] = useState(null);
   const showToastRegua = (msg, type = "success") => { setToastRegua({ msg, type }); setTimeout(() => setToastRegua(null), 3000); };
 
-  const [mostrarReguaVisual, setMostrarReguaVisual] = useState(false);
+  const [aba, setAba] = useState("geral");
+  const [taxaRecuperacao, setTaxaRecuperacao] = useState(null);
+  const [horarioInicio, setHorarioInicio] = useState("");
+  const [horarioFim, setHorarioFim] = useState("");
+  const [salvandoHorario, setSalvandoHorario] = useState(false);
+  const [toastHorario, setToastHorario] = useState(null);
+  const showToastHorario = (msg, type = "success") => { setToastHorario({ msg, type }); setTimeout(() => setToastHorario(null), 3000); };
+
+  useEffect(() => {
+    api("/relatorio/inadimplencia", {}, token).then(d => { if (d.taxa_recuperacao !== undefined) setTaxaRecuperacao(d.taxa_recuperacao); });
+    api("/usuarios/me", {}, token).then(d => {
+      if (d.horario_inicio) setHorarioInicio(d.horario_inicio);
+      if (d.horario_fim) setHorarioFim(d.horario_fim);
+    });
+  }, [token]);
+
+  const salvarHorario = async () => {
+    setSalvandoHorario(true);
+    const data = await api("/usuarios/config-regua", { method: "PUT", body: JSON.stringify({ horario_inicio: horarioInicio || null, horario_fim: horarioFim || null }) }, token);
+    setSalvandoHorario(false);
+    if (data.sucesso) showToastHorario("✅ Horário salvo! Vale a partir da próxima passada da régua.");
+    else showToastHorario(data.erro || "Erro ao salvar", "error");
+  };
 
   const ETAPAS_VISUAL = [
     { etapa: "d-3",  label: "D-3",  quando: "3 dias antes do vencimento", cor: "#3B82F6", bg: "#EFF6FF", icone: "🔔" },
@@ -2304,51 +2602,105 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
     setEnviando(false);
   };
 
+  const clientesAtivos = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist").length;
+  const cobrancasHoje = (historico || []).filter(h => new Date(h.criado_em).toDateString() === new Date().toDateString()).length;
+  const horarioLabel = horarioInicio && horarioFim ? horarioInicio + " às " + horarioFim : "Sem restrição de horário";
+
+  const TABS = [
+    { key: "geral", label: "Visão geral" },
+    { key: "etapas", label: "Etapas da régua" },
+    { key: "mensagens", label: "Mensagens" },
+    { key: "horarios", label: "Horários" },
+    { key: "avulsa", label: "Cobrança avulsa" },
+  ];
+
   return (
     <div>
       {toastRegua && <ToastMsg {...toastRegua} />}
-      <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Cobranças</h1>
+      {toastHorario && <ToastMsg {...toastHorario} />}
+      <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Cobrança Automática</h1>
+      <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Configure sua régua de cobrança, edite mensagens e automatize todo o processo.</p>
 
-      <div style={{ background: "linear-gradient(135deg, #EFF6FF, #F0FDF4)", border: "1px solid #BFDBFE", borderRadius: 16, padding: 18, marginBottom: 18 }}>
-        <div style={{ fontWeight: 800, fontSize: 16, color: "#1E40AF", marginBottom: 4 }}>🤖 Régua Automática</div>
-        <div style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.6, marginBottom: 16 }}>
-          Dispara sozinha todo dia, com QR Code Pix real (nunca no sábado ou domingo). Clique num dia abaixo pra ligar ou desligar — vale pra <strong>todos os clientes</strong> que não têm ajuste individual na tela de Clientes.
-        </div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 18, overflowX: "auto", borderBottom: "1px solid #F1F5F9" }}>
+        {TABS.map(t => (
+          <button key={t.key} onClick={() => setAba(t.key)} style={{ background: "none", border: "none", borderBottom: "2px solid " + (aba === t.key ? "#16A34A" : "transparent"), color: aba === t.key ? "#16A34A" : "#64748B", fontWeight: 700, fontSize: 13.5, padding: "10px 12px", cursor: "pointer", whiteSpace: "nowrap" }}>{t.label}</button>
+        ))}
+      </div>
 
-        {carregandoRegua ? (
-          <div style={{ textAlign: "center", padding: 20, color: "#64748B", fontSize: 13 }}>Carregando régua...</div>
-        ) : (
-          <>
-            <div style={{ background: "#fff", borderRadius: 14, padding: "16px 12px", border: "1px solid #E2E8F0", marginBottom: 10, overflowX: "auto" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", marginBottom: 10, letterSpacing: 0.4 }}>EDITANDO — clique num dia pra ativar/desativar</div>
-              <ReguaTimeline etapas={reguaPendente} onToggle={toggleEtapaPendente} editavel etapasInfo={ETAPAS_VISUAL} />
-            </div>
-
-            {houveAlteracao && (
-              <div className="cf-fade" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                <Btn onClick={confirmarAlteracaoRegua} disabled={salvandoRegua} style={{ flex: 1, justifyContent: "center" }}>
-                  {salvandoRegua ? "Salvando..." : "✅ Confirmar alteração"}
-                </Btn>
-                <Btn variant="ghost" onClick={descartarAlteracao} disabled={salvandoRegua}>Descartar</Btn>
+      {aba === "geral" && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 16 }}>
+            {[
+              { label: "Régua ativa para", value: clientesAtivos, sub: "clientes", icon: <Ic.users />, cor: "#16A34A", bg: "#F0FDF4", border: "#BBF7D0" },
+              { label: "Horário configurado", value: horarioLabel, sub: "", icon: <Ic.settings />, cor: "#0284C7", bg: "#EFF6FF", border: "#BFDBFE", pequeno: true },
+              { label: "Taxa de recuperação", value: taxaRecuperacao !== null ? taxaRecuperacao + "%" : "—", sub: "dos clientes", icon: <Ic.trend />, cor: "#7C3AED", bg: "#F5F3FF", border: "#DDD6FE" },
+              { label: "Cobranças hoje", value: cobrancasHoje, sub: "enviadas", icon: <Ic.send />, cor: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE" },
+            ].map(c => (
+              <div key={c.label} style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                  <span style={{ fontSize: 11.5, color: "#64748B", fontWeight: 600 }}>{c.label}</span>
+                  <span style={{ width: 28, height: 28, borderRadius: "50%", background: c.bg, border: "1px solid " + c.border, color: c.cor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{c.icon}</span>
+                </div>
+                <div style={{ fontSize: c.pequeno ? 14 : 20, fontWeight: 800, color: "#0B2B24" }}>{c.value}</div>
+                {c.sub && <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600 }}>{c.sub}</div>}
               </div>
+            ))}
+          </div>
+
+          <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#16A34A", marginBottom: 12, letterSpacing: 0.4 }}>✅ RÉGUA ATUAL — como está funcionando agora</div>
+            {carregandoRegua ? (
+              <div style={{ textAlign: "center", padding: 20, color: "#64748B", fontSize: 13 }}>Carregando...</div>
+            ) : (
+              <div style={{ overflowX: "auto" }}><ReguaTimeline etapas={reguaGlobal} etapasInfo={ETAPAS_VISUAL} /></div>
             )}
-
-            <div style={{ background: "#fff", borderRadius: 14, padding: "16px 12px", border: "1px solid #E2E8F0", marginBottom: 14, overflowX: "auto" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#16A34A", marginBottom: 10, letterSpacing: 0.4 }}>✅ RÉGUA ATUAL — como está funcionando agora</div>
-              <ReguaTimeline etapas={reguaGlobal} etapasInfo={ETAPAS_VISUAL} />
+            <div style={{ fontSize: 12.5, color: "#64748B", marginTop: 14, lineHeight: 1.6 }}>
+              Dispara sozinha todo dia dentro do horário configurado, com QR Code Pix real — nunca no sábado ou domingo. Pra ligar/desligar uma etapa, vai na aba <strong>Etapas da régua</strong>.
             </div>
-          </>
-        )}
+          </div>
+        </div>
+      )}
 
-        <Btn small variant="outline" onClick={() => setMostrarReguaVisual(p => !p)} style={{ width: "100%", justifyContent: "center" }}>
-          {mostrarReguaVisual ? "▲ Esconder exemplos de mensagem" : "👀 Ver exemplo de mensagem de cada etapa"}
-        </Btn>
-        {mostrarReguaVisual && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
+      {aba === "etapas" && (
+        <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
+          <div style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.6, marginBottom: 16 }}>
+            Clique num dia abaixo pra ligar ou desligar — vale pra <strong>todos os clientes</strong> que não têm ajuste individual na tela de Clientes.
+          </div>
+          {carregandoRegua ? (
+            <div style={{ textAlign: "center", padding: 20, color: "#64748B", fontSize: 13 }}>Carregando régua...</div>
+          ) : (
+            <>
+              <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "16px 12px", border: "1px solid #E2E8F0", marginBottom: 10, overflowX: "auto" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", marginBottom: 10, letterSpacing: 0.4 }}>EDITANDO — clique num dia pra ativar/desativar</div>
+                <ReguaTimeline etapas={reguaPendente} onToggle={toggleEtapaPendente} editavel etapasInfo={ETAPAS_VISUAL} />
+              </div>
+
+              {houveAlteracao && (
+                <div className="cf-fade" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                  <Btn onClick={confirmarAlteracaoRegua} disabled={salvandoRegua} style={{ flex: 1, justifyContent: "center" }}>
+                    {salvandoRegua ? "Salvando..." : "✅ Confirmar alteração"}
+                  </Btn>
+                  <Btn variant="ghost" onClick={descartarAlteracao} disabled={salvandoRegua}>Descartar</Btn>
+                </div>
+              )}
+
+              <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "16px 12px", border: "1px solid #E2E8F0", overflowX: "auto" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#16A34A", marginBottom: 10, letterSpacing: 0.4 }}>✅ RÉGUA ATUAL — como está funcionando agora</div>
+                <ReguaTimeline etapas={reguaGlobal} etapasInfo={ETAPAS_VISUAL} />
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {aba === "mensagens" && (
+        <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
+          <div style={{ fontSize: 13.5, color: "#374151", marginBottom: 16 }}>Exemplo da mensagem que cada etapa envia — o nome e valor reais do cliente entram automaticamente no lugar de "Maria Silva" e "R$ 150,00".</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {ETAPAS_VISUAL.map((e, i) => {
               const exemplo = MENSAGENS_PADRAO[e.etapa] ? MENSAGENS_PADRAO[e.etapa]("Maria Silva", "150.00") : "";
               return (
-                <div key={e.etapa} style={{ background: "#fff", borderRadius: 12, padding: 14, border: "1.5px solid " + e.cor + "33", position: "relative" }}>
+                <div key={e.etapa} style={{ background: "#F8FAFC", borderRadius: 12, padding: 14, border: "1.5px solid " + e.cor + "33", position: "relative" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                     <div style={{ width: 36, height: 36, borderRadius: "50%", background: e.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{e.icone}</div>
                     <div>
@@ -2356,29 +2708,48 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
                       <div style={{ fontSize: 12, color: "#64748B" }}>{e.quando}</div>
                     </div>
                   </div>
-                  <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#374151", fontStyle: "italic" }}>"{exemplo}"</div>
-                  {i < ETAPAS_VISUAL.length - 1 && <div style={{ position: "absolute", left: 32, bottom: -14, width: 2, height: 14, background: "#E2E8F0" }} />}
+                  <div style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#374151", fontStyle: "italic" }}>"{exemplo}"</div>
                 </div>
               );
             })}
-            <div style={{ fontSize: 12, color: "#64748B", textAlign: "center", marginTop: 4 }}>💡 Exemplo com dados fictícios — cada cliente recebe com o nome e valor reais dele.</div>
           </div>
-        )}
-      </div>
-
-      {sucesso && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 14, color: "#16A34A", fontWeight: 600 }}>✅ Cobrança enviada!</div>}
-      <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
-        <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>Enviar cobrança avulsa</h3>
-        <Sel label="Cliente" value={clienteSel} onChange={e => setClienteSel(e.target.value)}>
-          <option value="">Selecione...</option>
-          {clientes.filter(c => c.status !== "pago" && c.status !== "blacklist" && c.status !== "aguardando_confirmacao").map(c => <option key={c.id} value={c.id}>{c.nome} — {fmt(c.total_divida)}</option>)}
-        </Sel>
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>Mensagem</label>
-          <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={4} placeholder="Digite a mensagem..." style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", background: "#F8FAFC", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+          <div style={{ fontSize: 12, color: "#64748B", marginTop: 12 }}>💡 Pra personalizar a mensagem de um cliente específico, abre o cliente em Clientes → aba Régua.</div>
         </div>
-        <Btn onClick={enviar} disabled={enviando || !clienteSel || !msg} style={{ width: "100%", justifyContent: "center" }}>{enviando ? "Enviando..." : <><Ic.send /> Enviar via WhatsApp</>}</Btn>
-      </div>
+      )}
+
+      {aba === "horarios" && (
+        <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", maxWidth: 420 }}>
+          <div style={{ fontSize: 13.5, color: "#374151", marginBottom: 16, lineHeight: 1.6 }}>
+            Define a janela de horário em que a régua pode disparar cobranças. Fora desse intervalo (e sábado/domingo, que já é bloqueado sempre), nada é enviado. Deixe em branco pra não ter restrição de horário.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+            <Inp label="Início" type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} />
+            <Inp label="Fim" type="time" value={horarioFim} onChange={e => setHorarioFim(e.target.value)} />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn onClick={salvarHorario} disabled={salvandoHorario} style={{ flex: 1, justifyContent: "center" }}>{salvandoHorario ? "Salvando..." : "💾 Salvar horário"}</Btn>
+            {(horarioInicio || horarioFim) && <Btn variant="ghost" onClick={() => { setHorarioInicio(""); setHorarioFim(""); }} disabled={salvandoHorario}>Limpar</Btn>}
+          </div>
+        </div>
+      )}
+
+      {aba === "avulsa" && (
+        <div>
+          {sucesso && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 14, color: "#16A34A", fontWeight: 600 }}>✅ Cobrança enviada!</div>}
+          <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", maxWidth: 480 }}>
+            <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>Enviar cobrança avulsa</h3>
+            <Sel label="Cliente" value={clienteSel} onChange={e => setClienteSel(e.target.value)}>
+              <option value="">Selecione...</option>
+              {clientes.filter(c => c.status !== "pago" && c.status !== "blacklist" && c.status !== "aguardando_confirmacao").map(c => <option key={c.id} value={c.id}>{c.nome} — {fmt(c.total_divida)}</option>)}
+            </Sel>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>Mensagem</label>
+              <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={4} placeholder="Digite a mensagem..." style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", background: "#F8FAFC", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+            </div>
+            <Btn onClick={enviar} disabled={enviando || !clienteSel || !msg} style={{ width: "100%", justifyContent: "center" }}>{enviando ? "Enviando..." : <><Ic.send /> Enviar via WhatsApp</>}</Btn>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2862,7 +3233,7 @@ export default function CobrarFacil() {
   const renderTela = () => {
     switch(tela) {
       case "dashboard": return <Dashboard clientes={clientes} historico={historico} token={sessaoEfetiva.token} onNavigate={setTela} />;
-      case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={sessaoEfetiva.token} />;
+      case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={sessaoEfetiva.token} isMobile={isMobile} />;
       case "cobrancas": return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessaoEfetiva.token} />;
       case "conversas": return <Conversas clientes={clientes} setClientes={setClientes} token={sessaoEfetiva.token} isMobile={isMobile} />;
       case "pagamentos": return <Pagamentos setClientes={setClientes} token={sessaoEfetiva.token} />;
