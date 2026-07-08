@@ -1056,7 +1056,7 @@ function ModalDetalheLista({ titulo, lista, onClose }) {
   );
 }
 
-function Dashboard({ clientes, token }) {
+function Dashboard({ clientes, historico, token, onNavigate }) {
   const [metricas, setMetricas] = useState(null);
   const [relatorio, setRelatorio] = useState(null);
   const [periodo, setPeriodo] = useState({ inicio: new Date().toISOString().split('T')[0], fim: new Date(Date.now() + 30*86400000).toISOString().split('T')[0] });
@@ -1064,10 +1064,16 @@ function Dashboard({ clientes, token }) {
   const [detalhe, setDetalhe] = useState(null);
   const [mostrarCompleto, setMostrarCompleto] = useState(false);
   const [periodoHero, setPeriodoHero] = useState("mes");
+  const [errosHoje, setErrosHoje] = useState([]);
 
   useEffect(() => {
     api("/metricas", {}, token).then(d => { if (d.total_em_aberto !== undefined) setMetricas(d); });
   }, [clientes]);
+
+  useEffect(() => {
+    const hojeStr = new Date().toISOString().split("T")[0];
+    api("/relatorio/erros-envio?data=" + hojeStr, {}, token).then(d => { if (Array.isArray(d.erros)) setErrosHoje(d.erros); });
+  }, [token]);
 
   const filtrarPeriodo = async () => {
     setFiltrando(true);
@@ -1090,6 +1096,33 @@ function Dashboard({ clientes, token }) {
   const venceHojeList = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist" && c.vencimento && new Date(c.vencimento.split("T")[0] + "T12:00:00").toDateString() === hoje.toDateString());
   const venceSemanaList = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist" && c.vencimento && new Date(c.vencimento.split("T")[0] + "T12:00:00") >= hoje && new Date(c.vencimento.split("T")[0] + "T12:00:00") <= fimSemana);
   const venceMesList = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist" && c.vencimento && new Date(c.vencimento.split("T")[0] + "T12:00:00") >= hoje && new Date(c.vencimento.split("T")[0] + "T12:00:00") <= fimMes);
+
+  const aguardandoConfirmacao = clientes.filter(c => c.status === "aguardando_confirmacao");
+
+  const focoHoje = [
+    aguardandoConfirmacao.length > 0 && {
+      key: "aguardando",
+      emoji: "⏳", cor: "#1D4ED8", bg: "#DBEAFE", border: "#BFDBFE",
+      titulo: aguardandoConfirmacao.length + (aguardandoConfirmacao.length > 1 ? " pagamentos aguardando confirmação" : " pagamento aguardando confirmação"),
+      sub: "Cliente(s) enviaram comprovante",
+      onClick: () => onNavigate && onNavigate("pagamentos"),
+    },
+    errosHoje.length > 0 && {
+      key: "erros",
+      emoji: "⚠️", cor: "#DC2626", bg: "#FEF2F2", border: "#FECACA",
+      titulo: errosHoje.length + (errosHoje.length > 1 ? " cobranças não enviadas hoje" : " cobrança não enviada hoje"),
+      sub: "Falha no envio — verifique o motivo",
+      onClick: () => onNavigate && onNavigate("relatorio"),
+    },
+  ].filter(Boolean);
+
+  const atividadeRecente = (historico || []).slice(0, 5);
+
+  const maioresDevedores = clientes
+    .filter(c => c.status !== "pago" && c.status !== "blacklist")
+    .slice()
+    .sort((a, b) => parseFloat(b.total_divida || 0) - parseFloat(a.total_divida || 0))
+    .slice(0, 5);
 
   return (
     <div>
@@ -1143,6 +1176,24 @@ function Dashboard({ clientes, token }) {
         <span><strong>Não esqueça de dar baixa:</strong> quando o cliente mandar o comprovante do Pix pelo WhatsApp, marque "✓ Pago" na lista de Clientes. Sem isso, o sistema continua cobrando quem já pagou, e o valor não aparece aqui como recebido.</span>
       </div>
 
+      {focoHoje.length > 0 && (
+        <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9", marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 12 }}>🎯 O que você precisa focar hoje</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {focoHoje.map(f => (
+              <div key={f.key} onClick={f.onClick} className="cf-card" style={{ display: "flex", alignItems: "center", gap: 12, background: f.bg, border: "1px solid " + f.border, borderRadius: 12, padding: "12px 14px", cursor: "pointer" }}>
+                <span style={{ fontSize: 20, flexShrink: 0 }}>{f.emoji}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: f.cor }}>{f.titulo}</div>
+                  <div style={{ fontSize: 12, color: "#64748B" }}>{f.sub}</div>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: f.cor, flexShrink: 0 }}>Ver agora →</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 14 }}>
         {[
           { label: "Em atraso", value: fmt(metricas?.atrasados?.valor ?? 0), sub: (metricas?.atrasados?.qtd ?? atrasados.length) + " clientes", icon: <Ic.alert />, color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", lista: atrasados, titulo: "Clientes em atraso" },
@@ -1176,6 +1227,55 @@ function Dashboard({ clientes, token }) {
           </div>
         </div>
       )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 14 }}>
+        <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>🕐 Atividade recente</div>
+            {onNavigate && <button onClick={() => onNavigate("historico")} style={{ background: "none", border: "none", color: "#1E40AF", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Ver tudo →</button>}
+          </div>
+          {atividadeRecente.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#94A3B8", fontSize: 12.5, padding: "20px 0" }}>Nenhuma cobrança enviada ainda</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {atividadeRecente.map(h => (
+                <div key={h.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                  <span style={{ width: 26, height: 26, borderRadius: "50%", background: h.status === "erro" ? "#FEF2F2" : "#F0FDF4", color: h.status === "erro" ? "#DC2626" : "#16A34A", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                    <Ic.whatsapp />
+                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0B2B24" }}>{h.cliente_nome || "—"}</div>
+                    <div style={{ fontSize: 11, color: "#94A3B8" }}>{new Date(h.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}{h.status === "erro" ? " · falhou" : ""}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151" }}>📊 Clientes que mais devem</div>
+            {onNavigate && <button onClick={() => onNavigate("clientes")} style={{ background: "none", border: "none", color: "#1E40AF", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Ver todos →</button>}
+          </div>
+          {maioresDevedores.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#94A3B8", fontSize: 12.5, padding: "20px 0" }}>Nenhum cliente em aberto</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {maioresDevedores.map((c, i) => (
+                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 16, fontSize: 11, color: "#CBD5E1", fontWeight: 700, flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ width: 26, height: 26, borderRadius: "50%", background: "#F1F5F9", color: "#64748B", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{c.nome.charAt(0)}</span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0B2B24", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.nome}</div>
+                  </div>
+                  <span style={{ fontSize: 12.5, fontWeight: 800, color: c.status === "atrasado" ? "#DC2626" : "#0B2B24", flexShrink: 0 }}>{fmt(c.total_divida)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       <button onClick={() => setMostrarCompleto(p => !p)} className="cf-btn" style={{ width: "100%", background: "none", border: "1.5px dashed #CBD5E1", borderRadius: 12, padding: "11px", color: "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: mostrarCompleto ? 12 : 0 }}>
         {mostrarCompleto ? "▲ Esconder relatório completo" : "▼ Ver relatório completo e filtrar por período"}
@@ -2599,7 +2699,7 @@ export default function CobrarFacil() {
 
   const renderTela = () => {
     switch(tela) {
-      case "dashboard": return <Dashboard clientes={clientes} token={sessaoEfetiva.token} />;
+      case "dashboard": return <Dashboard clientes={clientes} historico={historico} token={sessaoEfetiva.token} onNavigate={setTela} />;
       case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={sessaoEfetiva.token} />;
       case "cobrancas": return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessaoEfetiva.token} />;
       case "pagamentos": return <Pagamentos setClientes={setClientes} token={sessaoEfetiva.token} />;
