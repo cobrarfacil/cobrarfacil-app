@@ -1630,6 +1630,8 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
   const [modalConversa, setModalConversa] = useState(null);
   const [modalEditar, setModalEditar] = useState(null);
   const [modalProrrogar, setModalProrrogar] = useState(null);
+  const [modalAdiar, setModalAdiar] = useState(null);
+  const [dataAdiar, setDataAdiar] = useState("");
   const [editando, setEditando] = useState({});
   const [novaData, setNovaData] = useState("");
   const [novo, setNovo] = useState({ nome: "", cpf: "", telefone: "", email: "", total_divida: "", parcelas: "1", vencimento: "" });
@@ -1637,6 +1639,34 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
   const [csvPreview, setCsvPreview] = useState([]);
   const fileRef = useRef();
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+
+  // ─── Adiamento informal ("vou pagar dia X") — não mexe no vencimento nem
+  // no valor, só pausa o contato automático até a data informada. ───────────
+  const emSnooze = (c) => {
+    if (!c.proxima_tentativa) return false;
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const prox = new Date(c.proxima_tentativa.split("T")[0] + "T00:00:00");
+    return prox > hoje;
+  };
+
+  const adiarCobranca = async () => {
+    if (!dataAdiar || !modalAdiar) return;
+    const c = modalAdiar;
+    const data = await api("/clientes/" + c.id + "/adiar", { method: "PUT", body: JSON.stringify({ ate: dataAdiar }) }, token);
+    if (data.sucesso) {
+      setClientes(prev => prev.map(x => x.id === c.id ? { ...x, proxima_tentativa: dataAdiar } : x));
+      setModalAdiar(null); setDataAdiar("");
+      showToast("Cobrança adiada até " + fmtData(dataAdiar) + "! A régua fica em silêncio pra esse cliente até lá.");
+    } else showToast(data.erro || "Erro", "error");
+  };
+
+  const removerAdiamento = async (c) => {
+    const data = await api("/clientes/" + c.id + "/adiar", { method: "PUT", body: JSON.stringify({ ate: null }) }, token);
+    if (data.sucesso) {
+      setClientes(prev => prev.map(x => x.id === c.id ? { ...x, proxima_tentativa: null } : x));
+      showToast("Adiamento removido — volta pra régua normal.");
+    } else showToast(data.erro || "Erro", "error");
+  };
 
   // ─── Painel de detalhe (desktop) ───────────────────────────────────────────
   const [selecionado, setSelecionado] = useState(null);
@@ -1987,11 +2017,14 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
                 <Badge status={c.status} />
                 {c.prorrogado && <span style={{ background: "#FEF3C7", color: "#D97706", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>📅 Prorrogado</span>}
+                {emSnooze(c) && <span style={{ background: "#F5F3FF", color: "#7C3AED", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>⏳ Adiado até {fmtData(c.proxima_tentativa.split("T")[0])}</span>}
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {c.status !== "blacklist" && <button onClick={() => setModalRegua(c)} style={{ background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.regua /> Régua</button>}
                 <button onClick={() => setModalEditar(c)} style={{ background: "#F8FAFC", color: "#374151", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.edit /> Editar</button>
                 {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => setModalProrrogar(c)} style={{ background: "#FFFBEB", color: "#D97706", border: "1.5px solid #FDE68A", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>📅 Prorrogar</button>}
+                {c.status !== "pago" && c.status !== "blacklist" && !emSnooze(c) && <button onClick={() => setModalAdiar(c)} style={{ background: "#F5F3FF", color: "#7C3AED", border: "1.5px solid #DDD6FE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>⏳ Adiar</button>}
+                {emSnooze(c) && <button onClick={() => removerAdiamento(c)} style={{ background: "#F5F3FF", color: "#7C3AED", border: "1.5px solid #DDD6FE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>✕ Cancelar adiamento</button>}
                 {c.status !== "pago" && c.status !== "blacklist" && c.status !== "aguardando_confirmacao" && <button onClick={() => onCobranca(c)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.send /> Cobrar</button>}
                 {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => marcarPago(c)} style={{ background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>✓ Pago</button>}
                 <button onClick={() => setModalConversa(c)} style={{ background: "#ECFDF5", color: "#0E8F63", border: "1.5px solid #A7F3D0", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.eye /></button>
@@ -2052,7 +2085,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                         <td style={tdStyle}>{infoEtapa ? infoEtapa.label : "—"}</td>
                         <td style={{ ...tdStyle, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#64748B" }}>{conv ? (conv.ultima_mensagem_direcao === "enviada" ? "Você: " : "") + conv.ultima_mensagem : "—"}</td>
                         <td style={tdStyle}>{conv && conv.ultima_mensagem_direcao === "recebida" ? new Date(conv.ultima_mensagem_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "Sem resposta"}</td>
-                        <td style={tdStyle}>{c.status === "aguardando_confirmacao" ? "Confirmar pagamento" : infoEtapa ? "Cobrança " + infoEtapa.label : "—"}</td>
+                        <td style={tdStyle}>{emSnooze(c) ? "⏳ Adiado até " + fmtData(c.proxima_tentativa.split("T")[0]) : c.status === "aguardando_confirmacao" ? "Confirmar pagamento" : infoEtapa ? "Cobrança " + infoEtapa.label : "—"}</td>
                         <td style={tdStyle}><Badge status={c.status} /></td>
                       </tr>
                     );
@@ -2081,7 +2114,10 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                   </div>
                   <button onClick={() => setSelecionado(null)} style={{ background: "#F1F5F9", border: "none", borderRadius: 8, width: 28, height: 28, cursor: "pointer", color: "#64748B", flexShrink: 0 }}><Ic.close /></button>
                 </div>
-                <div style={{ marginBottom: 10 }}><Badge status={c.status} /></div>
+                <div style={{ marginBottom: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <Badge status={c.status} />
+                  {emSnooze(c) && <span style={{ background: "#F5F3FF", color: "#7C3AED", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>⏳ Adiado até {fmtData(c.proxima_tentativa.split("T")[0])}</span>}
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
                   <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "8px 10px" }}><div style={{ fontSize: 10, color: "#94A3B8" }}>Valor</div><div style={{ fontWeight: 800, fontSize: 14, color: "#0B2B24" }}>{fmt(c.total_divida)}</div></div>
                   <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "8px 10px" }}><div style={{ fontSize: 10, color: "#94A3B8" }}>Atraso</div><div style={{ fontWeight: 800, fontSize: 14, color: diasAtraso > 0 ? "#DC2626" : "#0B2B24" }}>{diasAtraso > 0 ? diasAtraso + " dias" : "Em dia"}</div></div>
@@ -2161,6 +2197,8 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10, paddingTop: 10, borderTop: "1px solid #F1F5F9" }}>
                   {c.status !== "pago" && <Btn variant="green" small onClick={() => marcarPago(c)} style={{ justifyContent: "center" }}><Ic.check /> Confirmar pagamento</Btn>}
                   {c.status !== "blacklist" && <Btn variant="ghost" small onClick={() => alternarPausaRegua(c.id)} style={{ justifyContent: "center" }}>{reguaPausada ? "▶ Retomar régua" : "⏸ Pausar régua"}</Btn>}
+                  {c.status !== "pago" && c.status !== "blacklist" && !emSnooze(c) && <Btn variant="ghost" small onClick={() => setModalAdiar(c)} style={{ justifyContent: "center" }}>⏳ Adiar cobrança</Btn>}
+                  {emSnooze(c) && <Btn variant="ghost" small onClick={() => removerAdiamento(c)} style={{ justifyContent: "center" }}>✕ Cancelar adiamento</Btn>}
                   {c.status === "aguardando_confirmacao" && <Btn variant="ghost" small onClick={() => rejeitarComprovanteDetalhe(c.id)} style={{ justifyContent: "center" }}>✕ Rejeitar comprovante</Btn>}
                 </div>
               </div>
@@ -2244,6 +2282,19 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
           <div style={{ display: "flex", gap: 10 }}>
             <Btn variant="ghost" onClick={() => { setModalProrrogar(null); setNovaData(""); }} style={{ flex: 1, justifyContent: "center" }}>Cancelar</Btn>
             <Btn onClick={prorrogarDivida} disabled={!novaData} variant="orange" style={{ flex: 1, justifyContent: "center" }}>📅 Confirmar</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {modalAdiar && (
+        <Modal title={"Adiar cobrança — " + modalAdiar.nome} onClose={() => { setModalAdiar(null); setDataAdiar(""); }}>
+          <div style={{ background: "#F5F3FF", borderRadius: 10, padding: "12px 14px", marginBottom: 16, fontSize: 13.5, color: "#5B21B6", lineHeight: 1.55 }}>
+            💡 Use quando o cliente avisar que vai pagar numa data específica. A régua fica em silêncio pra esse cliente até essa data — sem mudar o vencimento nem o valor da dívida, diferente de "Prorrogar".
+          </div>
+          <Inp label="Não cobrar antes de *" type="date" value={dataAdiar} onChange={e => setDataAdiar(e.target.value)} />
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn variant="ghost" onClick={() => { setModalAdiar(null); setDataAdiar(""); }} style={{ flex: 1, justifyContent: "center" }}>Cancelar</Btn>
+            <Btn onClick={adiarCobranca} disabled={!dataAdiar} style={{ flex: 1, justifyContent: "center", background: "linear-gradient(135deg, #8B5CF6, #6D28D9)", boxShadow: "0 3px 10px rgba(109,40,217,0.3)" }}>⏳ Confirmar adiamento</Btn>
           </div>
         </Modal>
       )}
@@ -2659,6 +2710,66 @@ function ReguaTimeline({ etapas, etapasInfo, onToggle, editavel }) {
   );
 }
 
+// ─── RÉGUA: DIAS ESPECÍFICOS DE COBRANÇA (config OPCIONAL por lojista) ──────
+// Sem selecionar nada, a régua dispara em qualquer dia — comportamento de
+// sempre. Selecionando dias, ela só dispara nesses dias do mês, útil pra
+// alinhar a cobrança com o dia de pagamento/salário dos devedores.
+function SeletorDiasCobranca({ token }) {
+  const [dias, setDias] = useState([]);
+  const [salvando, setSalvando] = useState(false);
+  const [carregando, setCarregando] = useState(true);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500); };
+
+  useEffect(() => {
+    api("/usuarios/dias-cobranca", {}, token).then(d => {
+      if (Array.isArray(d.dias)) setDias(d.dias);
+      setCarregando(false);
+    });
+  }, []);
+
+  const toggleDia = (d) => {
+    setDias(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort((a, b) => a - b));
+  };
+
+  const salvar = async () => {
+    setSalvando(true);
+    const data = await api("/usuarios/dias-cobranca", { method: "PUT", body: JSON.stringify({ dias }) }, token);
+    setSalvando(false);
+    if (data.sucesso) showToast(dias.length === 0 ? "Restrição removida — a régua volta a disparar em qualquer dia." : "Dias salvos! A régua só dispara nesses dias do mês agora.");
+    else showToast(data.erro || "Erro ao salvar", "error");
+  };
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9" }}>
+      {toast && <ToastMsg {...toast} />}
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", marginBottom: 4, letterSpacing: 0.4 }}>📅 DIAS ESPECÍFICOS DE COBRANÇA (OPCIONAL)</div>
+      <div style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.6, marginBottom: 16 }}>
+        Sem selecionar nada, a régua dispara em qualquer dia, normalmente. Se você marcar dias aqui (ex: o dia do pagamento dos seus clientes), a régua passa a mandar cobrança <strong>só nesses dias do mês</strong> — os outros dias ficam em silêncio.
+      </div>
+      {carregando ? (
+        <div style={{ textAlign: "center", padding: 16, color: "#94A3B8", fontSize: 13 }}>Carregando...</div>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(38px, 1fr))", gap: 6, marginBottom: 16, maxWidth: 460 }}>
+            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+              <button key={d} onClick={() => toggleDia(d)} className="cf-btn" style={{
+                width: 38, height: 38, borderRadius: 10, border: "1.5px solid " + (dias.includes(d) ? "#7C3AED" : "#E2E8F0"),
+                background: dias.includes(d) ? "#7C3AED" : "#F8FAFC", color: dias.includes(d) ? "#fff" : "#64748B",
+                fontWeight: 700, fontSize: 13, cursor: "pointer",
+              }}>{d}</button>
+            ))}
+          </div>
+          <div style={{ fontSize: 12.5, color: "#94A3B8", marginBottom: 14 }}>
+            {dias.length === 0 ? "Nenhum dia selecionado — sem restrição, dispara todo dia como sempre." : dias.length + " dia(s) selecionado(s): " + dias.join(", ")}
+          </div>
+          <Btn onClick={salvar} disabled={salvando} style={{ justifyContent: "center" }}>{salvando ? "Salvando..." : "💾 Salvar"}</Btn>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, setClientePreSelecionado, token, onEditarCliente }) {
   const [clienteSel, setClienteSel] = useState(clientePreSelecionado?.id?.toString() || "");
   const [msg, setMsg] = useState("");
@@ -2835,6 +2946,10 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
                 )}
               </>
             )}
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <SeletorDiasCobranca token={token} />
           </div>
 
           {mostrarFalhas && (
@@ -3069,7 +3184,7 @@ function Marketing({ token }) {
     const ids = selecionados.size > 0 ? Array.from(selecionados) : [];
     const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagens: mensagensValidas, contato_ids: ids }) }, token);
     setEnviando(false);
-    if (data.sucesso) { setEnviado(true); setTimeout(() => setEnviado(false), 4000); showToast("Campanha iniciada! Os envios serão feitos intercalando as 3 variações, com intervalo de segurança — igual à régua."); }
+    if (data.sucesso) { setEnviado(true); setTimeout(() => setEnviado(false), 4000); showToast(data.mensagem || "Campanha iniciada!"); }
     else showToast(data.erro || "Erro ao disparar", "error");
   };
 
@@ -3132,7 +3247,7 @@ function Marketing({ token }) {
 
       {aba === "campanha" && (
         <div>
-          {enviado && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 14, color: "#16A34A", fontWeight: 600 }}>✅ Campanha iniciada! Os envios acontecem aos poucos, com intervalo de segurança entre cada um — igual à régua de cobrança, pra não bloquear seu WhatsApp.</div>}
+          {enviado && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 14, color: "#16A34A", fontWeight: 600 }}>✅ Campanha iniciada! Os envios respeitam dias úteis e horário comercial, em lotes ao longo do dia, com pausas de segurança entre eles — igual à régua de cobrança, pra não bloquear seu WhatsApp.</div>}
           {contatos.length === 0 ? (
             <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: 16, fontSize: 13.5, color: "#92400E" }}>
               Você ainda não tem contatos cadastrados. Vá na aba "Contatos" pra adicionar antes de enviar uma campanha.
