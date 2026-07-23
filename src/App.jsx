@@ -4161,7 +4161,10 @@ export default function CobrarFacil() {
   }, []);
 
   const carregarDados = () => {
-    if (!token || isAdmin) { setCarregandoDados(false); return; }
+    // Carrega os dados do lojista. No modo suporte (admin acessando como o
+    // lojista) isAdmin continua true, mas AÍ TAMBÉM precisa carregar — só pula
+    // quando está no painel admin de verdade (isAdmin && !impersonando).
+    if (!token || (isAdmin && !impersonando)) { setCarregandoDados(false); return; }
     setCarregandoDados(true);
     Promise.all([api("/clientes", {}, token), api("/cobrancas/historico", {}, token)]).then(([cli, hist]) => {
       if (Array.isArray(cli)) setClientes(cli);
@@ -4169,7 +4172,7 @@ export default function CobrarFacil() {
       setCarregandoDados(false);
     });
   };
-  useEffect(carregarDados, [token, isAdmin]);
+  useEffect(carregarDados, [token, isAdmin, impersonando]);
 
   // ─── Polling do popup de comprovante ────────────────────────────────────
   useEffect(() => {
@@ -4198,7 +4201,7 @@ export default function CobrarFacil() {
   // ─── Vigia de conexão do WhatsApp ───────────────────────────────────────────
   // Só roda logado como lojista (não no admin nem no onboarding, que já têm seu
   // próprio fluxo de QR Code).
-  const { conectado: wppConectado, revalidar: revalidarWpp } = useWhatsappConexao(token, !!token && !isAdmin && !mostrarOnboarding);
+  const { conectado: wppConectado, revalidar: revalidarWpp } = useWhatsappConexao(token, !!token && (!isAdmin || impersonando) && !mostrarOnboarding);
   const [popupWppDispensado, setPopupWppDispensado] = useState(false);
   const [campanhaRodando, setCampanhaRodando] = useState(false);
   const [focoWpp, setFocoWpp] = useState(false);
