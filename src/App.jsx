@@ -16,6 +16,9 @@ const GLOBAL_STYLES = `
   .cf-bar { animation: cfBarGrow 1.1s cubic-bezier(.16,1,.3,1) both; }
   @keyframes cfPulseRing { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 70% { box-shadow: 0 0 0 6px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
   @keyframes cfSlideDown { from { opacity: 0; transform: translate(-50%, -16px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  @keyframes cfBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes cfStripes { from { background-position: 0 0; } to { background-position: 28px 0; } }
+  .cf-stripes { background-image: linear-gradient(45deg, rgba(255,255,255,0.22) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.22) 75%, transparent 75%, transparent); background-size: 28px 28px; animation: cfStripes 0.7s linear infinite; }
   * { -webkit-tap-highlight-color: transparent; }
 `;
 
@@ -3138,7 +3141,7 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   );
 }
 
-function Marketing({ token }) {
+function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
   const [aba, setAba] = useState("contatos");
   const [contatos, setContatos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3186,6 +3189,13 @@ function Marketing({ token }) {
     }
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [campanhaAtual?.status, campanhaAtual?.id]);
+
+  // Avisa o app inteiro se tem campanha rodando — o pop-up de WhatsApp caído usa
+  // isso pra dizer "sua campanha continua de onde parou".
+  useEffect(() => {
+    if (onCampanhaStatus) onCampanhaStatus(!!(campanhaAtual && campanhaAtual.status === "em_andamento"));
+    return () => { if (onCampanhaStatus) onCampanhaStatus(false); };
+  }, [campanhaAtual?.status]);
 
   const variacoesAuto = gerarVariacoesMensagem(mensagem);
   const variacoesFinais = variacoesAuto.map((v, i) => variacoesManual[i] ?? v);
@@ -3279,6 +3289,7 @@ function Marketing({ token }) {
   const enviarCampanha = async () => {
     const mensagensValidas = variacoesFinais.filter(v => v && v.trim());
     if (mensagensValidas.length === 0 || contatos.length === 0) return;
+    if (wppConectado === false) { showToast("Reconecte o WhatsApp antes de disparar a campanha.", "error"); return; }
     setEnviando(true);
     const ids = selecionados.size > 0 ? Array.from(selecionados) : [];
     const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagens: mensagensValidas, contato_ids: ids }) }, token);
@@ -3295,28 +3306,92 @@ function Marketing({ token }) {
 
   const destinatarios = selecionados.size > 0 ? selecionados.size : contatos.length;
 
-  const CardProgressoCampanha = campanhaAtual && (
-    <div className="cf-fade" style={{ background: campanhaAtual.status === "em_andamento" ? "linear-gradient(135deg, #DBEAFE, #EFF6FF)" : "#F0FDF4", border: "2px solid " + (campanhaAtual.status === "em_andamento" ? "#93C5FD" : "#86EFAC"), borderRadius: 16, padding: "16px 18px", marginBottom: 18 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
-        <div style={{ fontWeight: 800, fontSize: 14.5, color: campanhaAtual.status === "em_andamento" ? "#1D4ED8" : "#166534" }}>
-          {campanhaAtual.status === "em_andamento" ? "📤 Campanha em andamento" : campanhaAtual.status === "concluida" ? "✅ Última campanha concluída" : "⚠️ Última campanha teve um erro"}
-        </div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>{campanhaAtual.enviados + campanhaAtual.erros} de {campanhaAtual.total}</div>
-      </div>
-      <div style={{ background: "rgba(0,0,0,0.08)", borderRadius: 99, height: 8, overflow: "hidden", marginBottom: 8 }}>
-        <div style={{ width: Math.min(100, Math.round(((campanhaAtual.enviados + campanhaAtual.erros) / Math.max(1, campanhaAtual.total)) * 100)) + "%", background: campanhaAtual.status === "em_andamento" ? "linear-gradient(90deg, #2563EB, #1D4ED8)" : "linear-gradient(90deg, #16A34A, #22C55E)", height: "100%", borderRadius: 99, transition: "width .5s ease" }} />
-      </div>
-      <div style={{ fontSize: 12.5, color: "#374151", marginBottom: itensCampanha.length > 0 ? 10 : 0 }}>
-        {campanhaAtual.enviados} enviado(s){campanhaAtual.erros > 0 ? " · " + campanhaAtual.erros + " erro(s)" : ""}
-        {campanhaAtual.status === "em_andamento" && " · continua enviando em lotes espaçados, mesmo se você sair dessa tela"}
-      </div>
-      {itensCampanha.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 110, overflowY: "auto" }}>
-          {itensCampanha.slice(0, 30).map((it, i) => (
-            <span key={i} style={{ fontSize: 11.5, fontWeight: 600, padding: "3px 9px", borderRadius: 99, background: it.status === "enviado" ? "#DCFCE7" : "#FEE2E2", color: it.status === "enviado" ? "#166534" : "#991B1B" }}>
-              {it.status === "enviado" ? "✓" : "✕"} {it.nome || "—"}
+  // ─── Contadores da campanha, robustos ao que o backend devolver ─────────────
+  const statusCampanha = campanhaAtual?.status;
+  const emAndamento = statusCampanha === "em_andamento";
+  const pausadaPorWpp = emAndamento && wppConectado === false;
+  const isEnviado = (s) => s === "enviado" || s === "sucesso";
+  const isFila = (s) => s === "fila" || s === "pendente" || s === "aguardando" || s === "na_fila";
+  const enviadosItens = itensCampanha.filter(i => isEnviado(i.status));
+  const filaItens = itensCampanha.filter(i => isFila(i.status));
+  const errosItens = itensCampanha.filter(i => !isEnviado(i.status) && !isFila(i.status));
+  const totalCamp = campanhaAtual?.total || 0;
+  const enviadosN = campanhaAtual?.enviados ?? enviadosItens.length;
+  const errosN = campanhaAtual?.erros ?? errosItens.length;
+  const processadosN = enviadosN + errosN;
+  const filaN = Math.max(0, totalCamp - processadosN);
+  const pct = Math.min(100, Math.round((processadosN / Math.max(1, totalCamp)) * 100));
+  const minutosRestantes = Math.max(1, Math.round((filaN * 15) / 60)); // ~15s por contato (intervalo anti-bloqueio)
+
+  const pillCampanha = pausadaPorWpp
+    ? { txt: "⏸ Pausada — WhatsApp caiu", bg: "#FEE2E2", cor: "#991B1B" }
+    : emAndamento
+      ? { txt: "Enviando agora", bg: "#DBEAFE", cor: "#1D4ED8", vivo: true }
+      : statusCampanha === "concluida"
+        ? { txt: "✅ Campanha concluída", bg: "#DCFCE7", cor: "#166534" }
+        : { txt: "⚠️ Última campanha teve erro", bg: "#FEF3C7", cor: "#92400E" };
+
+  const StatTile = ({ emoji, n, label, cor, bg }) => (
+    <div style={{ flex: "1 1 90px", minWidth: 90, background: bg, borderRadius: 12, padding: "10px 12px", textAlign: "center" }}>
+      <div style={{ fontSize: 20, fontWeight: 800, color: cor, lineHeight: 1.1 }}>{n}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: cor, opacity: 0.85 }}>{emoji} {label}</div>
+    </div>
+  );
+
+  const ListaChips = ({ titulo, itens, corBg, corTxt, marca, vazio }) => (
+    <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+      <div style={{ fontSize: 11.5, fontWeight: 800, color: corTxt, marginBottom: 6 }}>{titulo}</div>
+      {itens.length === 0 ? (
+        <div style={{ fontSize: 12, color: "#94A3B8" }}>{vazio}</div>
+      ) : (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 132, overflowY: "auto" }}>
+          {itens.slice(0, 60).map((it, i) => (
+            <span key={i} style={{ fontSize: 11.5, fontWeight: 600, padding: "3px 9px", borderRadius: 99, background: corBg, color: corTxt, whiteSpace: "nowrap", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>
+              {marca} {it.nome || "—"}
             </span>
           ))}
+          {itens.length > 60 && <span style={{ fontSize: 11.5, fontWeight: 700, color: corTxt, alignSelf: "center" }}>+{itens.length - 60}</span>}
+        </div>
+      )}
+    </div>
+  );
+
+  const CardProgressoCampanha = campanhaAtual && (
+    <div className="cf-fade" style={{ background: "#fff", border: "2px solid " + (pausadaPorWpp ? "#FCA5A5" : emAndamento ? "#93C5FD" : "#86EFAC"), borderRadius: 16, padding: "16px 18px", marginBottom: 18, boxShadow: "0 4px 18px rgba(0,0,0,0.04)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontWeight: 800, fontSize: 13, color: pillCampanha.cor, background: pillCampanha.bg, borderRadius: 99, padding: "5px 12px" }}>
+          {pillCampanha.vivo && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2563EB", display: "inline-block", animation: "cfBlink 1.1s infinite" }} />}
+          {pillCampanha.txt}
+        </span>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#0B2B24" }}>{processadosN} de {totalCamp} <span style={{ color: "#94A3B8", fontWeight: 700 }}>({pct}%)</span></div>
+      </div>
+
+      <div style={{ background: "#F1F5F9", borderRadius: 99, height: 10, overflow: "hidden", marginBottom: 12 }}>
+        <div className={emAndamento && !pausadaPorWpp ? "cf-stripes" : ""} style={{ width: pct + "%", background: pausadaPorWpp ? "linear-gradient(90deg, #DC2626, #B91C1C)" : emAndamento ? "linear-gradient(90deg, #2563EB, #1D4ED8)" : "linear-gradient(90deg, #16A34A, #22C55E)", height: "100%", borderRadius: 99, transition: "width .6s ease" }} />
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <StatTile emoji="✅" n={enviadosN} label="Enviados" cor="#166534" bg="#F0FDF4" />
+        <StatTile emoji="⏳" n={filaN} label="Na fila" cor="#1D4ED8" bg="#EFF6FF" />
+        {errosN > 0 && <StatTile emoji="⚠️" n={errosN} label="Falharam" cor="#B45309" bg="#FFFBEB" />}
+      </div>
+
+      {pausadaPorWpp ? (
+        <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 12.5, color: "#991B1B", fontWeight: 600 }}>📵 WhatsApp desconectado. Os {filaN} contato(s) que faltam continuam de onde pararam assim que você reconectar.</div>
+          {onReconectar && <Btn small onClick={onReconectar} style={{ background: "linear-gradient(135deg, #16A34A, #15803D)" }}><Ic.qr /> Reconectar</Btn>}
+        </div>
+      ) : emAndamento && filaN > 0 ? (
+        <div style={{ fontSize: 12.5, color: "#475569", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          ⏱ <strong>~{minutosRestantes} min</strong> restantes · envia em lotes espaçados, mesmo se você sair dessa tela
+        </div>
+      ) : null}
+
+      {itensCampanha.length > 0 && (
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", borderTop: "1px solid #F1F5F9", paddingTop: 12 }}>
+          <ListaChips titulo={"✅ Já receberam (" + enviadosItens.length + ")"} itens={enviadosItens} corBg="#DCFCE7" corTxt="#166534" marca="✓" vazio="Ninguém ainda — começando agora." />
+          <ListaChips titulo={"⏳ Na fila" + (filaItens.length > 0 ? " (" + filaItens.length + ")" : "")} itens={filaItens} corBg="#EFF6FF" corTxt="#1D4ED8" marca="•" vazio={filaN > 0 ? filaN + " contato(s) aguardando a vez." : "Fila vazia — todo mundo processado."} />
+          {errosItens.length > 0 && <ListaChips titulo={"⚠️ Não entregues (" + errosItens.length + ")"} itens={errosItens} corBg="#FEE2E2" corTxt="#991B1B" marca="✕" vazio="—" />}
         </div>
       )}
     </div>
@@ -3418,8 +3493,14 @@ function Marketing({ token }) {
                   </div>
                 </div>
 
-                <Btn onClick={enviarCampanha} disabled={enviando || (campanhaAtual && campanhaAtual.status === "em_andamento") || variacoesFinais.every(v => !v.trim())} style={{ width: "100%", justifyContent: "center" }}>
-                  {enviando ? "Enviando..." : (campanhaAtual && campanhaAtual.status === "em_andamento") ? "Já tem uma campanha em andamento" : <><Ic.send /> Disparar pra {destinatarios} contato(s)</>}
+                {wppConectado === false && (
+                  <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 13, color: "#991B1B", fontWeight: 600 }}>📵 WhatsApp desconectado — reconecte pra poder disparar a campanha.</div>
+                    {onReconectar && <Btn small onClick={onReconectar} style={{ background: "linear-gradient(135deg, #16A34A, #15803D)" }}><Ic.qr /> Reconectar</Btn>}
+                  </div>
+                )}
+                <Btn onClick={enviarCampanha} disabled={enviando || wppConectado === false || (campanhaAtual && campanhaAtual.status === "em_andamento") || variacoesFinais.every(v => !v.trim())} style={{ width: "100%", justifyContent: "center" }}>
+                  {enviando ? "Enviando..." : wppConectado === false ? "WhatsApp desconectado" : (campanhaAtual && campanhaAtual.status === "em_andamento") ? "Já tem uma campanha em andamento" : <><Ic.send /> Disparar pra {destinatarios} contato(s)</>}
                 </Btn>
               </div>
               <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9", alignSelf: "start" }}>
@@ -3686,7 +3767,7 @@ function Relatorio({ token, clientes, onEditarCliente }) {
   );
 }
 
-function Configuracoes({ usuario, token }) {
+function Configuracoes({ usuario, token, focoWhatsapp, onFocoWhatsappUsado }) {
   const [pixInput, setPixInput] = useState("");
   const [pixTipo, setPixTipo] = useState("cpf_cnpj");
   const [pixSalvo, setPixSalvo] = useState(false);
@@ -3705,12 +3786,24 @@ function Configuracoes({ usuario, token }) {
   const [trocandoSenha, setTrocandoSenha] = useState(false);
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500); };
 
+  const wppCardRef = useRef(null);
+
   useEffect(() => {
     api("/whatsapp/status", {}, token).then(data => {
       if (data.state === "open" || data.instance?.state === "open") setInstanciaWpp("conectado");
       setVerificandoWpp(false);
     }).catch(() => setVerificandoWpp(false));
   }, [token]);
+
+  // Chegou aqui pelo botão "Reconectar" (WhatsApp caiu): rola até o cartão do
+  // WhatsApp e já gera o QR Code, pra reconexão ser 1 toque em vez de caça.
+  useEffect(() => {
+    if (!focoWhatsapp || verificandoWpp) return;
+    if (wppCardRef.current) wppCardRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (instanciaWpp !== "conectado" && !qrCode && !loadingQr) conectarWpp();
+    if (onFocoWhatsappUsado) onFocoWhatsappUsado();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focoWhatsapp, verificandoWpp]);
 
   const salvarNomeEmpresa = async () => {
     if (!nomeEmpresaInput.trim()) return;
@@ -3840,7 +3933,7 @@ function Configuracoes({ usuario, token }) {
             </div>
           )}
         </div>
-        <div style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1px solid #F1F5F9" }}>
+        <div ref={wppCardRef} style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1px solid " + (focoWhatsapp || (!verificandoWpp && instanciaWpp !== "conectado") ? "#FECACA" : "#F1F5F9") }}>
           <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700 }}>📱 Conectar WhatsApp</h3>
           <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Conecte o número do seu negócio para enviar cobranças automáticas</p>
           {verificandoWpp ? (
@@ -3916,6 +4009,105 @@ const NAV_ITEMS = [
   { key: "config",     label: "Config",     icon: <Ic.settings /> },
 ];
 const NAV_MOBILE_PRINCIPAL = ["dashboard", "clientes", "cobrancas", "conversas"];
+
+// ─── VIGIA DE CONEXÃO DO WHATSAPP ────────────────────────────────────────────
+// Roda enquanto o lojista está logado. Confere /whatsapp/status a cada 15s — e a
+// cada 5s quando o número está caído, pra detectar a reconexão rápido e fechar o
+// alerta sozinho. Nunca deriva "desconectado" de um erro de rede: só de uma
+// resposta válida fora de "open", pra não assustar o lojista com pop-up falso.
+function useWhatsappConexao(token, ativo) {
+  const [conectado, setConectado] = useState(null); // null = ainda verificando
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (!ativo || !token) { setConectado(null); return; }
+    let vivo = true;
+    const checar = async () => {
+      const data = await api("/whatsapp/status", {}, token);
+      if (!vivo) return;
+      let proximo = 15000;
+      if (data && !data.erro) {
+        const ok = data.state === "open" || data.instance?.state === "open";
+        setConectado(ok);
+        if (!ok) proximo = 5000;
+      }
+      if (vivo) timerRef.current = setTimeout(checar, proximo);
+    };
+    checar();
+    return () => { vivo = false; if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [token, ativo]);
+
+  // Recheca na hora (usado pelo botão "Já reconectei" do pop-up).
+  const revalidar = async () => {
+    const data = await api("/whatsapp/status", {}, token);
+    if (data && !data.erro) {
+      const ok = data.state === "open" || data.instance?.state === "open";
+      setConectado(ok);
+      return ok;
+    }
+    return null;
+  };
+
+  return { conectado, revalidar };
+}
+
+// Pop-up bloqueante que aparece quando o WhatsApp cai. O lojista reconecta na
+// hora (vai pras Configurações, onde está o QR Code) ou dispensa — e nesse caso
+// o banner fino continua fixo no topo até religar.
+function PopupWhatsappDesconectado({ campanhaRodando, onReconectar, onVerificar, onDispensar }) {
+  const [verificando, setVerificando] = useState(false);
+  const verificar = async () => {
+    setVerificando(true);
+    await onVerificar();
+    setVerificando(false);
+  };
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 3000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div className="cf-fade" style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 440, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.35)" }}>
+        <div style={{ background: "linear-gradient(135deg, #DC2626, #B91C1C)", padding: "22px 24px", color: "#fff", textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 6 }}>📵</div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>Seu WhatsApp desconectou</div>
+        </div>
+        <div style={{ padding: "20px 24px 24px" }}>
+          <p style={{ margin: "0 0 14px", fontSize: 14.5, color: "#374151", lineHeight: 1.55 }}>
+            {campanhaRodando
+              ? "Sua campanha ficou pausada. Assim que você religar o WhatsApp, ela continua de onde parou — os contatos que ainda não receberam entram de novo na fila, nenhum é perdido."
+              : "Enquanto ele estiver desconectado, o sistema não consegue enviar cobranças nem campanhas. Religue pra voltar a enviar."}
+          </p>
+          <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, padding: "12px 14px", marginBottom: 18, fontSize: 13, color: "#991B1B" }}>
+            💡 Costuma cair quando o celular fica sem internet, desliga, ou o WhatsApp é aberto em outro aparelho. É só escanear o QR Code de novo.
+          </div>
+          <Btn onClick={onReconectar} style={{ width: "100%", justifyContent: "center", background: "linear-gradient(135deg, #16A34A, #15803D)", marginBottom: 10 }}>
+            <Ic.qr /> Reconectar agora
+          </Btn>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn variant="ghost" onClick={verificar} disabled={verificando} style={{ flex: 1, justifyContent: "center" }}>
+              {verificando ? "Verificando..." : "Já reconectei"}
+            </Btn>
+            <Btn variant="ghost" onClick={onDispensar} style={{ flex: 1, justifyContent: "center", color: "#94A3B8" }}>
+              Agora não
+            </Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Banner fino e fixo — visível sempre que o WhatsApp está caído, mesmo depois de
+// dispensar o pop-up. Garante que o alerta nunca some totalmente até religar.
+function BannerWhatsappDesconectado({ onReconectar }) {
+  return (
+    <div style={{ background: "linear-gradient(90deg, #DC2626, #B91C1C)", color: "#fff", padding: "9px 16px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#FCA5A5", display: "inline-block", animation: "cfBlink 1.4s infinite" }} />
+        WhatsApp desconectado — as mensagens não estão saindo
+      </span>
+      <button onClick={onReconectar} className="cf-btn" style={{ background: "#fff", color: "#B91C1C", border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}>Reconectar →</button>
+    </div>
+  );
+}
 
 export default function CobrarFacil() {
   const [token, setToken] = useState(localStorage.getItem("cobrarfacil_token") || "");
@@ -3997,6 +4189,20 @@ export default function CobrarFacil() {
   const analisarRecebimento = () => { setNotificacoes([]); setTela("pagamentos"); setMostrarMais(false); };
   const dispensarNotificacao = () => setNotificacoes([]);
 
+  // ─── Vigia de conexão do WhatsApp ───────────────────────────────────────────
+  // Só roda logado como lojista (não no admin nem no onboarding, que já têm seu
+  // próprio fluxo de QR Code).
+  const { conectado: wppConectado, revalidar: revalidarWpp } = useWhatsappConexao(token, !!token && !isAdmin && !mostrarOnboarding);
+  const [popupWppDispensado, setPopupWppDispensado] = useState(false);
+  const [campanhaRodando, setCampanhaRodando] = useState(false);
+  const [focoWpp, setFocoWpp] = useState(false);
+  const wppCaiu = wppConectado === false;
+
+  // Quando religa, zera a dispensa pra que uma próxima queda mostre o pop-up de novo.
+  useEffect(() => { if (wppConectado === true) setPopupWppDispensado(false); }, [wppConectado]);
+
+  const reconectarWpp = () => { setPopupWppDispensado(true); setFocoWpp(true); setTela("config"); setMostrarMais(false); };
+
   const handleLogin = ({ isAdmin: adminFlag, usuario: u, token: t }) => {
     setToken(t); setUsuario(u); setIsAdmin(!!adminFlag);
     setImpersonando(false); setMostrarOnboarding(!adminFlag); setTela("dashboard");
@@ -4031,11 +4237,11 @@ export default function CobrarFacil() {
       case "dashboard":  return <Dashboard clientes={clientes} historico={historico} token={token} onNavigate={irPara} />;
       case "clientes":   return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={token} isMobile={isMobile} />;
       case "cobrancas":  return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={token} onEditarCliente={irParaEditarCliente} />;
-      case "marketing":  return <Marketing token={token} />;
+      case "marketing":  return <Marketing token={token} wppConectado={wppConectado} onReconectar={reconectarWpp} onCampanhaStatus={setCampanhaRodando} />;
       case "conversas":  return <Conversas clientes={clientes} setClientes={setClientes} token={token} isMobile={isMobile} />;
       case "pagamentos": return <Pagamentos setClientes={setClientes} token={token} />;
       case "relatorio":  return <Relatorio token={token} clientes={clientes} onEditarCliente={irParaEditarCliente} />;
-      case "config":     return <Configuracoes usuario={usuario} token={token} />;
+      case "config":     return <Configuracoes usuario={usuario} token={token} focoWhatsapp={focoWpp} onFocoWhatsappUsado={() => setFocoWpp(false)} />;
       default: return null;
     }
   };
@@ -4062,6 +4268,16 @@ export default function CobrarFacil() {
 
   const PopupNotificacao = <NotificacaoComprovante notificacoes={notificacoes} onAnalisar={analisarRecebimento} onDispensar={dispensarNotificacao} />;
 
+  const PopupWpp = wppCaiu && !popupWppDispensado && (
+    <PopupWhatsappDesconectado
+      campanhaRodando={campanhaRodando}
+      onReconectar={reconectarWpp}
+      onVerificar={revalidarWpp}
+      onDispensar={() => setPopupWppDispensado(true)}
+    />
+  );
+  const BannerWpp = wppCaiu && <BannerWhatsappDesconectado onReconectar={reconectarWpp} />;
+
   const ImpersonandoBanner = impersonando && (
     <div style={{ background: "#7C2D12", color: "#FED7AA", padding: "8px 16px", fontSize: 12.5, fontWeight: 700, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
       🔧 Você está acessando como {usuario.nome} (modo suporte)
@@ -4074,6 +4290,8 @@ export default function CobrarFacil() {
       <div style={{ minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: 74 }}>
         <style>{GLOBAL_STYLES}</style>
         {PopupNotificacao}
+        {PopupWpp}
+        {BannerWpp}
         {ImpersonandoBanner}
         <div style={{ padding: "16px 16px 8px" }}>
           {carregandoDados ? <div style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}>Carregando...</div> : renderTela()}
@@ -4116,6 +4334,7 @@ export default function CobrarFacil() {
     <div style={{ minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif", display: "flex" }}>
       <style>{GLOBAL_STYLES}</style>
       {PopupNotificacao}
+      {PopupWpp}
       <div style={{ width: 232, background: "#0B2B24", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "22px 18px 18px" }}>
           <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 32, height: 32, borderRadius: "50%" }} />
@@ -4141,6 +4360,7 @@ export default function CobrarFacil() {
         </div>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
+        {BannerWpp}
         {ImpersonandoBanner}
         <div style={{ padding: "26px 32px", maxWidth: 1280, margin: "0 auto" }}>
           {carregandoDados ? <div style={{ textAlign: "center", padding: 60, color: "#94A3B8" }}>Carregando...</div> : renderTela()}
