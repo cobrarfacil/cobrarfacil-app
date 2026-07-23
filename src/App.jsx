@@ -15,6 +15,7 @@ const GLOBAL_STYLES = `
   @keyframes cfBarGrow { from { width: 0%; } }
   .cf-bar { animation: cfBarGrow 1.1s cubic-bezier(.16,1,.3,1) both; }
   @keyframes cfPulseRing { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 70% { box-shadow: 0 0 0 6px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+  @keyframes cfSlideDown { from { opacity: 0; transform: translate(-50%, -16px); } to { opacity: 1; transform: translate(-50%, 0); } }
   * { -webkit-tap-highlight-color: transparent; }
 `;
 
@@ -1640,6 +1641,29 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
   const fileRef = useRef();
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
+  // ─── Seleção em massa (checkboxes) ─────────────────────────────────────────
+  const [selecionados, setSelecionados] = useState(new Set());
+  const [excluindoSelecionados, setExcluindoSelecionados] = useState(false);
+
+  const toggleSelecionado = (id) => {
+    setSelecionados(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+  const limparSelecao = () => setSelecionados(new Set());
+
+  const excluirSelecionados = async () => {
+    if (selecionados.size === 0) return;
+    if (!confirm("Remover " + selecionados.size + " cliente(s) selecionado(s)? Essa ação não pode ser desfeita.")) return;
+    setExcluindoSelecionados(true);
+    const ids = Array.from(selecionados);
+    const data = await api("/clientes/deletar-lote", { method: "POST", body: JSON.stringify({ ids }) }, token);
+    setExcluindoSelecionados(false);
+    if (data.sucesso) {
+      setClientes(prev => prev.filter(c => !selecionados.has(c.id)));
+      showToast(data.deletados + " cliente(s) removido(s)!");
+      limparSelecao();
+    } else showToast(data.erro || "Erro ao excluir selecionados", "error");
+  };
+
   // ─── Adiamento informal ("vou pagar dia X") — não mexe no vencimento nem
   // no valor, só pausa o contato automático até a data informada. ───────────
   const emSnooze = (c) => {
@@ -1767,6 +1791,15 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
     return c.status === filtro;
   });
 
+  const todosFiltradosSelecionados = filtrados.length > 0 && filtrados.every(c => selecionados.has(c.id));
+  const toggleSelecionarTodosFiltrados = () => {
+    if (todosFiltradosSelecionados) {
+      setSelecionados(prev => { const n = new Set(prev); filtrados.forEach(c => n.delete(c.id)); return n; });
+    } else {
+      setSelecionados(prev => { const n = new Set(prev); filtrados.forEach(c => n.add(c.id)); return n; });
+    }
+  };
+
   const addCliente = async () => {
     if (!novo.nome || !novo.telefone || !novo.total_divida) return;
     const data = await api("/clientes", { method: "POST", body: JSON.stringify(novo) }, token);
@@ -1807,6 +1840,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
     if (!confirm("Remover este cliente?")) return;
     await api("/clientes/" + id, { method: "DELETE" }, token);
     setClientes(prev => prev.filter(x => x.id !== id));
+    setSelecionados(prev => { const n = new Set(prev); n.delete(id); return n; });
     showToast("Removido!");
   };
 
@@ -1997,38 +2031,66 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
 
       <input placeholder="🔍 Buscar cliente, telefone..." value={busca} onChange={e => setBusca(e.target.value)} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", background: "#F8FAFC", marginBottom: 14, boxSizing: "border-box" }} />
 
+      {/* ─── Barra de ação em massa — some enquanto não houver seleção ───────── */}
+      {selecionados.size > 0 && (
+        <div className="cf-fade" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: "#0B2B24", borderRadius: 12, padding: "10px 16px", marginBottom: 14, flexWrap: "wrap" }}>
+          <div style={{ color: "#fff", fontSize: 13.5, fontWeight: 700 }}>{selecionados.size} cliente(s) selecionado(s)</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn small variant="ghost" onClick={limparSelecao}>Limpar seleção</Btn>
+            <Btn small variant="danger" onClick={excluirSelecionados} disabled={excluindoSelecionados}>
+              <Ic.trash /> {excluindoSelecionados ? "Excluindo..." : "Excluir selecionados"}
+            </Btn>
+          </div>
+        </div>
+      )}
+
       {isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {filtrados.length > 0 && (
+            <div onClick={toggleSelecionarTodosFiltrados} style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 4px 2px", cursor: "pointer" }}>
+              <div style={{ width: 18, height: 18, borderRadius: 5, border: "1.5px solid " + (todosFiltradosSelecionados ? "#16A34A" : "#CBD5E1"), background: todosFiltradosSelecionados ? "#16A34A" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {todosFiltradosSelecionados && <span style={{ color: "#fff", fontSize: 11, lineHeight: 1 }}>✓</span>}
+              </div>
+              <span style={{ fontSize: 12.5, color: "#64748B", fontWeight: 600 }}>Selecionar todos ({filtrados.length})</span>
+            </div>
+          )}
           {filtrados.map(c => (
-            <div key={c.id} style={{ background: "#fff", borderRadius: 14, border: "1px solid " + (c.status === "atrasado" ? "#FECACA" : c.status === "blacklist" ? "#1F2937" : "#F1F5F9"), padding: "14px 16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 40, height: 40, background: c.status === "blacklist" ? "#1F2937" : "linear-gradient(135deg, #DBEAFE, #BFDBFE)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: c.status === "blacklist" ? "#F9FAFB" : "#1E40AF", flexShrink: 0 }}>
-                    {c.status === "blacklist" ? "🚫" : c.nome.charAt(0)}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: "#0B2B24" }}>{c.nome}</div>
-                    <div style={{ fontSize: 12, color: "#94A3B8" }}>{c.telefone}</div>
-                    {c.vencimento && <div style={{ fontSize: 12, color: c.status === "atrasado" ? "#DC2626" : "#64748B" }}>Vence: {fmtData(c.vencimento.split("T")[0])}</div>}
-                  </div>
+            <div key={c.id} style={{ background: "#fff", borderRadius: 14, border: "1px solid " + (c.status === "atrasado" ? "#FECACA" : c.status === "blacklist" ? "#1F2937" : "#F1F5F9"), padding: "14px 16px", display: "flex", gap: 10 }}>
+              <div onClick={() => toggleSelecionado(c.id)} style={{ paddingTop: 2, cursor: "pointer", flexShrink: 0 }}>
+                <div style={{ width: 18, height: 18, borderRadius: 5, border: "1.5px solid " + (selecionados.has(c.id) ? "#16A34A" : "#CBD5E1"), background: selecionados.has(c.id) ? "#16A34A" : "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {selecionados.has(c.id) && <span style={{ color: "#fff", fontSize: 11, lineHeight: 1 }}>✓</span>}
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: c.status === "atrasado" ? "#DC2626" : c.status === "pago" ? "#16A34A" : "#0B2B24" }}>{fmt(c.total_divida)}</div>
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-                <Badge status={c.status} />
-                {c.prorrogado && <span style={{ background: "#FEF3C7", color: "#D97706", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>📅 Prorrogado</span>}
-                {emSnooze(c) && <span style={{ background: "#F5F3FF", color: "#7C3AED", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>⏳ Adiado até {fmtData(c.proxima_tentativa.split("T")[0])}</span>}
-              </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {c.status !== "blacklist" && <button onClick={() => setModalRegua(c)} style={{ background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.regua /> Régua</button>}
-                <button onClick={() => setModalEditar(c)} style={{ background: "#F8FAFC", color: "#374151", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.edit /> Editar</button>
-                {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => setModalProrrogar(c)} style={{ background: "#FFFBEB", color: "#D97706", border: "1.5px solid #FDE68A", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>📅 Prorrogar</button>}
-                {c.status !== "pago" && c.status !== "blacklist" && !emSnooze(c) && <button onClick={() => setModalAdiar(c)} style={{ background: "#F5F3FF", color: "#7C3AED", border: "1.5px solid #DDD6FE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>⏳ Adiar</button>}
-                {emSnooze(c) && <button onClick={() => removerAdiamento(c)} style={{ background: "#F5F3FF", color: "#7C3AED", border: "1.5px solid #DDD6FE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>✕ Cancelar adiamento</button>}
-                {c.status !== "pago" && c.status !== "blacklist" && c.status !== "aguardando_confirmacao" && <button onClick={() => onCobranca(c)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.send /> Cobrar</button>}
-                {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => marcarPago(c)} style={{ background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>✓ Pago</button>}
-                <button onClick={() => setModalConversa(c)} style={{ background: "#ECFDF5", color: "#0E8F63", border: "1.5px solid #A7F3D0", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.eye /></button>
-                <button onClick={() => deletarCliente(c.id)} style={{ background: "#FEF2F2", color: "#DC2626", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.trash /></button>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 40, height: 40, background: c.status === "blacklist" ? "#1F2937" : "linear-gradient(135deg, #DBEAFE, #BFDBFE)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: c.status === "blacklist" ? "#F9FAFB" : "#1E40AF", flexShrink: 0 }}>
+                      {c.status === "blacklist" ? "🚫" : c.nome.charAt(0)}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: "#0B2B24" }}>{c.nome}</div>
+                      <div style={{ fontSize: 12, color: "#94A3B8" }}>{c.telefone}</div>
+                      {c.vencimento && <div style={{ fontSize: 12, color: c.status === "atrasado" ? "#DC2626" : "#64748B" }}>Vence: {fmtData(c.vencimento.split("T")[0])}</div>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: c.status === "atrasado" ? "#DC2626" : c.status === "pago" ? "#16A34A" : "#0B2B24" }}>{fmt(c.total_divida)}</div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                  <Badge status={c.status} />
+                  {c.prorrogado && <span style={{ background: "#FEF3C7", color: "#D97706", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>📅 Prorrogado</span>}
+                  {emSnooze(c) && <span style={{ background: "#F5F3FF", color: "#7C3AED", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>⏳ Adiado até {fmtData(c.proxima_tentativa.split("T")[0])}</span>}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {c.status !== "blacklist" && <button onClick={() => setModalRegua(c)} style={{ background: "#EFF6FF", color: "#1E40AF", border: "1.5px solid #BFDBFE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.regua /> Régua</button>}
+                  <button onClick={() => setModalEditar(c)} style={{ background: "#F8FAFC", color: "#374151", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.edit /> Editar</button>
+                  {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => setModalProrrogar(c)} style={{ background: "#FFFBEB", color: "#D97706", border: "1.5px solid #FDE68A", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>📅 Prorrogar</button>}
+                  {c.status !== "pago" && c.status !== "blacklist" && !emSnooze(c) && <button onClick={() => setModalAdiar(c)} style={{ background: "#F5F3FF", color: "#7C3AED", border: "1.5px solid #DDD6FE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>⏳ Adiar</button>}
+                  {emSnooze(c) && <button onClick={() => removerAdiamento(c)} style={{ background: "#F5F3FF", color: "#7C3AED", border: "1.5px solid #DDD6FE", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>✕ Cancelar adiamento</button>}
+                  {c.status !== "pago" && c.status !== "blacklist" && c.status !== "aguardando_confirmacao" && <button onClick={() => onCobranca(c)} style={{ background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Ic.send /> Cobrar</button>}
+                  {c.status !== "pago" && c.status !== "blacklist" && <button onClick={() => marcarPago(c)} style={{ background: "#F1F5F9", color: "#374151", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>✓ Pago</button>}
+                  <button onClick={() => setModalConversa(c)} style={{ background: "#ECFDF5", color: "#0E8F63", border: "1.5px solid #A7F3D0", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.eye /></button>
+                  <button onClick={() => deletarCliente(c.id)} style={{ background: "#FEF2F2", color: "#DC2626", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.trash /></button>
+                </div>
               </div>
             </div>
           ))}
@@ -2053,6 +2115,11 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #F1F5F9", textAlign: "left" }}>
+                    <th style={{ ...thStyle, width: 34 }}>
+                      <div onClick={toggleSelecionarTodosFiltrados} style={{ width: 17, height: 17, borderRadius: 5, border: "1.5px solid " + (todosFiltradosSelecionados ? "#16A34A" : "#CBD5E1"), background: todosFiltradosSelecionados ? "#16A34A" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                        {todosFiltradosSelecionados && <span style={{ color: "#fff", fontSize: 10, lineHeight: 1 }}>✓</span>}
+                      </div>
+                    </th>
                     <th style={thStyle}>Cliente</th>
                     <th style={thStyle}>Valor</th>
                     <th style={thStyle}>Atraso</th>
@@ -2070,8 +2137,13 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                     const infoEtapa = etapa ? ETAPAS_INFO[etapa] : null;
                     const diasAtraso = c.vencimento ? Math.round((new Date() - new Date(c.vencimento.split("T")[0] + "T00:00:00")) / 86400000) : null;
                     return (
-                      <tr key={c.id} onClick={() => { setSelecionado(c.id); setAbaDetalhe("conversa"); }} style={{ cursor: "pointer", background: selecionado === c.id ? "#EFF6FF" : "transparent", borderBottom: "1px solid #F8FAFC" }}>
-                        <td style={tdStyle}>
+                      <tr key={c.id} style={{ cursor: "pointer", background: selecionado === c.id ? "#EFF6FF" : selecionados.has(c.id) ? "#F0FDF4" : "transparent", borderBottom: "1px solid #F8FAFC" }}>
+                        <td style={tdStyle} onClick={e => e.stopPropagation()}>
+                          <div onClick={() => toggleSelecionado(c.id)} style={{ width: 17, height: 17, borderRadius: 5, border: "1.5px solid " + (selecionados.has(c.id) ? "#16A34A" : "#CBD5E1"), background: selecionados.has(c.id) ? "#16A34A" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                            {selecionados.has(c.id) && <span style={{ color: "#fff", fontSize: 10, lineHeight: 1 }}>✓</span>}
+                          </div>
+                        </td>
+                        <td style={tdStyle} onClick={() => { setSelecionado(c.id); setAbaDetalhe("conversa"); }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <div style={{ width: 30, height: 30, borderRadius: "50%", background: c.status === "blacklist" ? "#1F2937" : "linear-gradient(135deg, #DBEAFE, #BFDBFE)", color: c.status === "blacklist" ? "#F9FAFB" : "#1E40AF", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, flexShrink: 0 }}>{c.status === "blacklist" ? "🚫" : c.nome.charAt(0)}</div>
                             <div style={{ minWidth: 0 }}>
@@ -2080,13 +2152,13 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                             </div>
                           </div>
                         </td>
-                        <td style={tdStyle}><strong>{fmt(c.total_divida)}</strong></td>
-                        <td style={{ ...tdStyle, color: diasAtraso > 0 ? "#DC2626" : "#64748B" }}>{diasAtraso > 0 ? diasAtraso + " dias" : "—"}</td>
-                        <td style={tdStyle}>{infoEtapa ? infoEtapa.label : "—"}</td>
-                        <td style={{ ...tdStyle, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#64748B" }}>{conv ? (conv.ultima_mensagem_direcao === "enviada" ? "Você: " : "") + conv.ultima_mensagem : "—"}</td>
-                        <td style={tdStyle}>{conv && conv.ultima_mensagem_direcao === "recebida" ? new Date(conv.ultima_mensagem_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "Sem resposta"}</td>
-                        <td style={tdStyle}>{emSnooze(c) ? "⏳ Adiado até " + fmtData(c.proxima_tentativa.split("T")[0]) : c.status === "aguardando_confirmacao" ? "Confirmar pagamento" : infoEtapa ? "Cobrança " + infoEtapa.label : "—"}</td>
-                        <td style={tdStyle}><Badge status={c.status} /></td>
+                        <td style={tdStyle} onClick={() => { setSelecionado(c.id); setAbaDetalhe("conversa"); }}><strong>{fmt(c.total_divida)}</strong></td>
+                        <td style={{ ...tdStyle, color: diasAtraso > 0 ? "#DC2626" : "#64748B" }} onClick={() => { setSelecionado(c.id); setAbaDetalhe("conversa"); }}>{diasAtraso > 0 ? diasAtraso + " dias" : "—"}</td>
+                        <td style={tdStyle} onClick={() => { setSelecionado(c.id); setAbaDetalhe("conversa"); }}>{infoEtapa ? infoEtapa.label : "—"}</td>
+                        <td style={{ ...tdStyle, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#64748B" }} onClick={() => { setSelecionado(c.id); setAbaDetalhe("conversa"); }}>{conv ? (conv.ultima_mensagem_direcao === "enviada" ? "Você: " : "") + conv.ultima_mensagem : "—"}</td>
+                        <td style={tdStyle} onClick={() => { setSelecionado(c.id); setAbaDetalhe("conversa"); }}>{conv && conv.ultima_mensagem_direcao === "recebida" ? new Date(conv.ultima_mensagem_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "Sem resposta"}</td>
+                        <td style={tdStyle} onClick={() => { setSelecionado(c.id); setAbaDetalhe("conversa"); }}>{emSnooze(c) ? "⏳ Adiado até " + fmtData(c.proxima_tentativa.split("T")[0]) : c.status === "aguardando_confirmacao" ? "Confirmar pagamento" : infoEtapa ? "Cobrança " + infoEtapa.label : "—"}</td>
+                        <td style={tdStyle} onClick={() => { setSelecionado(c.id); setAbaDetalhe("conversa"); }}><Badge status={c.status} /></td>
                       </tr>
                     );
                   })}
@@ -2200,6 +2272,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                   {c.status !== "pago" && c.status !== "blacklist" && !emSnooze(c) && <Btn variant="ghost" small onClick={() => setModalAdiar(c)} style={{ justifyContent: "center" }}>⏳ Adiar cobrança</Btn>}
                   {emSnooze(c) && <Btn variant="ghost" small onClick={() => removerAdiamento(c)} style={{ justifyContent: "center" }}>✕ Cancelar adiamento</Btn>}
                   {c.status === "aguardando_confirmacao" && <Btn variant="ghost" small onClick={() => rejeitarComprovanteDetalhe(c.id)} style={{ justifyContent: "center" }}>✕ Rejeitar comprovante</Btn>}
+                  <Btn variant="ghost" small onClick={() => deletarCliente(c.id)} style={{ justifyContent: "center", color: "#DC2626" }}><Ic.trash /> Excluir cliente</Btn>
                 </div>
               </div>
             );
@@ -3086,7 +3159,33 @@ function Marketing({ token }) {
   const [variacoesManual, setVariacoesManual] = useState([null, null, null]);
   const [selecionados, setSelecionados] = useState(new Set());
   const [enviando, setEnviando] = useState(false);
-  const [enviado, setEnviado] = useState(false);
+
+  // ─── Progresso da campanha — persiste no banco (marketing_campanhas), então
+  // sobrevive a troca de tela ou recarregar a página. Faz polling a cada 5s
+  // enquanto status === 'em_andamento'. ───────────────────────────────────────
+  const [campanhaAtual, setCampanhaAtual] = useState(null); // { id, total, enviados, erros, status }
+  const [itensCampanha, setItensCampanha] = useState([]);
+  const pollRef = useRef(null);
+
+  const buscarCampanhaAtual = async () => {
+    const data = await api("/marketing/campanha-atual", {}, token);
+    if (data && data.campanha !== undefined) {
+      setCampanhaAtual(data.campanha);
+      setItensCampanha(Array.isArray(data.itens) ? data.itens : []);
+      return data.campanha;
+    }
+    return null;
+  };
+
+  useEffect(() => { buscarCampanhaAtual(); }, []);
+
+  useEffect(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (campanhaAtual && campanhaAtual.status === "em_andamento") {
+      pollRef.current = setInterval(buscarCampanhaAtual, 5000);
+    }
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [campanhaAtual?.status, campanhaAtual?.id]);
 
   const variacoesAuto = gerarVariacoesMensagem(mensagem);
   const variacoesFinais = variacoesAuto.map((v, i) => variacoesManual[i] ?? v);
@@ -3184,17 +3283,52 @@ function Marketing({ token }) {
     const ids = selecionados.size > 0 ? Array.from(selecionados) : [];
     const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagens: mensagensValidas, contato_ids: ids }) }, token);
     setEnviando(false);
-    if (data.sucesso) { setEnviado(true); setTimeout(() => setEnviado(false), 4000); showToast(data.mensagem || "Campanha iniciada!"); }
-    else showToast(data.erro || "Erro ao disparar", "error");
+    if (data.sucesso) {
+      showToast(data.mensagem || "Campanha iniciada!");
+      // Estado otimista — a próxima checagem em buscarCampanhaAtual() confirma
+      // e já traz enviados/erros reais direto do banco.
+      setCampanhaAtual({ id: data.campanha_id, total: data.total, enviados: 0, erros: 0, status: "em_andamento" });
+      setItensCampanha([]);
+      buscarCampanhaAtual();
+    } else showToast(data.erro || "Erro ao disparar", "error");
   };
 
   const destinatarios = selecionados.size > 0 ? selecionados.size : contatos.length;
+
+  const CardProgressoCampanha = campanhaAtual && (
+    <div className="cf-fade" style={{ background: campanhaAtual.status === "em_andamento" ? "linear-gradient(135deg, #DBEAFE, #EFF6FF)" : "#F0FDF4", border: "2px solid " + (campanhaAtual.status === "em_andamento" ? "#93C5FD" : "#86EFAC"), borderRadius: 16, padding: "16px 18px", marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontWeight: 800, fontSize: 14.5, color: campanhaAtual.status === "em_andamento" ? "#1D4ED8" : "#166534" }}>
+          {campanhaAtual.status === "em_andamento" ? "📤 Campanha em andamento" : campanhaAtual.status === "concluida" ? "✅ Última campanha concluída" : "⚠️ Última campanha teve um erro"}
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>{campanhaAtual.enviados + campanhaAtual.erros} de {campanhaAtual.total}</div>
+      </div>
+      <div style={{ background: "rgba(0,0,0,0.08)", borderRadius: 99, height: 8, overflow: "hidden", marginBottom: 8 }}>
+        <div style={{ width: Math.min(100, Math.round(((campanhaAtual.enviados + campanhaAtual.erros) / Math.max(1, campanhaAtual.total)) * 100)) + "%", background: campanhaAtual.status === "em_andamento" ? "linear-gradient(90deg, #2563EB, #1D4ED8)" : "linear-gradient(90deg, #16A34A, #22C55E)", height: "100%", borderRadius: 99, transition: "width .5s ease" }} />
+      </div>
+      <div style={{ fontSize: 12.5, color: "#374151", marginBottom: itensCampanha.length > 0 ? 10 : 0 }}>
+        {campanhaAtual.enviados} enviado(s){campanhaAtual.erros > 0 ? " · " + campanhaAtual.erros + " erro(s)" : ""}
+        {campanhaAtual.status === "em_andamento" && " · continua enviando em lotes espaçados, mesmo se você sair dessa tela"}
+      </div>
+      {itensCampanha.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 110, overflowY: "auto" }}>
+          {itensCampanha.slice(0, 30).map((it, i) => (
+            <span key={i} style={{ fontSize: 11.5, fontWeight: 600, padding: "3px 9px", borderRadius: 99, background: it.status === "enviado" ? "#DCFCE7" : "#FEE2E2", color: it.status === "enviado" ? "#166534" : "#991B1B" }}>
+              {it.status === "enviado" ? "✓" : "✕"} {it.nome || "—"}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div>
       {toast && <ToastMsg {...toast} />}
       <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Marketing</h1>
       <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Envie mensagens promocionais pra sua base de clientes — separado da cobrança, é um bônus do seu plano.</p>
+
+      {CardProgressoCampanha}
 
       <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
         {[["contatos", "Contatos (" + contatos.length + ")"], ["campanha", "🚀 Disparar campanha"]].map(([k, l]) => (
@@ -3247,7 +3381,6 @@ function Marketing({ token }) {
 
       {aba === "campanha" && (
         <div>
-          {enviado && <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 12, marginBottom: 14, color: "#16A34A", fontWeight: 600 }}>✅ Campanha iniciada! Os envios respeitam dias úteis e horário comercial, em lotes ao longo do dia, com pausas de segurança entre eles — igual à régua de cobrança, pra não bloquear seu WhatsApp.</div>}
           {contatos.length === 0 ? (
             <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: 16, fontSize: 13.5, color: "#92400E" }}>
               Você ainda não tem contatos cadastrados. Vá na aba "Contatos" pra adicionar antes de enviar uma campanha.
@@ -3285,8 +3418,8 @@ function Marketing({ token }) {
                   </div>
                 </div>
 
-                <Btn onClick={enviarCampanha} disabled={enviando || variacoesFinais.every(v => !v.trim())} style={{ width: "100%", justifyContent: "center" }}>
-                  {enviando ? "Enviando..." : <><Ic.send /> Disparar pra {destinatarios} contato(s)</>}
+                <Btn onClick={enviarCampanha} disabled={enviando || (campanhaAtual && campanhaAtual.status === "em_andamento") || variacoesFinais.every(v => !v.trim())} style={{ width: "100%", justifyContent: "center" }}>
+                  {enviando ? "Enviando..." : (campanhaAtual && campanhaAtual.status === "em_andamento") ? "Já tem uma campanha em andamento" : <><Ic.send /> Disparar pra {destinatarios} contato(s)</>}
                 </Btn>
               </div>
               <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9", alignSelf: "start" }}>
@@ -3746,209 +3879,272 @@ function Configuracoes({ usuario, token }) {
   );
 }
 
+// ─── POPUP "Analisar recebimento" — banner persistente (não some sozinho),
+// aparece em cima de qualquer tela assim que o polling detecta um cliente
+// novo em aguardando_confirmacao. ─────────────────────────────────────────
+function NotificacaoComprovante({ notificacoes, onAnalisar, onDispensar }) {
+  if (!notificacoes || notificacoes.length === 0) return null;
+  const nomes = notificacoes.slice(0, 3).map(n => n.nome).join(", ") + (notificacoes.length > 3 ? "..." : "");
+  return (
+    <div className="cf-fade" style={{
+      position: "fixed", top: 14, left: "50%", transform: "translateX(-50%)", zIndex: 2500,
+      background: "linear-gradient(135deg, #1D4ED8, #1E40AF)", color: "#fff", borderRadius: 14,
+      padding: "12px 14px", boxShadow: "0 10px 34px rgba(29,78,216,0.45)", display: "flex",
+      alignItems: "center", gap: 10, maxWidth: "94vw", animation: "cfSlideDown .4s cubic-bezier(.16,1,.3,1) both",
+    }}>
+      <div style={{ fontSize: 22, flexShrink: 0 }}>🔔</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 800, fontSize: 13.5, whiteSpace: "nowrap" }}>
+          {notificacoes.length === 1 ? notificacoes[0].nome + " pode ter pago" : notificacoes.length + " clientes podem ter pago"}
+        </div>
+        <div style={{ fontSize: 11.5, opacity: 0.85, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 220 }}>{nomes}</div>
+      </div>
+      <button onClick={onAnalisar} className="cf-btn" style={{ background: "#fff", color: "#1E40AF", border: "none", borderRadius: 9, padding: "8px 14px", fontSize: 12.5, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>Analisar recebimento →</button>
+      <button onClick={onDispensar} style={{ background: "rgba(255,255,255,0.18)", border: "none", borderRadius: 8, width: 26, height: 26, color: "#fff", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Ic.close /></button>
+    </div>
+  );
+}
+
+const NAV_ITEMS = [
+  { key: "dashboard",  label: "Painel",     icon: <Ic.dash /> },
+  { key: "clientes",   label: "Clientes",   icon: <Ic.clients /> },
+  { key: "cobrancas",  label: "Cobrança",   icon: <Ic.charge /> },
+  { key: "marketing",  label: "Marketing",  icon: <Ic.megaphone /> },
+  { key: "conversas",  label: "Conversas",  icon: <Ic.whatsapp /> },
+  { key: "pagamentos", label: "Pagamentos", icon: <Ic.money /> },
+  { key: "relatorio",  label: "Relatório",  icon: <Ic.report /> },
+  { key: "config",     label: "Config",     icon: <Ic.settings /> },
+];
+const NAV_MOBILE_PRINCIPAL = ["dashboard", "clientes", "cobrancas", "conversas"];
+
 export default function CobrarFacil() {
-  const [sessao, setSessao] = useState(null);
-  const [impersonando, setImpersonando] = useState(null);
-  const [trocandoSenha, setTrocandoSenha] = useState(false);
-  const [onboardingCompleto, setOnboardingCompleto] = useState(null);
-  const [configPendente, setConfigPendente] = useState(false);
+  const [token, setToken] = useState(localStorage.getItem("cobrarfacil_token") || "");
+  const [usuario, setUsuario] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("cobrarfacil_usuario") || "null"); } catch { return null; }
+  });
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [impersonando, setImpersonando] = useState(false);
+  const [tokenAdminOriginal, setTokenAdminOriginal] = useState("");
+  const [usuarioAdminOriginal, setUsuarioAdminOriginal] = useState(null);
+  const [carregandoAuth, setCarregandoAuth] = useState(true);
+  const [mostrarOnboarding, setMostrarOnboarding] = useState(false);
+
+  const isMobile = useMobile();
   const [tela, setTela] = useState("dashboard");
+  const [mostrarMais, setMostrarMais] = useState(false);
   const [clientes, setClientes] = useState([]);
   const [historico, setHistorico] = useState([]);
+  const [carregandoDados, setCarregandoDados] = useState(true);
   const [clienteParaCobrar, setClienteParaCobrar] = useState(null);
   const [clienteParaEditar, setClienteParaEditar] = useState(null);
-  const isMobile = useMobile();
 
-  // Pixel base — dispara uma vez por sessão de app aberta (PageView único do SPA).
+  // ─── Popup "Analisar recebimento" — polling a cada 20s enquanto logado
+  // como lojista (não roda no painel admin nem durante o onboarding). ──────
+  const [notificacoes, setNotificacoes] = useState([]);
+  const ultimaChecagemRef = useRef(new Date().toISOString());
+  const pollNotifRef = useRef(null);
+
   useEffect(() => { carregarPixelMeta(); }, []);
 
   useEffect(() => {
-    try {
-      const token = localStorage.getItem("cobrarfacil_token");
-      const usuario = localStorage.getItem("cobrarfacil_usuario");
-      if (token && usuario) { const u = JSON.parse(usuario); setSessao({ isAdmin: u.plano === "admin", usuario: u, token }); }
-    } catch {}
+    if (!token) { setCarregandoAuth(false); return; }
+    api("/usuarios/me", {}, token).then(data => {
+      if (data && !data.erro) {
+        setUsuario(prev => ({ ...(prev || {}), ...data }));
+        setIsAdmin(data.plano === "admin");
+      } else {
+        localStorage.removeItem("cobrarfacil_token");
+        localStorage.removeItem("cobrarfacil_usuario");
+        setToken(""); setUsuario(null);
+      }
+      setCarregandoAuth(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const efetivo = impersonando || sessao;
-    if (efetivo && !efetivo.isAdmin) {
-      const t = efetivo.token;
-      api("/clientes", {}, t).then(d => { if (Array.isArray(d)) setClientes(d); });
-      api("/cobrancas/historico", {}, t).then(d => { if (Array.isArray(d)) setHistorico(d); });
-    }
-  }, [sessao, impersonando]);
-
-  useEffect(() => {
-    if (impersonando) { setOnboardingCompleto(true); return; }
-    if (!sessao || sessao.isAdmin) { setOnboardingCompleto(null); return; }
-    if (trocandoSenha) return;
-    (async () => {
-      const [me, wpp, clis] = await Promise.all([
-        api("/usuarios/me", {}, sessao.token),
-        api("/whatsapp/status", {}, sessao.token).catch(() => ({})),
-        api("/clientes", {}, sessao.token).catch(() => []),
-      ]);
-      const conectado = wpp?.state === "open" || wpp?.instance?.state === "open";
-      const completo = conectado && !!me.nome_empresa && !!me.pix_key && Array.isArray(clis) && clis.length > 0;
-      const skipKey = "cobrarfacil_onboarding_pulado_" + (sessao.usuario?.email || "");
-      const pulouAntes = !completo && localStorage.getItem(skipKey) === "true";
-      setConfigPendente(!completo);
-      setOnboardingCompleto(completo || pulouAntes);
-    })();
-  }, [sessao, impersonando, trocandoSenha]);
-
-  const pularOnboarding = () => {
-    const skipKey = "cobrarfacil_onboarding_pulado_" + (sessao.usuario?.email || "");
-    try { localStorage.setItem(skipKey, "true"); } catch {}
-    setConfigPendente(true);
-    setOnboardingCompleto(true);
+  const carregarDados = () => {
+    if (!token || isAdmin) { setCarregandoDados(false); return; }
+    setCarregandoDados(true);
+    Promise.all([api("/clientes", {}, token), api("/cobrancas/historico", {}, token)]).then(([cli, hist]) => {
+      if (Array.isArray(cli)) setClientes(cli);
+      if (Array.isArray(hist)) setHistorico(hist);
+      setCarregandoDados(false);
+    });
   };
-  const retomarOnboarding = () => {
-    const skipKey = "cobrarfacil_onboarding_pulado_" + (sessao.usuario?.email || "");
-    try { localStorage.removeItem(skipKey); } catch {}
-    setOnboardingCompleto(false);
+  useEffect(carregarDados, [token, isAdmin]);
+
+  // ─── Polling do popup de comprovante ────────────────────────────────────
+  useEffect(() => {
+    if (pollNotifRef.current) { clearInterval(pollNotifRef.current); pollNotifRef.current = null; }
+    if (!token || isAdmin || mostrarOnboarding) return;
+    const checar = async () => {
+      const desde = ultimaChecagemRef.current;
+      const data = await api("/notificacoes/novas-confirmacoes?desde=" + encodeURIComponent(desde), {}, token);
+      if (data && Array.isArray(data.novos) && data.novos.length > 0) {
+        setNotificacoes(prev => {
+          const idsExistentes = new Set(prev.map(n => n.id));
+          const novos = data.novos.filter(n => !idsExistentes.has(n.id));
+          return novos.length > 0 ? [...prev, ...novos] : prev;
+        });
+      }
+      if (data && data.agora) ultimaChecagemRef.current = data.agora;
+    };
+    checar();
+    pollNotifRef.current = setInterval(checar, 20000);
+    return () => { if (pollNotifRef.current) clearInterval(pollNotifRef.current); };
+  }, [token, isAdmin, mostrarOnboarding]);
+
+  const analisarRecebimento = () => { setNotificacoes([]); setTela("pagamentos"); setMostrarMais(false); };
+  const dispensarNotificacao = () => setNotificacoes([]);
+
+  const handleLogin = ({ isAdmin: adminFlag, usuario: u, token: t }) => {
+    setToken(t); setUsuario(u); setIsAdmin(!!adminFlag);
+    setImpersonando(false); setMostrarOnboarding(!adminFlag); setTela("dashboard");
+    ultimaChecagemRef.current = new Date().toISOString(); setNotificacoes([]);
   };
 
-  const logout = () => { try { localStorage.removeItem("cobrarfacil_token"); localStorage.removeItem("cobrarfacil_usuario"); } catch {} setSessao(null); setImpersonando(null); setTrocandoSenha(false); setOnboardingCompleto(null); };
-  const onLogin = (dados) => { setSessao(dados); if (!dados.isAdmin && dados.usuario?.primeiro_acesso) setTrocandoSenha(true); };
+  const handleImpersonar = (data) => {
+    setTokenAdminOriginal(token); setUsuarioAdminOriginal(usuario);
+    setToken(data.token); setUsuario(data.usuario);
+    setImpersonando(true); setMostrarOnboarding(false); setTela("dashboard");
+    ultimaChecagemRef.current = new Date().toISOString(); setNotificacoes([]);
+  };
+  const sairImpersonar = () => {
+    setToken(tokenAdminOriginal); setUsuario(usuarioAdminOriginal);
+    setImpersonando(false); setIsAdmin(true);
+  };
 
-  if (!sessao) return <LoginScreen onLogin={onLogin} />;
-  if (sessao.isAdmin && !impersonando) return <AdminPanel onLogout={logout} token={sessao.token} onImpersonar={setImpersonando} />;
-  if (trocandoSenha) return <TrocarSenha token={sessao.token} onSucesso={() => setTrocandoSenha(false)} />;
-  if (onboardingCompleto === false) return <OnboardingWizard token={sessao.token} onCompleto={() => setOnboardingCompleto(true)} onPular={pularOnboarding} />;
-  if (onboardingCompleto === null) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B" }}>Carregando...</div>;
+  const handleLogout = () => {
+    localStorage.removeItem("cobrarfacil_token");
+    localStorage.removeItem("cobrarfacil_usuario");
+    setToken(""); setUsuario(null); setIsAdmin(false); setImpersonando(false);
+    setClientes([]); setHistorico([]); setNotificacoes([]);
+  };
 
-  const sessaoEfetiva = impersonando || sessao;
-  const sairDoSuporte = () => { setImpersonando(null); setTela("dashboard"); };
+  const irParaCobranca = (cliente) => { setClienteParaCobrar(cliente); setTela("cobrancas"); setMostrarMais(false); };
+  const irParaEditarCliente = (cliente) => { setClienteParaEditar(cliente); setTela("clientes"); setMostrarMais(false); };
 
-  const irParaCobranca = (c) => { setClienteParaCobrar(c); setTela("cobrancas"); };
-  const irParaEditar = (c) => { setClienteParaEditar(c); setTela("clientes"); };
-
-  const nav = [
-    { key: "dashboard", label: "Painel",     icon: <Ic.dash /> },
-    { key: "clientes",  label: "Clientes",   icon: <Ic.clients /> },
-    { key: "cobrancas", label: "Cobranças",  icon: <Ic.charge /> },
-    { key: "conversas", label: "Conversas",  icon: <Ic.whatsapp /> },
-    { key: "pagamentos", label: "Pagamentos", icon: <Ic.money /> },
-    { key: "marketing", label: "Marketing",  icon: <Ic.megaphone /> },
-    { key: "config",    label: "Config.",    icon: <Ic.settings /> },
-  ];
-
-  const atrasadosCount = clientes.filter(c => c.status === "atrasado").length;
+  const irPara = (t) => { setTela(t); setMostrarMais(false); };
 
   const renderTela = () => {
-    switch(tela) {
-      case "dashboard": return <Dashboard clientes={clientes} historico={historico} token={sessaoEfetiva.token} onNavigate={setTela} />;
-      case "clientes":  return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={sessaoEfetiva.token} isMobile={isMobile} />;
-      case "cobrancas": return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={sessaoEfetiva.token} onEditarCliente={irParaEditar} />;
-      case "conversas": return <Conversas clientes={clientes} setClientes={setClientes} token={sessaoEfetiva.token} isMobile={isMobile} />;
-      case "pagamentos": return <Pagamentos setClientes={setClientes} token={sessaoEfetiva.token} />;
-      case "marketing": return <Marketing token={sessaoEfetiva.token} />;
-      case "config":    return <Configuracoes usuario={sessaoEfetiva.usuario} token={sessaoEfetiva.token} />;
+    switch (tela) {
+      case "dashboard":  return <Dashboard clientes={clientes} historico={historico} token={token} onNavigate={irPara} />;
+      case "clientes":   return <Clientes clientes={clientes} setClientes={setClientes} onCobranca={irParaCobranca} clienteParaEditar={clienteParaEditar} setClienteParaEditar={setClienteParaEditar} token={token} isMobile={isMobile} />;
+      case "cobrancas":  return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={token} onEditarCliente={irParaEditarCliente} />;
+      case "marketing":  return <Marketing token={token} />;
+      case "conversas":  return <Conversas clientes={clientes} setClientes={setClientes} token={token} isMobile={isMobile} />;
+      case "pagamentos": return <Pagamentos setClientes={setClientes} token={token} />;
+      case "relatorio":  return <Relatorio token={token} clientes={clientes} onEditarCliente={irParaEditarCliente} />;
+      case "config":     return <Configuracoes usuario={usuario} token={token} />;
       default: return null;
     }
   };
 
+  if (carregandoAuth) {
+    return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0B2B24", color: "#fff", fontFamily: "'Inter', sans-serif" }}>Carregando...</div>;
+  }
+
+  if (!token || !usuario) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  if (usuario.primeiro_acesso) {
+    return <TrocarSenha token={token} onSucesso={() => setUsuario(prev => ({ ...prev, primeiro_acesso: false }))} />;
+  }
+
+  if (isAdmin && !impersonando) {
+    return <AdminPanel onLogout={handleLogout} token={token} onImpersonar={handleImpersonar} />;
+  }
+
+  if (mostrarOnboarding) {
+    return <OnboardingWizard token={token} onCompleto={() => { setMostrarOnboarding(false); carregarDados(); }} onPular={() => { setMostrarOnboarding(false); carregarDados(); }} />;
+  }
+
+  const PopupNotificacao = <NotificacaoComprovante notificacoes={notificacoes} onAnalisar={analisarRecebimento} onDispensar={dispensarNotificacao} />;
+
+  const ImpersonandoBanner = impersonando && (
+    <div style={{ background: "#7C2D12", color: "#FED7AA", padding: "8px 16px", fontSize: 12.5, fontWeight: 700, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+      🔧 Você está acessando como {usuario.nome} (modo suporte)
+      <button onClick={sairImpersonar} style={{ background: "#fff", color: "#7C2D12", border: "none", borderRadius: 6, padding: "3px 10px", fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}>Voltar ao admin</button>
+    </div>
+  );
+
   if (isMobile) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: 70 }}>
+      <div style={{ minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif", paddingBottom: 74 }}>
         <style>{GLOBAL_STYLES}</style>
-        {impersonando && (
-          <div style={{ background: "#7C3AED", color: "#fff", padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, fontWeight: 700, position: "sticky", top: 0, zIndex: 51 }}>
-            <span>🔧 Modo suporte — vendo como {sessaoEfetiva.usuario?.nome?.split(" ")[0]}</span>
-            <button onClick={sairDoSuporte} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11.5, padding: "4px 8px", cursor: "pointer", fontWeight: 700 }}>Voltar pro Admin</button>
-          </div>
-        )}
-        {configPendente && !impersonando && (
-          <div style={{ background: "#D97706", color: "#fff", padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, fontWeight: 700, position: "sticky", top: 0, zIndex: 51, gap: 8 }}>
-            <span>⚠️ Configuração incompleta — a cobrança automática ainda não está ativa</span>
-            <button onClick={retomarOnboarding} style={{ background: "rgba(255,255,255,0.25)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11.5, padding: "4px 8px", cursor: "pointer", fontWeight: 700, whiteSpace: "nowrap" }}>Continuar →</button>
-          </div>
-        )}
-        <div style={{ height: 2, background: "linear-gradient(90deg, #0E8F63, #4ADE80, #0E8F63)" }} />
-        <div style={{ background: "#070F0D", padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50, borderBottom: "1px solid rgba(74,222,128,0.08)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover", display: "block", boxShadow: "0 0 0 2px rgba(74,222,128,0.25)" }} />
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", letterSpacing: "-0.3px" }}>CobrarFácil</div>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {atrasadosCount > 0 && <div style={{ background: "#DC2626", color: "#fff", borderRadius: 99, fontSize: 11, fontWeight: 700, padding: "3px 8px" }}>{atrasadosCount}</div>}
-            <button onClick={logout} className="cf-btn" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#6B7A76", fontSize: 12, padding: "6px 10px", cursor: "pointer", fontWeight: 600 }}>Sair</button>
-          </div>
+        {PopupNotificacao}
+        {ImpersonandoBanner}
+        <div style={{ padding: "16px 16px 8px" }}>
+          {carregandoDados ? <div style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}>Carregando...</div> : renderTela()}
         </div>
-        <div style={{ flex: 1, padding: 16, overflowY: "auto" }}>{renderTela()}</div>
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#fff", borderTop: "1px solid #E2E8F0", display: "flex", zIndex: 100, boxShadow: "0 -4px 20px rgba(0,0,0,0.08)" }}>
-          {nav.map(n => (
-            <button key={n.key} onClick={() => setTela(n.key)} className="cf-btn" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "8px 2px 6px", border: "none", background: "transparent", cursor: "pointer", color: tela === n.key ? "#0E8F63" : "#94A3B8", gap: 2, position: "relative" }}>
-              {n.key === "clientes" && atrasadosCount > 0 && <span style={{ position: "absolute", top: 4, right: "50%", marginRight: -18, background: "#DC2626", color: "#fff", borderRadius: 99, fontSize: 8, fontWeight: 700, padding: "1px 4px" }}>{atrasadosCount}</span>}
-              <div style={{ transform: tela === n.key ? "scale(1.1)" : "scale(1)" }}>{n.icon}</div>
-              <span style={{ fontSize: 9, fontWeight: tela === n.key ? 700 : 500 }}>{n.label}</span>
-              {tela === n.key && <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: 20, height: 3, background: "#1E40AF", borderRadius: "3px 3px 0 0" }} />}
+
+        {mostrarMais && (
+          <div onClick={() => setMostrarMais(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1500, display: "flex", alignItems: "flex-end" }}>
+            <div onClick={e => e.stopPropagation()} className="cf-fade" style={{ background: "#fff", width: "100%", borderRadius: "20px 20px 0 0", padding: "20px 16px 28px" }}>
+              <div style={{ width: 40, height: 4, background: "#E2E8F0", borderRadius: 99, margin: "0 auto 18px" }} />
+              {NAV_ITEMS.filter(n => !NAV_MOBILE_PRINCIPAL.includes(n.key)).map(n => (
+                <button key={n.key} onClick={() => irPara(n.key)} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", background: tela === n.key ? "#EFF6FF" : "none", border: "none", borderRadius: 12, padding: "13px 14px", fontSize: 15, fontWeight: 700, color: tela === n.key ? "#1E40AF" : "#374151", cursor: "pointer", marginBottom: 4 }}>
+                  <span style={{ color: tela === n.key ? "#1E40AF" : "#94A3B8" }}>{n.icon}</span> {n.label}
+                </button>
+              ))}
+              <button onClick={handleLogout} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", background: "none", border: "none", borderRadius: 12, padding: "13px 14px", fontSize: 15, fontWeight: 700, color: "#DC2626", cursor: "pointer", marginTop: 8 }}>
+                <Ic.close /> Sair da conta
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#fff", borderTop: "1px solid #F1F5F9", display: "flex", zIndex: 1000, paddingBottom: "env(safe-area-inset-bottom)" }}>
+          {NAV_ITEMS.filter(n => NAV_MOBILE_PRINCIPAL.includes(n.key)).map(n => (
+            <button key={n.key} onClick={() => irPara(n.key)} style={{ flex: 1, background: "none", border: "none", padding: "10px 4px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer", color: tela === n.key ? "#16A34A" : "#94A3B8" }}>
+              {n.icon}
+              <span style={{ fontSize: 10, fontWeight: 700 }}>{n.label}</span>
             </button>
           ))}
+          <button onClick={() => setMostrarMais(true)} style={{ flex: 1, background: "none", border: "none", padding: "10px 4px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer", color: notificacoes.length > 0 ? "#1D4ED8" : "#94A3B8", position: "relative" }}>
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+            <span style={{ fontSize: 10, fontWeight: 700 }}>Mais</span>
+            {notificacoes.length > 0 && <span style={{ position: "absolute", top: 4, right: "28%", width: 8, height: 8, borderRadius: "50%", background: "#1D4ED8" }} />}
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#F8FAFC", fontFamily: "'Inter', -apple-system, sans-serif", display: "flex" }}>
       <style>{GLOBAL_STYLES}</style>
-      <div style={{ width: 224, background: "#070F0D", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100, borderRight: "1px solid rgba(74,222,128,0.08)" }}>
-        <div style={{ height: 2, background: "linear-gradient(90deg, #0E8F63, #4ADE80, #0E8F63)" }} />
-        <div style={{ padding: "20px 18px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-            <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", display: "block", boxShadow: "0 0 0 2px rgba(74,222,128,0.25)" }} />
-            <div><div style={{ fontSize: 15.5, fontWeight: 800, color: "#fff", letterSpacing: "-0.3px" }}>CobrarFácil</div><div style={{ fontSize: 9.5, color: "#4ADE80", letterSpacing: "1.4px", fontWeight: 700 }}>SISTEMA DE COBRANÇA</div></div>
+      {PopupNotificacao}
+      <div style={{ width: 232, background: "#0B2B24", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "22px 18px 18px" }}>
+          <img src="/logo-192.png" alt="CobrarFácil" style={{ width: 32, height: 32, borderRadius: "50%" }} />
+          <div>
+            <div style={{ color: "#fff", fontWeight: 800, fontSize: 15 }}>CobrarFácil</div>
+            <div style={{ color: "#4ADE80", fontSize: 10.5, fontWeight: 700 }}>{usuario.nome_empresa || usuario.nome}</div>
           </div>
         </div>
-        <nav style={{ flex: 1, padding: "16px 12px", overflowY: "auto" }}>
-          {nav.map(n => (
-            <button key={n.key} onClick={() => setTela(n.key)} className="cf-btn" style={{
-              width: "100%", display: "flex", alignItems: "center", gap: 11, padding: "11px 13px", borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 4,
-              background: tela === n.key ? "linear-gradient(135deg, rgba(74,222,128,0.16), rgba(14,143,99,0.10))" : "transparent",
-              boxShadow: tela === n.key ? "inset 0 0 0 1px rgba(74,222,128,0.25)" : "none",
-              color: tela === n.key ? "#4ADE80" : "#6B7A76", fontSize: 13.5, fontWeight: tela === n.key ? 700 : 500, textAlign: "left", letterSpacing: "-0.1px"
-            }}>
+        <div style={{ flex: 1, padding: "6px 12px", overflowY: "auto" }}>
+          {NAV_ITEMS.map(n => (
+            <button key={n.key} onClick={() => irPara(n.key)} className="cf-btn" style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", background: tela === n.key ? "rgba(74,222,128,0.12)" : "none", border: "none", borderRadius: 10, padding: "11px 14px", fontSize: 14, fontWeight: 700, color: tela === n.key ? "#4ADE80" : "#94A3B8", cursor: "pointer", marginBottom: 3, position: "relative" }}>
               {n.icon} {n.label}
-              {n.key === "clientes" && atrasadosCount > 0 && <span style={{ marginLeft: "auto", background: "#DC2626", color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "1px 6px" }}>{atrasadosCount}</span>}
+              {n.key === "pagamentos" && notificacoes.length > 0 && <span style={{ position: "absolute", right: 12, width: 8, height: 8, borderRadius: "50%", background: "#1D4ED8" }} />}
             </button>
           ))}
-        </nav>
-        <div style={{ padding: "16px 18px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
-            <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #0E8F63, #4ADE80)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#052B1E" }}>{sessaoEfetiva.usuario?.nome?.charAt(0) || "U"}</div>
-            <div><div style={{ fontSize: 12.5, fontWeight: 700, color: "#E2E8F0" }}>{sessaoEfetiva.usuario?.nome?.split(" ")[0] || "Usuário"}</div><div style={{ fontSize: 10, color: "#5B6B67", textTransform: "capitalize" }}>Plano {sessaoEfetiva.usuario?.plano}</div></div>
-          </div>
+        </div>
+        <div style={{ padding: 14, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
           {impersonando ? (
-            <button onClick={sairDoSuporte} className="cf-btn" style={{ width: "100%", background: "#7C3AED", border: "none", borderRadius: 9, padding: "9px", color: "#fff", fontSize: 13, cursor: "pointer", fontWeight: 700 }}>🔧 Voltar pro Admin</button>
+            <button onClick={sairImpersonar} className="cf-btn" style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", background: "none", border: "none", padding: "10px 8px", fontSize: 13, fontWeight: 700, color: "#FBBF24", cursor: "pointer" }}>🔧 Voltar ao admin</button>
           ) : (
-            <button onClick={logout} className="cf-btn" style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "9px", color: "#6B7A76", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>Sair</button>
+            <button onClick={handleLogout} className="cf-btn" style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", background: "none", border: "none", padding: "10px 8px", fontSize: 13, fontWeight: 700, color: "#F87171", cursor: "pointer" }}><Ic.close /> Sair da conta</button>
           )}
         </div>
       </div>
-      <div style={{ flex: 1, marginLeft: 224, minWidth: 0 }}>
-        {impersonando && (
-          <div style={{ background: "#7C3AED", color: "#fff", padding: "8px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, fontWeight: 700 }}>
-            <span>🔧 Modo suporte — vendo como {sessaoEfetiva.usuario?.nome}</span>
-            <button onClick={sairDoSuporte} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, padding: "4px 10px", cursor: "pointer", fontWeight: 700 }}>Voltar pro Admin</button>
-          </div>
-        )}
-        {configPendente && !impersonando && (
-          <div style={{ background: "#D97706", color: "#fff", padding: "8px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, fontWeight: 700 }}>
-            <span>⚠️ Configuração incompleta — a cobrança automática ainda não está ativa</span>
-            <button onClick={retomarOnboarding} style={{ background: "rgba(255,255,255,0.25)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, padding: "4px 10px", cursor: "pointer", fontWeight: 700 }}>Continuar configuração →</button>
-          </div>
-        )}
-        <div style={{ background: "#fff", borderBottom: "1px solid #F1F5F9", padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
-          <span style={{ fontSize: 14, color: "#64748B", fontWeight: 600 }}>Bem-vindo, {sessaoEfetiva.usuario?.nome?.split(" ")[0] || ""}!</span>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {sessaoEfetiva.usuario?.avisoRenovacao && <div style={{ background: "#FEF3C7", color: "#92400E", padding: "5px 12px", borderRadius: 99, fontSize: 13, fontWeight: 700 }}>⚠️ Plano vencendo</div>}
-            {atrasadosCount > 0 && <div style={{ display: "flex", alignItems: "center", gap: 5, background: "#FEF2F2", color: "#DC2626", padding: "5px 12px", borderRadius: 99, fontSize: 13, fontWeight: 700 }}><Ic.bell /> {atrasadosCount} em atraso</div>}
-          </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {ImpersonandoBanner}
+        <div style={{ padding: "26px 32px", maxWidth: 1280, margin: "0 auto" }}>
+          {carregandoDados ? <div style={{ textAlign: "center", padding: 60, color: "#94A3B8" }}>Carregando...</div> : renderTela()}
         </div>
-        <div style={{ padding: "20px 24px" }}>{renderTela()}</div>
       </div>
     </div>
   );
