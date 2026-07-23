@@ -852,8 +852,11 @@ function Checkout({ planoInicial, onVoltar }) {
                 <div style={{ fontWeight: 700 }}>Plano {planoSel.nome}</div>
                 <div style={{ fontWeight: 900, fontSize: 22, color: "#1E40AF" }}>{(planoSel.valor / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
               </div>
+              {/* Cartão temporariamente desativado — a tokenização com o Pagar.me
+                  ainda não está implementada, então só Pix (que funciona e é o
+                  meio principal no Brasil). Reativar quando o card_token existir. */}
               <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                {[["pix", "💠 Pix"], ["cartao", "💳 Cartão"]].map(([k, l]) => (
+                {[["pix", "💠 Pix"]].map(([k, l]) => (
                   <div key={k} onClick={() => setFormaPag(k)} style={{ flex: 1, background: formaPag === k ? "#EFF6FF" : "#F8FAFC", border: "2px solid " + (formaPag === k ? "#1E40AF" : "#E2E8F0"), borderRadius: 12, padding: "14px", textAlign: "center", cursor: "pointer", fontSize: 15, fontWeight: 600, color: formaPag === k ? "#1E40AF" : "#64748B" }}>{l}</div>
                 ))}
               </div>
@@ -887,9 +890,9 @@ function Checkout({ planoInicial, onVoltar }) {
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize: 60, marginBottom: 16 }}>🎉</div>
-                  <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Pedido confirmado!</h2>
-                  <p style={{ color: "#64748B", fontSize: 15, marginBottom: 24 }}>Você receberá seu login via WhatsApp em instantes no número <strong>{dados.telefone}</strong>.</p>
+                  <div style={{ fontSize: 60, marginBottom: 16 }}>⏳</div>
+                  <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Quase lá — falta o pagamento</h2>
+                  <p style={{ color: "#64748B", fontSize: 15, marginBottom: 24 }}>Pague o Pix abaixo pra ativar seu acesso. Assim que cair, seu login chega no WhatsApp <strong>{dados.telefone}</strong>.</p>
                 </>
               )}
               {pixCode && !pagamentoConfirmado && (
@@ -921,6 +924,7 @@ function LoginScreen({ onLogin }) {
   const [recuperando, setRecuperando] = useState(false);
   const [emailRec, setEmailRec] = useState("");
   const [recEnviada, setRecEnviada] = useState(false);
+  const [planoVencido, setPlanoVencido] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -931,7 +935,7 @@ function LoginScreen({ onLogin }) {
   if (checkout) return <Checkout planoInicial={planoCheckout} onVoltar={() => setCheckout(false)} />;
 
   const go = async () => {
-    setErro("");
+    setErro(""); setPlanoVencido(false);
     if (!email || !senha) { setErro("Preencha e-mail e senha"); return; }
     setLoading(true);
     const data = await api("/auth/login", { method: "POST", body: JSON.stringify({ email, senha }) });
@@ -939,16 +943,24 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("cobrarfacil_token", data.token);
       localStorage.setItem("cobrarfacil_usuario", JSON.stringify(data.usuario));
       onLogin({ isAdmin: data.usuario?.plano === "admin", usuario: data.usuario, token: data.token });
-    } else setErro(data.erro || "Email ou senha incorretos");
+    } else {
+      const msg = data.erro || "Email ou senha incorretos";
+      setErro(msg);
+      // Plano vencido não é beco sem saída: oferece renovar (leva ao checkout).
+      if (/expirad|renove/i.test(msg)) setPlanoVencido(true);
+    }
     setLoading(false);
   };
 
   const recuperar = async () => {
     if (!emailRec) return;
     setLoading(true);
-    await api("/auth/recuperar-senha", { method: "POST", body: JSON.stringify({ email: emailRec }) });
-    setRecEnviada(true);
+    const data = await api("/auth/recuperar-senha", { method: "POST", body: JSON.stringify({ email: emailRec }) });
     setLoading(false);
+    // O backend não revela se o e-mail existe (responde sucesso genérico) — mas
+    // avisa quando a conta não tem WhatsApp cadastrado pra receber a senha.
+    if (data && data.erro) { setErro(data.erro); return; }
+    setRecEnviada(true);
   };
 
   const planos = [
@@ -993,7 +1005,7 @@ function LoginScreen({ onLogin }) {
               <div style={{ fontSize: 11, color: "#93C5FD", fontWeight: 500 }}>SISTEMA DE COBRANÇA</div>
             </div>
           </div>
-          <p style={{ color: "#94A3B8", fontSize: 15, margin: 0 }}>Seus clientes pagam. Você recebe.</p>
+          <p style={{ color: "#94A3B8", fontSize: 15, margin: 0 }}>Receber é crescer.</p>
         </div>
         <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.1)", borderRadius: 14, padding: 4, marginBottom: 20 }}>
           {[["login", "Entrar"], ["planos", "Assinar"]].map(([k, l]) => (
@@ -1006,6 +1018,7 @@ function LoginScreen({ onLogin }) {
             <Inp label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" />
             <SenhaInput label="Senha" value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && go()} />
             {erro && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "10px 14px", fontSize: 14, marginBottom: 14 }}>{erro}</div>}
+            {planoVencido && <Btn onClick={() => setCheckout(true)} variant="green" style={{ width: "100%", justifyContent: "center", marginBottom: 14 }}>🔄 Renovar meu plano agora</Btn>}
             <div style={{ textAlign: "right", marginBottom: 18 }}><span onClick={() => setRecuperando(true)} style={{ fontSize: 14, color: "#1E40AF", cursor: "pointer", fontWeight: 600 }}>Esqueci minha senha</span></div>
             <Btn onClick={go} disabled={loading} style={{ width: "100%", justifyContent: "center" }}>{loading ? "Entrando..." : "Entrar na plataforma →"}</Btn>
             <div style={{ textAlign: "center", marginTop: 18, fontSize: 14, color: "#64748B" }}>Não tem conta? <span onClick={() => setAba("planos")} style={{ color: "#1E40AF", fontWeight: 600, cursor: "pointer" }}>Assinar agora</span></div>
@@ -1066,8 +1079,8 @@ function AdminPanel({ onLogout, token, onImpersonar }) {
     const data = await api("/admin/usuarios/" + l.id + "/impersonar", { method: "POST", body: JSON.stringify({}) }, token);
     if (data.token) onImpersonar(data); else showToast(data.erro || "Erro ao acessar conta", "error");
   };
-  const alterarStatus = async (id, status) => { await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ status }) }, token); showToast("Status atualizado!"); carregar(); };
-  const adicionarDias = async (id, dias) => { await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ dias_adicionais: dias }) }, token); showToast(dias + " dias adicionados!"); carregar(); };
+  const alterarStatus = async (id, status) => { const d = await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ status }) }, token); if (d && d.erro) return showToast(d.erro, "error"); showToast("Status atualizado!"); carregar(); };
+  const adicionarDias = async (id, dias) => { const d = await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ dias_adicionais: dias }) }, token); if (d && d.erro) return showToast(d.erro, "error"); showToast(dias + " dias adicionados!"); carregar(); };
   const alternarModoDemo = async (id, valorAtual) => { await api("/admin/usuarios/" + id, { method: "PATCH", body: JSON.stringify({ modo_demo: !valorAtual }) }, token); showToast(!valorAtual ? "🎭 Modo demonstração ATIVADO — nenhuma mensagem real será enviada" : "Modo demonstração desativado — volta a enviar mensagens reais"); carregar(); };
   const lojFiltrados = lojistas.filter(l => l.plano !== "admin" && (l.nome?.toLowerCase().includes(busca.toLowerCase()) || l.email?.toLowerCase().includes(busca.toLowerCase())));
   const vencendo = lojistas.filter(l => { if (!l.expira_em || l.plano === "admin") return false; const d = Math.floor((new Date(l.expira_em) - new Date()) / 86400000); return d >= 0 && d <= 7; });
@@ -1565,6 +1578,7 @@ function ModalConversa({ cliente, token, onClose }) {
   const [loading, setLoading] = useState(true);
   const [novaMsg, setNovaMsg] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState("");
 
   useEffect(() => {
     api("/clientes/" + cliente.id + "/conversa", {}, token).then(data => {
@@ -1575,12 +1589,12 @@ function ModalConversa({ cliente, token, onClose }) {
 
   const enviar = async () => {
     if (!novaMsg.trim()) return;
-    setEnviando(true);
+    setEnviando(true); setErroEnvio("");
     const data = await api("/clientes/" + cliente.id + "/enviar-mensagem", { method: "POST", body: JSON.stringify({ mensagem: novaMsg.trim() }) }, token);
     if (data.sucesso) {
       setMensagens(prev => [...prev, { direcao: "enviada", texto: novaMsg.trim(), criado_em: new Date().toISOString() }]);
       setNovaMsg("");
-    }
+    } else setErroEnvio(data.erro || "Não foi possível enviar — confira se o WhatsApp está conectado.");
     setEnviando(false);
   };
 
@@ -1603,6 +1617,7 @@ function ModalConversa({ cliente, token, onClose }) {
           ))}
         </div>
       )}
+      {erroEnvio && <div style={{ background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 13, marginBottom: 8 }}>{erroEnvio}</div>}
       <div style={{ display: "flex", gap: 8 }}>
         <input value={novaMsg} onChange={e => setNovaMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && enviar()} placeholder="Digite uma mensagem..." style={{ flex: 1, border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none" }} />
         <Btn onClick={enviar} disabled={enviando || !novaMsg.trim()} small><Ic.send /></Btn>
@@ -1828,7 +1843,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
 
   const marcarPago = async (c) => {
     const data = await api("/clientes/" + c.id + "/confirmar-pagamento", { method: "POST" }, token);
-    if (data.sucesso) { setClientes(prev => prev.map(x => x.id === c.id ? { ...x, status: "pago" } : x)); showToast("✅ Pago! Lojista e devedor notificados via WhatsApp!"); }
+    if (data.sucesso) { setClientes(prev => prev.map(x => x.id === c.id ? { ...x, status: "pago" } : x)); showToast("✅ Pago! Enviamos a confirmação pro cliente e um resumo pro seu WhatsApp."); }
     else showToast(data.erro || "Erro", "error");
   };
 
@@ -1841,7 +1856,8 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
 
   const deletarCliente = async (id) => {
     if (!confirm("Remover este cliente?")) return;
-    await api("/clientes/" + id, { method: "DELETE" }, token);
+    const d = await api("/clientes/" + id, { method: "DELETE" }, token);
+    if (d && d.erro) return showToast(d.erro, "error");
     setClientes(prev => prev.filter(x => x.id !== id));
     setSelecionados(prev => { const n = new Set(prev); n.delete(id); return n; });
     showToast("Removido!");
@@ -2673,7 +2689,7 @@ function Pagamentos({ setClientes, token }) {
     if (data.sucesso) {
       setLista(prev => prev.filter(x => x.id !== c.id));
       setClientes(prev => prev.map(x => x.id === c.id ? { ...x, status: "pago" } : x));
-      showToast("✅ Pago! Lojista e devedor notificados via WhatsApp!");
+      showToast("✅ Pago! Enviamos a confirmação pro cliente e um resumo pro seu WhatsApp.");
     } else showToast(data.erro || "Erro", "error");
   };
 
@@ -2683,7 +2699,7 @@ function Pagamentos({ setClientes, token }) {
     setProcessando(null);
     if (data.sucesso) {
       setLista(prev => prev.filter(x => x.id !== c.id));
-      setClientes(prev => prev.map(x => x.id === c.id ? { ...x, status: data.status } : x));
+      setClientes(prev => prev.map(x => x.id === c.id ? { ...x, status: data.novo_status } : x));
       showToast("Voltou pra régua normalmente.");
     } else showToast(data.erro || "Erro", "error");
   };
@@ -2955,6 +2971,7 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
     setEnviando(true);
     const data = await api("/cobrancas/disparar", { method: "POST", body: JSON.stringify({ cliente_id: parseInt(clienteSel), mensagem: msg }) }, token);
     if (data.sucesso) { setSucesso(true); setTimeout(() => setSucesso(false), 3000); const h = await api("/cobrancas/historico", {}, token); if (Array.isArray(h)) setHistorico(h); }
+    else showToastRegua(data.erro || "Não foi possível enviar — confira se o WhatsApp está conectado em Configurações.", "error");
     setEnviando(false);
   };
 
@@ -4010,6 +4027,7 @@ const NAV_ITEMS = [
   { key: "cobrancas",  label: "Cobrança",   icon: <Ic.charge /> },
   { key: "marketing",  label: "Marketing",  icon: <Ic.megaphone /> },
   { key: "conversas",  label: "Conversas",  icon: <Ic.whatsapp /> },
+  { key: "historico",  label: "Histórico",  icon: <Ic.history /> },
   { key: "pagamentos", label: "Pagamentos", icon: <Ic.money /> },
   { key: "relatorio",  label: "Relatório",  icon: <Ic.report /> },
   { key: "config",     label: "Config",     icon: <Ic.settings /> },
@@ -4248,6 +4266,7 @@ export default function CobrarFacil() {
       case "cobrancas":  return <Cobrancas clientes={clientes} historico={historico} setHistorico={setHistorico} clientePreSelecionado={clienteParaCobrar} setClientePreSelecionado={setClienteParaCobrar} token={token} onEditarCliente={irParaEditarCliente} />;
       case "marketing":  return <Marketing token={token} wppConectado={wppConectado} onReconectar={reconectarWpp} onCampanhaStatus={setCampanhaRodando} />;
       case "conversas":  return <Conversas clientes={clientes} setClientes={setClientes} token={token} isMobile={isMobile} />;
+      case "historico":  return <Historico historico={historico} setHistorico={setHistorico} token={token} />;
       case "pagamentos": return <Pagamentos setClientes={setClientes} token={token} />;
       case "relatorio":  return <Relatorio token={token} clientes={clientes} onEditarCliente={irParaEditarCliente} />;
       case "config":     return <Configuracoes usuario={usuario} token={token} focoWhatsapp={focoWpp} onFocoWhatsappUsado={() => setFocoWpp(false)} />;
