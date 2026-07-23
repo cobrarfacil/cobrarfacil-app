@@ -3184,16 +3184,19 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
 
   useEffect(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-    if (campanhaAtual && campanhaAtual.status === "em_andamento") {
+    // Segue consultando enquanto a campanha está viva (rodando OU pausada por
+    // queda), pra a tela retomar sozinha assim que o backend voltar a enviar.
+    if (campanhaAtual && (campanhaAtual.status === "em_andamento" || campanhaAtual.status === "pausada")) {
       pollRef.current = setInterval(buscarCampanhaAtual, 5000);
     }
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [campanhaAtual?.status, campanhaAtual?.id]);
 
-  // Avisa o app inteiro se tem campanha rodando — o pop-up de WhatsApp caído usa
+  // Avisa o app inteiro se tem campanha viva — o pop-up de WhatsApp caído usa
   // isso pra dizer "sua campanha continua de onde parou".
   useEffect(() => {
-    if (onCampanhaStatus) onCampanhaStatus(!!(campanhaAtual && campanhaAtual.status === "em_andamento"));
+    const viva = !!(campanhaAtual && (campanhaAtual.status === "em_andamento" || campanhaAtual.status === "pausada"));
+    if (onCampanhaStatus) onCampanhaStatus(viva);
     return () => { if (onCampanhaStatus) onCampanhaStatus(false); };
   }, [campanhaAtual?.status]);
 
@@ -3309,7 +3312,10 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
   // ─── Contadores da campanha, robustos ao que o backend devolver ─────────────
   const statusCampanha = campanhaAtual?.status;
   const emAndamento = statusCampanha === "em_andamento";
-  const pausadaPorWpp = emAndamento && wppConectado === false;
+  const pausadaBackend = statusCampanha === "pausada";
+  const ativa = emAndamento || pausadaBackend; // campanha viva (rodando ou pausada)
+  // Pausada = o backend pausou (WhatsApp caiu) OU o app detectou a queda antes.
+  const pausadaPorWpp = pausadaBackend || (emAndamento && wppConectado === false);
   const isEnviado = (s) => s === "enviado" || s === "sucesso";
   const isFila = (s) => s === "fila" || s === "pendente" || s === "aguardando" || s === "na_fila";
   const enviadosItens = itensCampanha.filter(i => isEnviado(i.status));
@@ -3499,8 +3505,8 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
                     {onReconectar && <Btn small onClick={onReconectar} style={{ background: "linear-gradient(135deg, #16A34A, #15803D)" }}><Ic.qr /> Reconectar</Btn>}
                   </div>
                 )}
-                <Btn onClick={enviarCampanha} disabled={enviando || wppConectado === false || (campanhaAtual && campanhaAtual.status === "em_andamento") || variacoesFinais.every(v => !v.trim())} style={{ width: "100%", justifyContent: "center" }}>
-                  {enviando ? "Enviando..." : wppConectado === false ? "WhatsApp desconectado" : (campanhaAtual && campanhaAtual.status === "em_andamento") ? "Já tem uma campanha em andamento" : <><Ic.send /> Disparar pra {destinatarios} contato(s)</>}
+                <Btn onClick={enviarCampanha} disabled={enviando || wppConectado === false || ativa || variacoesFinais.every(v => !v.trim())} style={{ width: "100%", justifyContent: "center" }}>
+                  {enviando ? "Enviando..." : wppConectado === false ? "WhatsApp desconectado" : pausadaBackend ? "Campanha pausada — reconecte pra continuar" : emAndamento ? "Já tem uma campanha em andamento" : <><Ic.send /> Disparar pra {destinatarios} contato(s)</>}
                 </Btn>
               </div>
               <div style={{ background: "#fff", borderRadius: 16, padding: 16, border: "1px solid #F1F5F9", alignSelf: "start" }}>
