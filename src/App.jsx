@@ -3158,6 +3158,106 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   );
 }
 
+// ─── MARKETING: PAINEL DE PROGRESSO REUTILIZÁVEL ────────────────────────────
+// Mostra o andamento de UMA campanha (enviados / na fila / falharam, barra,
+// listas). Usado no topo (campanha ativa) e no detalhe de qualquer campanha.
+function StatTileCampanha({ emoji, n, label, cor, bg }) {
+  return (
+    <div style={{ flex: "1 1 90px", minWidth: 90, background: bg, borderRadius: 12, padding: "10px 12px", textAlign: "center" }}>
+      <div style={{ fontSize: 20, fontWeight: 800, color: cor, lineHeight: 1.1 }}>{n}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: cor, opacity: 0.85 }}>{emoji} {label}</div>
+    </div>
+  );
+}
+function ListaChipsCampanha({ titulo, itens, corBg, corTxt, marca, vazio }) {
+  return (
+    <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+      <div style={{ fontSize: 11.5, fontWeight: 800, color: corTxt, marginBottom: 6 }}>{titulo}</div>
+      {itens.length === 0 ? (
+        <div style={{ fontSize: 12, color: "#94A3B8" }}>{vazio}</div>
+      ) : (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 132, overflowY: "auto" }}>
+          {itens.slice(0, 60).map((it, i) => (
+            <span key={i} style={{ fontSize: 11.5, fontWeight: 600, padding: "3px 9px", borderRadius: 99, background: corBg, color: corTxt, whiteSpace: "nowrap", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>
+              {marca} {it.nome || "—"}
+            </span>
+          ))}
+          {itens.length > 60 && <span style={{ fontSize: 11.5, fontWeight: 700, color: corTxt, alignSelf: "center" }}>+{itens.length - 60}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar }) {
+  if (!campanha) return null;
+  const itensCampanha = Array.isArray(itens) ? itens : [];
+  const statusCampanha = campanha.status;
+  const emAndamento = statusCampanha === "em_andamento";
+  const pausadaBackend = statusCampanha === "pausada";
+  const pausadaPorWpp = pausadaBackend || (emAndamento && wppConectado === false);
+  const isEnviado = (s) => s === "enviado" || s === "sucesso";
+  const isFila = (s) => s === "fila" || s === "pendente" || s === "aguardando" || s === "na_fila";
+  const enviadosItens = itensCampanha.filter(i => isEnviado(i.status));
+  const filaItens = itensCampanha.filter(i => isFila(i.status));
+  const errosItens = itensCampanha.filter(i => !isEnviado(i.status) && !isFila(i.status));
+  const totalCamp = campanha.total || 0;
+  const enviadosN = campanha.enviados ?? enviadosItens.length;
+  const errosN = campanha.erros ?? errosItens.length;
+  const processadosN = enviadosN + errosN;
+  const filaN = Math.max(0, totalCamp - processadosN);
+  const pct = Math.min(100, Math.round((processadosN / Math.max(1, totalCamp)) * 100));
+  const minutosRestantes = Math.max(1, Math.round((filaN * 15) / 60));
+
+  const pill = pausadaPorWpp
+    ? { txt: "⏸ Pausada — WhatsApp caiu", bg: "#FEE2E2", cor: "#991B1B" }
+    : emAndamento
+      ? { txt: "Enviando agora", bg: "#DBEAFE", cor: "#1D4ED8", vivo: true }
+      : statusCampanha === "concluida"
+        ? { txt: "✅ Concluída", bg: "#DCFCE7", cor: "#166534" }
+        : { txt: "⚠️ Teve erro", bg: "#FEF3C7", cor: "#92400E" };
+
+  return (
+    <div className="cf-fade" style={{ background: "#fff", border: "2px solid " + (pausadaPorWpp ? "#FCA5A5" : emAndamento ? "#93C5FD" : "#86EFAC"), borderRadius: 16, padding: "16px 18px", marginBottom: 18, boxShadow: "0 4px 18px rgba(0,0,0,0.04)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontWeight: 800, fontSize: 13, color: pill.cor, background: pill.bg, borderRadius: 99, padding: "5px 12px" }}>
+          {pill.vivo && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2563EB", display: "inline-block", animation: "cfBlink 1.1s infinite" }} />}
+          {pill.txt}
+        </span>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#0B2B24" }}>{processadosN} de {totalCamp} <span style={{ color: "#94A3B8", fontWeight: 700 }}>({pct}%)</span></div>
+      </div>
+
+      <div style={{ background: "#F1F5F9", borderRadius: 99, height: 10, overflow: "hidden", marginBottom: 12 }}>
+        <div className={emAndamento && !pausadaPorWpp ? "cf-stripes" : ""} style={{ width: pct + "%", background: pausadaPorWpp ? "linear-gradient(90deg, #DC2626, #B91C1C)" : emAndamento ? "linear-gradient(90deg, #2563EB, #1D4ED8)" : "linear-gradient(90deg, #16A34A, #22C55E)", height: "100%", borderRadius: 99, transition: "width .6s ease" }} />
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <StatTileCampanha emoji="✅" n={enviadosN} label="Enviados" cor="#166534" bg="#F0FDF4" />
+        <StatTileCampanha emoji="⏳" n={filaN} label="Na fila" cor="#1D4ED8" bg="#EFF6FF" />
+        {errosN > 0 && <StatTileCampanha emoji="⚠️" n={errosN} label="Falharam" cor="#B45309" bg="#FFFBEB" />}
+      </div>
+
+      {pausadaPorWpp ? (
+        <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 12.5, color: "#991B1B", fontWeight: 600 }}>📵 WhatsApp desconectado. Os {filaN} contato(s) que faltam continuam de onde pararam assim que você reconectar.</div>
+          {onReconectar && <Btn small onClick={onReconectar} style={{ background: "linear-gradient(135deg, #16A34A, #15803D)" }}><Ic.qr /> Reconectar</Btn>}
+        </div>
+      ) : emAndamento && filaN > 0 ? (
+        <div style={{ fontSize: 12.5, color: "#475569", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          ⏱ <strong>~{minutosRestantes} min</strong> restantes · envia em lotes espaçados, mesmo se você sair dessa tela
+        </div>
+      ) : null}
+
+      {itensCampanha.length > 0 && (
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", borderTop: "1px solid #F1F5F9", paddingTop: 12 }}>
+          <ListaChipsCampanha titulo={"✅ Já receberam (" + enviadosItens.length + ")"} itens={enviadosItens} corBg="#DCFCE7" corTxt="#166534" marca="✓" vazio="Ninguém ainda — começando agora." />
+          <ListaChipsCampanha titulo={"⏳ Na fila" + (filaItens.length > 0 ? " (" + filaItens.length + ")" : "")} itens={filaItens} corBg="#EFF6FF" corTxt="#1D4ED8" marca="•" vazio={filaN > 0 ? filaN + " contato(s) aguardando a vez." : "Fila vazia — todo mundo processado."} />
+          {errosItens.length > 0 && <ListaChipsCampanha titulo={"⚠️ Não entregues (" + errosItens.length + ")"} itens={errosItens} corBg="#FEE2E2" corTxt="#991B1B" marca="✕" vazio="—" />}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
   const [aba, setAba] = useState("contatos");
   const [contatos, setContatos] = useState([]);
@@ -3216,6 +3316,53 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
     if (onCampanhaStatus) onCampanhaStatus(viva);
     return () => { if (onCampanhaStatus) onCampanhaStatus(false); };
   }, [campanhaAtual?.status]);
+
+  // ─── Aba "Campanhas": histórico salvo + acompanhamento ao vivo + reutilizar ──
+  const [campanhas, setCampanhas] = useState([]);
+  const [carregandoCampanhas, setCarregandoCampanhas] = useState(false);
+  const [detalhe, setDetalhe] = useState(null); // { campanha, itens } da campanha aberta
+  const [reutilizando, setReutilizando] = useState(false);
+  const pollDetalheRef = useRef(null);
+
+  const carregarCampanhas = async () => {
+    setCarregandoCampanhas(true);
+    const data = await api("/marketing/campanhas", {}, token);
+    if (Array.isArray(data)) setCampanhas(data);
+    setCarregandoCampanhas(false);
+  };
+  useEffect(() => { if (aba === "campanhas") carregarCampanhas(); }, [aba]);
+
+  const abrirDetalhe = async (id) => {
+    const data = await api("/marketing/campanhas/" + id, {}, token);
+    if (data && data.campanha) setDetalhe(data);
+  };
+  // Enquanto o detalhe aberto estiver vivo, atualiza a cada 5s (acompanhamento ao vivo).
+  useEffect(() => {
+    if (pollDetalheRef.current) { clearInterval(pollDetalheRef.current); pollDetalheRef.current = null; }
+    const st = detalhe?.campanha?.status;
+    if (detalhe && (st === "em_andamento" || st === "pausada")) {
+      pollDetalheRef.current = setInterval(() => abrirDetalhe(detalhe.campanha.id), 5000);
+    }
+    return () => { if (pollDetalheRef.current) clearInterval(pollDetalheRef.current); };
+  }, [detalhe?.campanha?.status, detalhe?.campanha?.id]);
+
+  const reutilizarCampanha = async (id) => {
+    if (wppConectado === false) { showToast("Reconecte o WhatsApp antes de reutilizar a campanha.", "error"); return; }
+    setReutilizando(true);
+    const data = await api("/marketing/campanhas/" + id + "/reutilizar", { method: "POST" }, token);
+    setReutilizando(false);
+    if (data.sucesso) {
+      showToast(data.mensagem || "Campanha reiniciada!");
+      await carregarCampanhas();
+      abrirDetalhe(data.campanha_id);
+      buscarCampanhaAtual();
+    } else showToast(data.erro || "Não foi possível reutilizar", "error");
+  };
+
+  const rotuloStatus = (s) => s === "em_andamento" ? { t: "Enviando", bg: "#DBEAFE", c: "#1D4ED8" }
+    : s === "pausada" ? { t: "⏸ Pausada", bg: "#FEE2E2", c: "#991B1B" }
+    : s === "concluida" ? { t: "✅ Concluída", bg: "#DCFCE7", c: "#166534" }
+    : { t: "⚠️ Erro", bg: "#FEF3C7", c: "#92400E" };
 
   const variacoesAuto = gerarVariacoesMensagem(mensagem);
   const variacoesFinais = variacoesAuto.map((v, i) => variacoesManual[i] ?? v);
@@ -3429,7 +3576,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
       {CardProgressoCampanha}
 
       <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
-        {[["contatos", "Contatos (" + contatos.length + ")"], ["campanha", "🚀 Disparar campanha"]].map(([k, l]) => (
+        {[["contatos", "Contatos (" + contatos.length + ")"], ["campanha", "🚀 Disparar campanha"], ["campanhas", "📋 Campanhas"]].map(([k, l]) => (
           <button key={k} onClick={() => setAba(k)} style={{ background: "none", border: "none", borderBottom: "2px solid " + (aba === k ? "#16A34A" : "transparent"), color: aba === k ? "#16A34A" : "#64748B", fontWeight: 700, fontSize: 13.5, padding: "10px 12px", cursor: "pointer" }}>{l}</button>
         ))}
       </div>
@@ -3472,6 +3619,69 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
                   <button onClick={() => removerContato(c.id)} style={{ background: "#FEF2F2", color: "#DC2626", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}><Ic.trash /></button>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {aba === "campanhas" && (
+        <div>
+          {detalhe ? (
+            <div className="cf-fade">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+                <button onClick={() => setDetalhe(null)} style={{ background: "none", border: "none", color: "#1E40AF", fontWeight: 700, fontSize: 13.5, cursor: "pointer", padding: 0 }}>← Voltar pra lista</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 12.5, color: "#64748B" }}>Criada em {new Date(detalhe.campanha.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                  <Btn small variant="green" onClick={() => reutilizarCampanha(detalhe.campanha.id)} disabled={reutilizando || detalhe.campanha.status === "em_andamento" || detalhe.campanha.status === "pausada"}>{reutilizando ? "Reiniciando..." : "🔁 Reutilizar"}</Btn>
+                </div>
+              </div>
+              <PainelProgressoCampanha campanha={detalhe.campanha} itens={detalhe.itens} wppConectado={wppConectado} onReconectar={onReconectar} />
+              <div style={{ fontSize: 12, color: "#94A3B8", textAlign: "center" }}>{(detalhe.campanha.status === "em_andamento" || detalhe.campanha.status === "pausada") ? "🔴 Atualizando ao vivo a cada 5 segundos…" : "Campanha finalizada."}</div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div style={{ fontSize: 13, color: "#64748B" }}>Toda campanha iniciada fica salva aqui. Clique pra acompanhar ao vivo ou reutilizar.</div>
+                <button onClick={carregarCampanhas} style={{ background: "none", border: "none", color: "#1E40AF", fontWeight: 700, fontSize: 13, cursor: "pointer" }}><Ic.refresh /> Atualizar</button>
+              </div>
+              {carregandoCampanhas ? (
+                <div style={{ textAlign: "center", padding: 40, color: "#64748B" }}>Carregando...</div>
+              ) : campanhas.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 48, color: "#94A3B8" }}>
+                  <div style={{ fontSize: 40, marginBottom: 10 }}>📋</div>
+                  <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Nenhuma campanha ainda</div>
+                  <div style={{ fontSize: 13 }}>Dispare a primeira em "🚀 Disparar campanha" — ela aparece aqui pra você acompanhar.</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {campanhas.map(c => {
+                    const st = rotuloStatus(c.status);
+                    const proc = (c.enviados || 0) + (c.erros || 0);
+                    const pct = Math.min(100, Math.round((proc / Math.max(1, c.total)) * 100));
+                    const viva = c.status === "em_andamento" || c.status === "pausada";
+                    return (
+                      <div key={c.id} onClick={() => abrirDetalhe(c.id)} className="cf-card" style={{ cursor: "pointer", background: "#fff", border: "1px solid " + (viva ? "#93C5FD" : "#F1F5F9"), borderRadius: 14, padding: "14px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 800, color: st.c, background: st.bg, borderRadius: 99, padding: "4px 11px" }}>
+                            {c.status === "em_andamento" && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2563EB", animation: "cfBlink 1.1s infinite" }} />}
+                            {st.t}
+                          </span>
+                          <span style={{ fontSize: 12, color: "#94A3B8" }}>{new Date(c.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>
+                        </div>
+                        <div style={{ background: "#F1F5F9", borderRadius: 99, height: 7, overflow: "hidden", marginBottom: 8 }}>
+                          <div style={{ width: pct + "%", height: "100%", borderRadius: 99, background: viva ? "linear-gradient(90deg,#2563EB,#1D4ED8)" : "linear-gradient(90deg,#16A34A,#22C55E)" }} />
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                          <div style={{ fontSize: 12.5, color: "#374151", fontWeight: 600 }}>
+                            {c.enviados || 0} enviados · {Math.max(0, (c.total || 0) - proc)} na fila{c.erros > 0 ? " · " + c.erros + " falharam" : ""} <span style={{ color: "#94A3B8" }}>· {c.total} no total</span>
+                          </div>
+                          {!viva && <button onClick={(e) => { e.stopPropagation(); reutilizarCampanha(c.id); }} disabled={reutilizando} style={{ background: "#F0FDF4", color: "#166534", border: "1px solid #86EFAC", borderRadius: 8, padding: "5px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>🔁 Reutilizar</button>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
