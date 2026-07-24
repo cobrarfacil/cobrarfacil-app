@@ -3364,6 +3364,18 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
     : s === "concluida" ? { t: "✅ Concluída", bg: "#DCFCE7", c: "#166534" }
     : { t: "⚠️ Erro", bg: "#FEF3C7", c: "#92400E" };
 
+  // Carrega as mensagens/variações de uma campanha no formulário de disparo, pra
+  // o lojista conferir/editar e reenviar sem começar do zero.
+  const reutilizarEditar = (campanha) => {
+    const msgs = Array.isArray(campanha?.mensagens) ? campanha.mensagens : [];
+    if (msgs.length === 0) { showToast("Esta campanha não tem as mensagens salvas para editar.", "error"); return; }
+    setMensagem(msgs[0] || "");
+    setVariacoesManual([msgs[0] ?? null, msgs[1] ?? null, msgs[2] ?? null]);
+    setDetalhe(null);
+    setAba("campanha");
+    showToast("Mensagens carregadas no formulário — edite e dispare quando quiser.");
+  };
+
   const variacoesAuto = gerarVariacoesMensagem(mensagem);
   const variacoesFinais = variacoesAuto.map((v, i) => variacoesManual[i] ?? v);
 
@@ -3630,13 +3642,39 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
             <div className="cf-fade">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
                 <button onClick={() => setDetalhe(null)} style={{ background: "none", border: "none", color: "#1E40AF", fontWeight: 700, fontSize: 13.5, cursor: "pointer", padding: 0 }}>← Voltar pra lista</button>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 12.5, color: "#64748B" }}>Criada em {new Date(detalhe.campanha.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-                  <Btn small variant="green" onClick={() => reutilizarCampanha(detalhe.campanha.id)} disabled={reutilizando || detalhe.campanha.status === "em_andamento" || detalhe.campanha.status === "pausada"}>{reutilizando ? "Reiniciando..." : "🔁 Reutilizar"}</Btn>
-                </div>
+                <span style={{ fontSize: 12.5, color: "#64748B" }}>Criada em {new Date(detalhe.campanha.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
               </div>
               <PainelProgressoCampanha campanha={detalhe.campanha} itens={detalhe.itens} wppConectado={wppConectado} onReconectar={onReconectar} />
-              <div style={{ fontSize: 12, color: "#94A3B8", textAlign: "center" }}>{(detalhe.campanha.status === "em_andamento" || detalhe.campanha.status === "pausada") ? "🔴 Atualizando ao vivo a cada 5 segundos…" : "Campanha finalizada."}</div>
+              <div style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", marginBottom: 16 }}>{(detalhe.campanha.status === "em_andamento" || detalhe.campanha.status === "pausada") ? "🔴 Atualizando ao vivo a cada 5 segundos…" : "Campanha finalizada."}</div>
+
+              {/* Mensagens/variações usadas nesta campanha — pra conferir ou editar */}
+              {(() => {
+                const msgs = Array.isArray(detalhe.campanha.mensagens) ? detalhe.campanha.mensagens : [];
+                return (
+                  <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 14 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 800, color: "#0B2B24", marginBottom: 4 }}>💬 Mensagens desta campanha {msgs.length > 0 ? "(" + msgs.length + " variação(ões))" : ""}</div>
+                    <div style={{ fontSize: 12, color: "#64748B", marginBottom: 14 }}>É exatamente o que foi enviado — o sistema alternou entre as variações. As variáveis <strong>{"{nome}"}</strong> e <strong>{"{negocio}"}</strong> são trocadas por contato no envio.</div>
+                    {msgs.length === 0 ? (
+                      <div style={{ fontSize: 13, color: "#94A3B8" }}>Esta campanha foi criada antes desse recurso, então as mensagens não ficaram salvas.</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {msgs.map((m, i) => (
+                          <div key={i} style={{ background: "#F8FAFC", borderRadius: 10, padding: 12, border: "1px solid #E2E8F0" }}>
+                            <div style={{ fontSize: 11.5, fontWeight: 700, color: "#374151", marginBottom: 6 }}>Variação {i + 1}</div>
+                            <div style={{ fontSize: 13.5, color: "#0B2B24", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{m}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {msgs.length > 0 && (
+                      <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+                        <Btn small variant="green" onClick={() => reutilizarCampanha(detalhe.campanha.id)} disabled={reutilizando || detalhe.campanha.status === "em_andamento" || detalhe.campanha.status === "pausada"}>{reutilizando ? "Reiniciando..." : "🔁 Reutilizar (enviar de novo igual)"}</Btn>
+                        <Btn small variant="ghost" onClick={() => reutilizarEditar(detalhe.campanha)}>✏️ Reutilizar e editar</Btn>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <div>
