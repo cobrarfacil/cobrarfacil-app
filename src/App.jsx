@@ -3190,7 +3190,7 @@ function ListaChipsCampanha({ titulo, itens, corBg, corTxt, marca, vazio }) {
 }
 // Janela com os nomes dos contatos, por categoria e com busca — mantém o painel
 // limpo (só números) e escala pra listas grandes sem lotar a tela.
-function ModalContatosCampanha({ enviados, fila, invalidos, erros, filaN, onClose }) {
+function ModalContatosCampanha({ enviados, fila, invalidos, erros, filaN, onRemover, onClose }) {
   const [cat, setCat] = useState(null);
   const [busca, setBusca] = useState("");
   const cats = [
@@ -3215,16 +3215,24 @@ function ModalContatosCampanha({ enviados, fila, invalidos, erros, filaN, onClos
       <div style={{ maxHeight: "50vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
         {lista.length === 0 ? (
           <div style={{ textAlign: "center", padding: 24, color: "#94A3B8", fontSize: 13 }}>{busca ? "Nenhum nome com \"" + busca + "\"." : "Sem contatos nesta categoria."}</div>
-        ) : lista.map((it, i) => (
-          <div key={i} style={{ fontSize: 13.5, color: "#0B2B24", padding: "7px 10px", background: i % 2 === 0 ? "#F8FAFC" : "#fff", borderRadius: 8 }}>{it.nome || "—"}</div>
-        ))}
+        ) : lista.map((it, i) => {
+          const podeRemover = onRemover && catAtual && catAtual[0] === "fila" && it.contato_id;
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 13.5, color: "#0B2B24", padding: "7px 10px", background: i % 2 === 0 ? "#F8FAFC" : "#fff", borderRadius: 8 }}>
+              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.nome || "—"}</span>
+              {podeRemover && (
+                <button title="Tirar da fila" onClick={() => { if (confirm("Tirar \"" + (it.nome || "este contato") + "\" da fila? Ele não vai receber esta campanha.")) onRemover(it.contato_id); }} style={{ background: "#FEF2F2", color: "#DC2626", border: "none", borderRadius: 7, padding: "4px 9px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>✕ Tirar</button>
+              )}
+            </div>
+          );
+        })}
         {faltamNomes && <div style={{ textAlign: "center", padding: 12, color: "#94A3B8", fontSize: 12.5 }}>+ {filaN - (catAtual[2] ? catAtual[2].length : 0)} contato(s) na fila (aparecem conforme a campanha avança)</div>}
       </div>
     </Modal>
   );
 }
 
-function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar }) {
+function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, onRemoverContato }) {
   const [verContatos, setVerContatos] = useState(false);
   if (!campanha) return null;
   const itensCampanha = Array.isArray(itens) ? itens : [];
@@ -3302,6 +3310,7 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar }
       {verContatos && (
         <ModalContatosCampanha
           enviados={enviadosItens} fila={filaItens} invalidos={invalidosItens} erros={errosItens} filaN={filaN}
+          onRemover={onRemoverContato ? (contatoId) => onRemoverContato(campanha.id, contatoId) : null}
           onClose={() => setVerContatos(false)}
         />
       )}
@@ -3427,6 +3436,15 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
       carregarCampanhas();
       buscarCampanhaAtual();
     } else showToast(data.erro || "Não foi possível parar", "error");
+  };
+
+  const removerDaFila = async (campanhaId, contatoId) => {
+    const data = await api("/marketing/campanhas/" + campanhaId + "/remover-contato", { method: "POST", body: JSON.stringify({ contato_id: contatoId }) }, token);
+    if (data.sucesso) {
+      showToast("Contato tirado da fila.");
+      buscarCampanhaAtual();
+      if (detalhe && detalhe.campanha && detalhe.campanha.id === campanhaId) abrirDetalhe(campanhaId);
+    } else showToast(data.erro || "Não foi possível remover", "error");
   };
 
   const nomeCampanhaLabel = (c) => c.nome || ("Campanha de " + new Date(c.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }));
@@ -3653,7 +3671,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
       <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Marketing</h1>
       <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Envie mensagens promocionais pra sua base de clientes — separado da cobrança, é um bônus do seu plano.</p>
 
-      {campanhaAtual && <PainelProgressoCampanha campanha={campanhaAtual} itens={itensCampanha} wppConectado={wppConectado} onReconectar={onReconectar} />}
+      {campanhaAtual && <PainelProgressoCampanha campanha={campanhaAtual} itens={itensCampanha} wppConectado={wppConectado} onReconectar={onReconectar} onRemoverContato={removerDaFila} />}
 
       <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
         {[["contatos", "Contatos (" + contatos.length + ")"], ["campanha", "🚀 Disparar campanha"], ["campanhas", "📋 Campanhas"]].map(([k, l]) => (
@@ -3718,7 +3736,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
                   <Btn small variant="danger" onClick={() => cancelarCampanha(detalhe.campanha.id)}>🛑 Parar campanha</Btn>
                 )}
               </div>
-              <PainelProgressoCampanha campanha={detalhe.campanha} itens={detalhe.itens} wppConectado={wppConectado} onReconectar={onReconectar} />
+              <PainelProgressoCampanha campanha={detalhe.campanha} itens={detalhe.itens} wppConectado={wppConectado} onReconectar={onReconectar} onRemoverContato={removerDaFila} />
               <div style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", marginBottom: 16 }}>{(detalhe.campanha.status === "em_andamento" || detalhe.campanha.status === "pausada") ? "🔴 Atualizando ao vivo a cada 5 segundos…" : "Campanha finalizada."}</div>
 
               {/* Mensagens/variações usadas nesta campanha — pra conferir ou editar */}
