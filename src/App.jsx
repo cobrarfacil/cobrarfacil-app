@@ -3280,6 +3280,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
   const [mensagem, setMensagem] = useState(TEMPLATES_MARKETING[0].texto);
   const [variacoesManual, setVariacoesManual] = useState([null, null, null]);
   const [nomeCampanha, setNomeCampanha] = useState("");
+  const [ritmo, setRitmo] = useState("seguro"); // padrão: devagar e seguro (protege o número)
   const [selecionados, setSelecionados] = useState(new Set());
   const [enviando, setEnviando] = useState(false);
 
@@ -3488,7 +3489,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
     if (wppConectado === false) { showToast("Reconecte o WhatsApp antes de disparar a campanha.", "error"); return; }
     setEnviando(true);
     const ids = selecionados.size > 0 ? Array.from(selecionados) : [];
-    const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagens: mensagensValidas, contato_ids: ids, nome: nomeCampanha }) }, token);
+    const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagens: mensagensValidas, contato_ids: ids, nome: nomeCampanha, ritmo }) }, token);
     setEnviando(false);
     if (data.sucesso) {
       showToast(data.mensagem || "Campanha iniciada!");
@@ -3788,6 +3789,25 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
                           {variacoesManual[i] !== null && <button onClick={() => restaurarVariacao(i)} style={{ background: "none", border: "none", color: "#1E40AF", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>↺ Restaurar automática</button>}
                         </div>
                         <textarea value={v} onChange={e => editarVariacao(i, e.target.value)} rows={2} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none", background: "#fff", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 14 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 4 }}>⏱ Ritmo de envio</div>
+                  <div style={{ fontSize: 12, color: "#64748B", marginBottom: 12 }}>Espaçar mais as mensagens protege seu número de bloqueio — importante se ele é novo, tem poucos contatos salvos, ou você não manda muitas mensagens no dia.</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {[
+                      ["seguro", "🐢 Devagar e seguro", "1 a 2 min entre cada mensagem. Recomendado — protege contra bloqueio."],
+                      ["rapido", "⚡ Rápido", "10 a 20 segundos. Só se seu número já está acostumado a mandar bastante."],
+                    ].map(([k, titulo, desc]) => (
+                      <div key={k} onClick={() => setRitmo(k)} style={{ cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start", background: ritmo === k ? "#F0FDF4" : "#F8FAFC", border: "1.5px solid " + (ritmo === k ? "#86EFAC" : "#E2E8F0"), borderRadius: 12, padding: "11px 13px" }}>
+                        <div style={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid " + (ritmo === k ? "#16A34A" : "#CBD5E1"), background: ritmo === k ? "#16A34A" : "#fff", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>{ritmo === k && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />}</div>
+                        <div>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0B2B24" }}>{titulo}</div>
+                          <div style={{ fontSize: 12, color: "#64748B" }}>{desc}</div>
+                        </div>
                       </div>
                     ))}
                   </div>
