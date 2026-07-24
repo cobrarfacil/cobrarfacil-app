@@ -3214,7 +3214,9 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar }
       ? { txt: "Enviando agora", bg: "#DBEAFE", cor: "#1D4ED8", vivo: true }
       : statusCampanha === "concluida"
         ? { txt: "✅ Concluída", bg: "#DCFCE7", cor: "#166534" }
-        : { txt: "⚠️ Teve erro", bg: "#FEF3C7", cor: "#92400E" };
+        : statusCampanha === "cancelada"
+          ? { txt: "🛑 Parada por você", bg: "#F1F5F9", cor: "#475569" }
+          : { txt: "⚠️ Teve erro", bg: "#FEF3C7", cor: "#92400E" };
 
   return (
     <div className="cf-fade" style={{ background: "#fff", border: "2px solid " + (pausadaPorWpp ? "#FCA5A5" : emAndamento ? "#93C5FD" : "#86EFAC"), borderRadius: 16, padding: "16px 18px", marginBottom: 18, boxShadow: "0 4px 18px rgba(0,0,0,0.04)" }}>
@@ -3277,6 +3279,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
   // mexeu na mão; as que não mexeu continuam acompanhando a mensagem principal.
   const [mensagem, setMensagem] = useState(TEMPLATES_MARKETING[0].texto);
   const [variacoesManual, setVariacoesManual] = useState([null, null, null]);
+  const [nomeCampanha, setNomeCampanha] = useState("");
   const [selecionados, setSelecionados] = useState(new Set());
   const [enviando, setEnviando] = useState(false);
 
@@ -3362,7 +3365,21 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
   const rotuloStatus = (s) => s === "em_andamento" ? { t: "Enviando", bg: "#DBEAFE", c: "#1D4ED8" }
     : s === "pausada" ? { t: "⏸ Pausada", bg: "#FEE2E2", c: "#991B1B" }
     : s === "concluida" ? { t: "✅ Concluída", bg: "#DCFCE7", c: "#166534" }
+    : s === "cancelada" ? { t: "🛑 Parada", bg: "#F1F5F9", c: "#475569" }
     : { t: "⚠️ Erro", bg: "#FEF3C7", c: "#92400E" };
+
+  const cancelarCampanha = async (id) => {
+    if (!confirm("Parar esta campanha? Os contatos que ainda não receberam não vão mais receber. Isso não pode ser desfeito.")) return;
+    const data = await api("/marketing/campanhas/" + id + "/cancelar", { method: "POST" }, token);
+    if (data.sucesso) {
+      showToast(data.mensagem || "Campanha parada.");
+      abrirDetalhe(id);
+      carregarCampanhas();
+      buscarCampanhaAtual();
+    } else showToast(data.erro || "Não foi possível parar", "error");
+  };
+
+  const nomeCampanhaLabel = (c) => c.nome || ("Campanha de " + new Date(c.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }));
 
   // Carrega as mensagens/variações de uma campanha no formulário de disparo, pra
   // o lojista conferir/editar e reenviar sem começar do zero.
@@ -3471,7 +3488,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
     if (wppConectado === false) { showToast("Reconecte o WhatsApp antes de disparar a campanha.", "error"); return; }
     setEnviando(true);
     const ids = selecionados.size > 0 ? Array.from(selecionados) : [];
-    const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagens: mensagensValidas, contato_ids: ids }) }, token);
+    const data = await api("/marketing/disparar", { method: "POST", body: JSON.stringify({ mensagens: mensagensValidas, contato_ids: ids, nome: nomeCampanha }) }, token);
     setEnviando(false);
     if (data.sucesso) {
       showToast(data.mensagem || "Campanha iniciada!");
@@ -3479,6 +3496,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
       // e já traz enviados/erros reais direto do banco.
       setCampanhaAtual({ id: data.campanha_id, total: data.total, enviados: 0, erros: 0, status: "em_andamento" });
       setItensCampanha([]);
+      setNomeCampanha("");
       buscarCampanhaAtual();
     } else showToast(data.erro || "Erro ao disparar", "error");
   };
@@ -3640,9 +3658,15 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
         <div>
           {detalhe ? (
             <div className="cf-fade">
+              <button onClick={() => setDetalhe(null)} style={{ background: "none", border: "none", color: "#1E40AF", fontWeight: 700, fontSize: 13.5, cursor: "pointer", padding: 0, marginBottom: 10 }}>← Voltar pra lista</button>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
-                <button onClick={() => setDetalhe(null)} style={{ background: "none", border: "none", color: "#1E40AF", fontWeight: 700, fontSize: 13.5, cursor: "pointer", padding: 0 }}>← Voltar pra lista</button>
-                <span style={{ fontSize: 12.5, color: "#64748B" }}>Criada em {new Date(detalhe.campanha.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                <div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: "#0B2B24" }}>{nomeCampanhaLabel(detalhe.campanha)}</div>
+                  <div style={{ fontSize: 12.5, color: "#64748B" }}>Criada em {new Date(detalhe.campanha.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
+                </div>
+                {(detalhe.campanha.status === "em_andamento" || detalhe.campanha.status === "pausada") && (
+                  <Btn small variant="danger" onClick={() => cancelarCampanha(detalhe.campanha.id)}>🛑 Parar campanha</Btn>
+                )}
               </div>
               <PainelProgressoCampanha campanha={detalhe.campanha} itens={detalhe.itens} wppConectado={wppConectado} onReconectar={onReconectar} />
               <div style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", marginBottom: 16 }}>{(detalhe.campanha.status === "em_andamento" || detalhe.campanha.status === "pausada") ? "🔴 Atualizando ao vivo a cada 5 segundos…" : "Campanha finalizada."}</div>
@@ -3700,11 +3724,14 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
                     return (
                       <div key={c.id} onClick={() => abrirDetalhe(c.id)} className="cf-card" style={{ cursor: "pointer", background: "#fff", border: "1px solid " + (viva ? "#93C5FD" : "#F1F5F9"), borderRadius: 14, padding: "14px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 800, color: st.c, background: st.bg, borderRadius: 99, padding: "4px 11px" }}>
-                            {c.status === "em_andamento" && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2563EB", animation: "cfBlink 1.1s infinite" }} />}
-                            {st.t}
-                          </span>
-                          <span style={{ fontSize: 12, color: "#94A3B8" }}>{new Date(c.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 800, color: st.c, background: st.bg, borderRadius: 99, padding: "4px 11px", flexShrink: 0 }}>
+                              {c.status === "em_andamento" && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2563EB", animation: "cfBlink 1.1s infinite" }} />}
+                              {st.t}
+                            </span>
+                            <span style={{ fontWeight: 700, fontSize: 13.5, color: "#0B2B24", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nomeCampanhaLabel(c)}</span>
+                          </div>
+                          <span style={{ fontSize: 12, color: "#94A3B8", flexShrink: 0 }}>{new Date(c.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>
                         </div>
                         <div style={{ background: "#F1F5F9", borderRadius: 99, height: 7, overflow: "hidden", marginBottom: 8 }}>
                           <div style={{ width: pct + "%", height: "100%", borderRadius: 99, background: viva ? "linear-gradient(90deg,#2563EB,#1D4ED8)" : "linear-gradient(90deg,#16A34A,#22C55E)" }} />
@@ -3735,6 +3762,8 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
               <div>
                 <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>Nome da campanha <span style={{ color: "#94A3B8", fontWeight: 400 }}>(opcional — pra achar fácil depois)</span></label>
+                  <input value={nomeCampanha} onChange={e => setNomeCampanha(e.target.value)} maxLength={120} placeholder="Ex.: Promoção de Julho" style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", background: "#F8FAFC", boxSizing: "border-box", marginBottom: 16 }} />
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 10 }}>💡 Modelos prontos — clique pra usar</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
                     {TEMPLATES_MARKETING.map((t, i) => (
