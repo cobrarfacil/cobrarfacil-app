@@ -3188,7 +3188,44 @@ function ListaChipsCampanha({ titulo, itens, corBg, corTxt, marca, vazio }) {
     </div>
   );
 }
+// Janela com os nomes dos contatos, por categoria e com busca — mantém o painel
+// limpo (só números) e escala pra listas grandes sem lotar a tela.
+function ModalContatosCampanha({ enviados, fila, invalidos, erros, filaN, onClose }) {
+  const [cat, setCat] = useState(null);
+  const [busca, setBusca] = useState("");
+  const cats = [
+    ["enviados", "✅ Já receberam", enviados, "#166534", "#DCFCE7"],
+    ["fila", "⏳ Na fila", fila, "#1D4ED8", "#EFF6FF"],
+    ["invalidos", "🚫 Sem WhatsApp", invalidos, "#475569", "#F1F5F9"],
+    ["erros", "⚠️ Não entregues", erros, "#991B1B", "#FEE2E2"],
+  ].filter(([k, , arr]) => (arr && arr.length > 0) || (k === "fila" && filaN > 0));
+  const catAtual = cats.find(c => c[0] === (cat || (cats[0] && cats[0][0]))) || cats[0];
+  const lista = (catAtual ? catAtual[2] : []).filter(i => (i.nome || "").toLowerCase().includes(busca.toLowerCase()));
+  const faltamNomes = catAtual && catAtual[0] === "fila" && filaN > (catAtual[2] ? catAtual[2].length : 0);
+  return (
+    <Modal title="Contatos da campanha" onClose={onClose} wide>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+        {cats.map(([k, titulo, arr, cor, bg]) => (
+          <button key={k} onClick={() => { setCat(k); setBusca(""); }} style={{ border: "1.5px solid " + ((catAtual && catAtual[0] === k) ? cor : "#E2E8F0"), background: (catAtual && catAtual[0] === k) ? bg : "#fff", color: cor, borderRadius: 99, padding: "6px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+            {titulo} ({k === "fila" ? filaN : arr.length})
+          </button>
+        ))}
+      </div>
+      <input placeholder="🔍 Buscar nome..." value={busca} onChange={e => setBusca(e.target.value)} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "9px 12px", fontSize: 14, outline: "none", background: "#F8FAFC", marginBottom: 12, boxSizing: "border-box" }} />
+      <div style={{ maxHeight: "50vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+        {lista.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 24, color: "#94A3B8", fontSize: 13 }}>{busca ? "Nenhum nome com \"" + busca + "\"." : "Sem contatos nesta categoria."}</div>
+        ) : lista.map((it, i) => (
+          <div key={i} style={{ fontSize: 13.5, color: "#0B2B24", padding: "7px 10px", background: i % 2 === 0 ? "#F8FAFC" : "#fff", borderRadius: 8 }}>{it.nome || "—"}</div>
+        ))}
+        {faltamNomes && <div style={{ textAlign: "center", padding: 12, color: "#94A3B8", fontSize: 12.5 }}>+ {filaN - (catAtual[2] ? catAtual[2].length : 0)} contato(s) na fila (aparecem conforme a campanha avança)</div>}
+      </div>
+    </Modal>
+  );
+}
+
 function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar }) {
+  const [verContatos, setVerContatos] = useState(false);
   if (!campanha) return null;
   const itensCampanha = Array.isArray(itens) ? itens : [];
   const statusCampanha = campanha.status;
@@ -3255,13 +3292,18 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar }
         </div>
       ) : null}
 
-      {itensCampanha.length > 0 && (
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", borderTop: "1px solid #F1F5F9", paddingTop: 12 }}>
-          <ListaChipsCampanha titulo={"✅ Já receberam (" + enviadosItens.length + ")"} itens={enviadosItens} corBg="#DCFCE7" corTxt="#166534" marca="✓" vazio="Ninguém ainda — começando agora." />
-          <ListaChipsCampanha titulo={"⏳ Na fila" + (filaItens.length > 0 ? " (" + filaItens.length + ")" : "")} itens={filaItens} corBg="#EFF6FF" corTxt="#1D4ED8" marca="•" vazio={filaN > 0 ? filaN + " contato(s) aguardando a vez." : "Fila vazia — todo mundo processado."} />
-          {invalidosItens.length > 0 && <ListaChipsCampanha titulo={"🚫 Sem WhatsApp (" + invalidosItens.length + ")"} itens={invalidosItens} corBg="#F1F5F9" corTxt="#475569" marca="✕" vazio="—" />}
-          {errosItens.length > 0 && <ListaChipsCampanha titulo={"⚠️ Não entregues (" + errosItens.length + ")"} itens={errosItens} corBg="#FEE2E2" corTxt="#991B1B" marca="✕" vazio="—" />}
+      {(itensCampanha.length > 0 || filaN > 0) && (
+        <div style={{ borderTop: "1px solid #F1F5F9", paddingTop: 12 }}>
+          <button onClick={() => setVerContatos(true)} className="cf-btn" style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 10, padding: "9px 14px", fontSize: 13, fontWeight: 700, color: "#374151", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}>
+            <Ic.eye /> Ver contatos (quem recebeu, na fila, falhas)
+          </button>
         </div>
+      )}
+      {verContatos && (
+        <ModalContatosCampanha
+          enviados={enviadosItens} fila={filaItens} invalidos={invalidosItens} erros={errosItens} filaN={filaN}
+          onClose={() => setVerContatos(false)}
+        />
       )}
     </div>
   );
