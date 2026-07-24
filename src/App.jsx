@@ -3197,13 +3197,17 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar }
   const pausadaPorWpp = pausadaBackend || (emAndamento && wppConectado === false);
   const isEnviado = (s) => s === "enviado" || s === "sucesso";
   const isFila = (s) => s === "fila" || s === "pendente" || s === "aguardando" || s === "na_fila";
+  const isInvalido = (s) => s === "invalido" || s === "inválido";
   const enviadosItens = itensCampanha.filter(i => isEnviado(i.status));
   const filaItens = itensCampanha.filter(i => isFila(i.status));
-  const errosItens = itensCampanha.filter(i => !isEnviado(i.status) && !isFila(i.status));
+  const invalidosItens = itensCampanha.filter(i => isInvalido(i.status));
+  const errosItens = itensCampanha.filter(i => !isEnviado(i.status) && !isFila(i.status) && !isInvalido(i.status));
   const totalCamp = campanha.total || 0;
   const enviadosN = campanha.enviados ?? enviadosItens.length;
   const errosN = campanha.erros ?? errosItens.length;
-  const processadosN = enviadosN + errosN;
+  const invalidosN = campanha.invalidos ?? invalidosItens.length;
+  // total = enviados + falharam + inválidos + na fila (bate com o que o lojista colocou)
+  const processadosN = enviadosN + errosN + invalidosN;
   const filaN = Math.max(0, totalCamp - processadosN);
   const pct = Math.min(100, Math.round((processadosN / Math.max(1, totalCamp)) * 100));
   const minutosRestantes = Math.max(1, Math.round((filaN * 15) / 60));
@@ -3235,8 +3239,10 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar }
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         <StatTileCampanha emoji="✅" n={enviadosN} label="Enviados" cor="#166534" bg="#F0FDF4" />
         <StatTileCampanha emoji="⏳" n={filaN} label="Na fila" cor="#1D4ED8" bg="#EFF6FF" />
+        {invalidosN > 0 && <StatTileCampanha emoji="🚫" n={invalidosN} label="Sem WhatsApp" cor="#475569" bg="#F1F5F9" />}
         {errosN > 0 && <StatTileCampanha emoji="⚠️" n={errosN} label="Falharam" cor="#B45309" bg="#FFFBEB" />}
       </div>
+      <div style={{ fontSize: 11.5, color: "#94A3B8", marginBottom: 12 }}>{enviadosN} + {filaN} na fila{invalidosN > 0 ? " + " + invalidosN + " sem WhatsApp" : ""}{errosN > 0 ? " + " + errosN + " falharam" : ""} = {totalCamp} contato(s) da lista</div>
 
       {pausadaPorWpp ? (
         <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
@@ -3253,6 +3259,7 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar }
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", borderTop: "1px solid #F1F5F9", paddingTop: 12 }}>
           <ListaChipsCampanha titulo={"✅ Já receberam (" + enviadosItens.length + ")"} itens={enviadosItens} corBg="#DCFCE7" corTxt="#166534" marca="✓" vazio="Ninguém ainda — começando agora." />
           <ListaChipsCampanha titulo={"⏳ Na fila" + (filaItens.length > 0 ? " (" + filaItens.length + ")" : "")} itens={filaItens} corBg="#EFF6FF" corTxt="#1D4ED8" marca="•" vazio={filaN > 0 ? filaN + " contato(s) aguardando a vez." : "Fila vazia — todo mundo processado."} />
+          {invalidosItens.length > 0 && <ListaChipsCampanha titulo={"🚫 Sem WhatsApp (" + invalidosItens.length + ")"} itens={invalidosItens} corBg="#F1F5F9" corTxt="#475569" marca="✕" vazio="—" />}
           {errosItens.length > 0 && <ListaChipsCampanha titulo={"⚠️ Não entregues (" + errosItens.length + ")"} itens={errosItens} corBg="#FEE2E2" corTxt="#991B1B" marca="✕" vazio="—" />}
         </div>
       )}
@@ -3604,7 +3611,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
       <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Marketing</h1>
       <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Envie mensagens promocionais pra sua base de clientes — separado da cobrança, é um bônus do seu plano.</p>
 
-      {CardProgressoCampanha}
+      {campanhaAtual && <PainelProgressoCampanha campanha={campanhaAtual} itens={itensCampanha} wppConectado={wppConectado} onReconectar={onReconectar} />}
 
       <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
         {[["contatos", "Contatos (" + contatos.length + ")"], ["campanha", "🚀 Disparar campanha"], ["campanhas", "📋 Campanhas"]].map(([k, l]) => (
@@ -3719,7 +3726,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {campanhas.map(c => {
                     const st = rotuloStatus(c.status);
-                    const proc = (c.enviados || 0) + (c.erros || 0);
+                    const proc = (c.enviados || 0) + (c.erros || 0) + (c.invalidos || 0);
                     const pct = Math.min(100, Math.round((proc / Math.max(1, c.total)) * 100));
                     const viva = c.status === "em_andamento" || c.status === "pausada";
                     return (
@@ -3739,7 +3746,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
                         </div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                           <div style={{ fontSize: 12.5, color: "#374151", fontWeight: 600 }}>
-                            {c.enviados || 0} enviados · {Math.max(0, (c.total || 0) - proc)} na fila{c.erros > 0 ? " · " + c.erros + " falharam" : ""} <span style={{ color: "#94A3B8" }}>· {c.total} no total</span>
+                            {c.enviados || 0} enviados · {Math.max(0, (c.total || 0) - proc)} na fila{c.invalidos > 0 ? " · " + c.invalidos + " sem WhatsApp" : ""}{c.erros > 0 ? " · " + c.erros + " falharam" : ""} <span style={{ color: "#94A3B8" }}>· {c.total} no total</span>
                           </div>
                           {!viva && <button onClick={(e) => { e.stopPropagation(); reutilizarCampanha(c.id); }} disabled={reutilizando} style={{ background: "#F0FDF4", color: "#166534", border: "1px solid #86EFAC", borderRadius: 8, padding: "5px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>🔁 Reutilizar</button>}
                         </div>
