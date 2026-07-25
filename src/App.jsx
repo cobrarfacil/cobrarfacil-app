@@ -4389,11 +4389,11 @@ const NAV_ITEMS = [
   { key: "dashboard",  label: "Painel",     icon: <Ic.dash /> },
   { key: "clientes",   label: "Clientes",   icon: <Ic.clients /> },
   { key: "cobrancas",  label: "Cobrança",   icon: <Ic.charge /> },
-  { key: "marketing",  label: "Marketing",  icon: <Ic.megaphone /> },
   { key: "conversas",  label: "Conversas",  icon: <Ic.whatsapp /> },
-  { key: "historico",  label: "Histórico",  icon: <Ic.history /> },
   { key: "pagamentos", label: "Pagamentos", icon: <Ic.money /> },
+  { key: "historico",  label: "Histórico",  icon: <Ic.history /> },
   { key: "relatorio",  label: "Relatório",  icon: <Ic.report /> },
+  { key: "marketing",  label: "Marketing",  icon: <Ic.megaphone /> },
   { key: "config",     label: "Config",     icon: <Ic.settings /> },
 ];
 const NAV_MOBILE_PRINCIPAL = ["dashboard", "clientes", "cobrancas", "conversas"];
