@@ -3255,7 +3255,14 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, 
   const processadosN = enviadosN + errosN + invalidosN;
   const filaN = Math.max(0, totalCamp - processadosN);
   const pct = Math.min(100, Math.round((processadosN / Math.max(1, totalCamp)) * 100));
-  const minutosRestantes = Math.max(1, Math.round((filaN * 15) / 60));
+  // Ritmo de envio da campanha: "seguro" (padrão) = 1-2 min entre mensagens; "rapido" = 10-20s.
+  const ritmoCampanha = campanha.ritmo === "rapido" ? "rapido" : "seguro";
+  const intervaloTxt = ritmoCampanha === "rapido" ? "10 a 20 segundos" : "1 a 2 minutos";
+  const segPorMsg = ritmoCampanha === "rapido" ? 15 : 90; // média do intervalo escolhido
+  // Estimativa realista: tempo dos envios + pausa de ~30min a cada lote de 30 contatos.
+  const lotesRestantes = Math.max(0, Math.ceil(filaN / 30) - 1);
+  const minutosRestantes = Math.max(1, Math.round((filaN * segPorMsg + lotesRestantes * 30 * 60) / 60));
+  const tempoRestanteTxt = minutosRestantes >= 120 ? "~" + Math.round(minutosRestantes / 60) + "h" : "~" + minutosRestantes + " min";
 
   const pill = pausadaPorWpp
     ? { txt: "⏸ Pausada — WhatsApp caiu", bg: "#FEE2E2", cor: "#991B1B" }
@@ -3289,6 +3296,13 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, 
       </div>
       <div style={{ fontSize: 11.5, color: "#94A3B8", marginBottom: 12 }}>{enviadosN} + {filaN} na fila{invalidosN > 0 ? " + " + invalidosN + " sem WhatsApp" : ""}{errosN > 0 ? " + " + errosN + " falharam" : ""} = {totalCamp} contato(s) da lista</div>
 
+      {filaN > 0 && (
+        <div style={{ fontSize: 12.5, color: "#0F5132", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 12, padding: "10px 13px", marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <span style={{ fontSize: 15, lineHeight: 1 }}>{ritmoCampanha === "rapido" ? "⚡" : "🐢"}</span>
+          <span>Enviando 1 mensagem a cada <strong>{intervaloTxt}</strong>{ritmoCampanha === "rapido" ? "" : " — devagar de propósito, pra proteger seu número do bloqueio"}. Além disso, o sistema pausa alguns minutos a cada lote de 30 contatos.</span>
+        </div>
+      )}
+
       {pausadaPorWpp ? (
         <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
           <div style={{ fontSize: 12.5, color: "#991B1B", fontWeight: 600 }}>📵 WhatsApp desconectado. Os {filaN} contato(s) que faltam continuam de onde pararam assim que você reconectar.</div>
@@ -3296,7 +3310,7 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, 
         </div>
       ) : emAndamento && filaN > 0 ? (
         <div style={{ fontSize: 12.5, color: "#475569", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-          ⏱ <strong>~{minutosRestantes} min</strong> restantes · envia em lotes espaçados, mesmo se você sair dessa tela
+          ⏱ <strong>{tempoRestanteTxt}</strong> restantes (estimativa) · continua enviando mesmo se você sair dessa tela
         </div>
       ) : null}
 
