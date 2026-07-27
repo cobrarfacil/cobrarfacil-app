@@ -23,6 +23,10 @@ Resolver a dor da **cobrança** de forma **simples** para um dono de negócio le
 
 Merge da branch de trabalho na **`main`** → a Vercel publica sozinha. Não commitar `node_modules/` nem `dist/` (ver `.gitignore`).
 
+## Infra — servidor de WhatsApp no Brasil (REGRA global do Tiago)
+
+O componente que conecta ao WhatsApp (Evolution API) deve rodar num **IP brasileiro (São Paulo)** — número BR + servidor no exterior (Railway US) dispara "suspeita de golpe" no WhatsApp e aumenta risco de bloqueio. Ver regra completa em `negocios-docs/CLAUDE.md`. Hoje o backend está na Railway (EUA): a Evolution API deveria migrar pra um host de SP (Vultr/AWS `sa-east-1`/Magalu/Hostinger BR). Ao reconectar num servidor novo, cada lojista lê o QR de novo uma vez.
+
 ## Gotchas
 
 - **Modo suporte (impersonação):** `isAdmin` continua true; carregamento de dados e vigia de WhatsApp consideram `impersonando`. (Foi o bug de "clientes sumiram".)
