@@ -411,6 +411,23 @@ const ToastMsg = ({ msg, type }) => (
   <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", background: type === "success" ? "#16A34A" : "#DC2626", color: "#fff", borderRadius: 12, padding: "12px 24px", fontSize: 14, fontWeight: 600, zIndex: 3000, boxShadow: "0 4px 20px rgba(0,0,0,0.25)", maxWidth: "90vw", textAlign: "center" }}>{msg}</div>
 );
 
+// Mostra o status REAL de entrega de uma mensagem que o lojista enviou:
+// ✓ enviado (chegou no servidor) · ✓✓ entregue (chegou no celular) · ✓✓ azul lido
+// · ⚠ não entregue. Só aparece pra mensagens enviadas que têm status rastreado —
+// mensagens antigas (sem status) não mostram nada, pra não confundir.
+const TicksEntrega = ({ status }) => {
+  if (!status) return null;
+  const mapa = {
+    enviado: { txt: "✓ Enviado", cor: "#94A3B8" },
+    entregue: { txt: "✓✓ Entregue", cor: "#64748B" },
+    lido: { txt: "✓✓ Lido", cor: "#2563EB" },
+    falhou: { txt: "⚠ Não entregue", cor: "#DC2626" },
+  };
+  const s = mapa[status];
+  if (!s) return null;
+  return <span style={{ fontSize: 10, fontWeight: 700, color: s.cor, marginLeft: 6 }}>{s.txt}</span>;
+};
+
 const SenhaInput = ({ label, value, onChange, placeholder, onKeyDown }) => {
   const [mostrar, setMostrar] = useState(false);
   return (
@@ -1612,7 +1629,7 @@ function ModalConversa({ cliente, token, onClose }) {
           ) : mensagens.map((m, i) => (
             <div key={i} style={{ alignSelf: m.direcao === "enviada" ? "flex-end" : "flex-start", maxWidth: "80%", background: m.direcao === "enviada" ? "#DCF8C6" : "#fff", borderRadius: 8, padding: "8px 12px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
               <div style={{ fontSize: 13, color: "#0B2B24", whiteSpace: "pre-wrap" }}>{m.texto}</div>
-              <div style={{ fontSize: 10, color: "#94A3B8", textAlign: "right", marginTop: 3 }}>{new Date(m.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
+              <div style={{ fontSize: 10, color: "#94A3B8", textAlign: "right", marginTop: 3 }}>{new Date(m.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}{m.direcao === "enviada" && <TicksEntrega status={m.status_entrega} />}</div>
             </div>
           ))}
         </div>
@@ -2229,7 +2246,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
                             {mensagensDetalhe.length === 0 ? <div style={{ textAlign: "center", color: "#64748B", fontSize: 12, margin: "auto" }}>Nenhuma mensagem ainda</div> : mensagensDetalhe.map((m, i) => (
                               <div key={i} style={{ alignSelf: m.direcao === "enviada" ? "flex-end" : "flex-start", maxWidth: "85%", background: m.direcao === "enviada" ? "#DCF8C6" : "#fff", borderRadius: 8, padding: "6px 10px" }}>
                                 <div style={{ fontSize: 12, color: "#0B2B24", whiteSpace: "pre-wrap" }}>{m.texto}</div>
-                                <div style={{ fontSize: 9.5, color: "#94A3B8", textAlign: "right", marginTop: 2 }}>{new Date(m.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
+                                <div style={{ fontSize: 9.5, color: "#94A3B8", textAlign: "right", marginTop: 2 }}>{new Date(m.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}{m.direcao === "enviada" && <TicksEntrega status={m.status_entrega} />}</div>
                               </div>
                             ))}
                           </div>
@@ -2601,7 +2618,7 @@ function Conversas({ clientes, setClientes, token, isMobile }) {
           ) : mensagens.map((m, i) => (
             <div key={i} style={{ alignSelf: m.direcao === "enviada" ? "flex-end" : "flex-start", maxWidth: "80%", background: m.direcao === "enviada" ? "#DCF8C6" : "#fff", borderRadius: 8, padding: "8px 12px", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
               <div style={{ fontSize: 13, color: "#0B2B24", whiteSpace: "pre-wrap" }}>{m.texto}</div>
-              <div style={{ fontSize: 10, color: "#94A3B8", textAlign: "right", marginTop: 3 }}>{new Date(m.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
+              <div style={{ fontSize: 10, color: "#94A3B8", textAlign: "right", marginTop: 3 }}>{new Date(m.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}{m.direcao === "enviada" && <TicksEntrega status={m.status_entrega} />}</div>
             </div>
           ))}
         </div>
