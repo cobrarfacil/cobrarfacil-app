@@ -3321,7 +3321,7 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, 
           <div style={{ fontSize: 12.5, color: "#475569", display: "flex", alignItems: "center", gap: 6 }}>
             ⏱ <strong>{tempoRestanteTxt}</strong> restantes (estimativa) · continua enviando mesmo se você sair dessa tela
           </div>
-          {onPausar && <button onClick={() => onPausar(campanha.id)} className="cf-btn" style={{ background: "#fff", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "8px 14px", fontSize: 13, fontWeight: 700, color: "#475569", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>⏸ Pausar</button>}
+          {onPausar && <button onClick={() => onPausar(campanha.id)} className="cf-btn" style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)", border: "none", borderRadius: 11, padding: "11px 22px", fontSize: 15, fontWeight: 800, color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(217,119,6,0.35)" }}>⏸ Pausar</button>}
         </div>
       ) : null}
 
