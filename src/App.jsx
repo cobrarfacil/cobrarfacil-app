@@ -3232,12 +3232,13 @@ function ModalContatosCampanha({ enviados, fila, invalidos, erros, filaN, onRemo
   );
 }
 
-function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, onRemoverContato }) {
+function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, onRemoverContato, onPausar, onRetomar }) {
   const [verContatos, setVerContatos] = useState(false);
   if (!campanha) return null;
   const itensCampanha = Array.isArray(itens) ? itens : [];
   const statusCampanha = campanha.status;
   const emAndamento = statusCampanha === "em_andamento";
+  const pausadaManual = statusCampanha === "pausada_manual";
   const pausadaBackend = statusCampanha === "pausada";
   const pausadaPorWpp = pausadaBackend || (emAndamento && wppConectado === false);
   const isEnviado = (s) => s === "enviado" || s === "sucesso";
@@ -3266,6 +3267,8 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, 
 
   const pill = pausadaPorWpp
     ? { txt: "⏸ Pausada — WhatsApp caiu", bg: "#FEE2E2", cor: "#991B1B" }
+    : pausadaManual
+      ? { txt: "⏸ Pausada por você", bg: "#F1F5F9", cor: "#475569" }
     : emAndamento
       ? { txt: "Enviando agora", bg: "#DBEAFE", cor: "#1D4ED8", vivo: true }
       : statusCampanha === "concluida"
@@ -3308,9 +3311,17 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, 
           <div style={{ fontSize: 12.5, color: "#991B1B", fontWeight: 600 }}>📵 WhatsApp desconectado. Os {filaN} contato(s) que faltam continuam de onde pararam assim que você reconectar.</div>
           {onReconectar && <Btn small onClick={onReconectar} style={{ background: "linear-gradient(135deg, #16A34A, #15803D)" }}><Ic.qr /> Reconectar</Btn>}
         </div>
+      ) : pausadaManual ? (
+        <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 12.5, color: "#475569", fontWeight: 600 }}>⏸ Você pausou esta campanha. Nada foi perdido — os {filaN} contato(s) que faltam continuam na fila. É só retomar que ela segue de onde parou.</div>
+          {onRetomar && <Btn small onClick={() => onRetomar(campanha.id)} style={{ background: "linear-gradient(135deg, #16A34A, #15803D)" }}>▶ Retomar</Btn>}
+        </div>
       ) : emAndamento && filaN > 0 ? (
-        <div style={{ fontSize: 12.5, color: "#475569", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-          ⏱ <strong>{tempoRestanteTxt}</strong> restantes (estimativa) · continua enviando mesmo se você sair dessa tela
+        <div style={{ marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 12.5, color: "#475569", display: "flex", alignItems: "center", gap: 6 }}>
+            ⏱ <strong>{tempoRestanteTxt}</strong> restantes (estimativa) · continua enviando mesmo se você sair dessa tela
+          </div>
+          {onPausar && <button onClick={() => onPausar(campanha.id)} className="cf-btn" style={{ background: "#fff", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "8px 14px", fontSize: 13, fontWeight: 700, color: "#475569", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>⏸ Pausar</button>}
         </div>
       ) : null}
 
@@ -3437,6 +3448,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
 
   const rotuloStatus = (s) => s === "em_andamento" ? { t: "Enviando", bg: "#DBEAFE", c: "#1D4ED8" }
     : s === "pausada" ? { t: "⏸ Pausada", bg: "#FEE2E2", c: "#991B1B" }
+    : s === "pausada_manual" ? { t: "⏸ Pausada por você", bg: "#F1F5F9", c: "#475569" }
     : s === "concluida" ? { t: "✅ Concluída", bg: "#DCFCE7", c: "#166534" }
     : s === "cancelada" ? { t: "🛑 Parada", bg: "#F1F5F9", c: "#475569" }
     : { t: "⚠️ Erro", bg: "#FEF3C7", c: "#92400E" };
@@ -3459,6 +3471,24 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
       buscarCampanhaAtual();
       if (detalhe && detalhe.campanha && detalhe.campanha.id === campanhaId) abrirDetalhe(campanhaId);
     } else showToast(data.erro || "Não foi possível remover", "error");
+  };
+
+  // Pausar = para o envio SEM perder nada e sem mexer no WhatsApp. Retoma de onde parou.
+  const pausarCampanha = async (id) => {
+    const data = await api("/marketing/campanhas/" + id + "/pausar", { method: "POST" }, token);
+    if (data.sucesso) {
+      showToast(data.mensagem || "Campanha pausada.");
+      buscarCampanhaAtual();
+      if (detalhe && detalhe.campanha && detalhe.campanha.id === id) abrirDetalhe(id);
+    } else showToast(data.erro || "Não foi possível pausar", "error");
+  };
+  const retomarCampanha = async (id) => {
+    const data = await api("/marketing/campanhas/" + id + "/retomar", { method: "POST" }, token);
+    if (data.sucesso) {
+      showToast(data.mensagem || "Campanha retomada.");
+      buscarCampanhaAtual();
+      if (detalhe && detalhe.campanha && detalhe.campanha.id === id) abrirDetalhe(id);
+    } else showToast(data.erro || "Não foi possível retomar", "error");
   };
 
   const nomeCampanhaLabel = (c) => c.nome || ("Campanha de " + new Date(c.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }));
@@ -3685,7 +3715,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
       <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "#0B2B24" }}>Marketing</h1>
       <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748B" }}>Envie mensagens promocionais pra sua base de clientes — separado da cobrança, é um bônus do seu plano.</p>
 
-      {campanhaAtual && <PainelProgressoCampanha campanha={campanhaAtual} itens={itensCampanha} wppConectado={wppConectado} onReconectar={onReconectar} onRemoverContato={removerDaFila} />}
+      {campanhaAtual && <PainelProgressoCampanha campanha={campanhaAtual} itens={itensCampanha} wppConectado={wppConectado} onReconectar={onReconectar} onRemoverContato={removerDaFila} onPausar={pausarCampanha} onRetomar={retomarCampanha} />}
 
       <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: "1px solid #F1F5F9" }}>
         {[["contatos", "Contatos (" + contatos.length + ")"], ["campanha", "🚀 Disparar campanha"], ["campanhas", "📋 Campanhas"]].map(([k, l]) => (
@@ -3750,7 +3780,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
                   <Btn small variant="danger" onClick={() => cancelarCampanha(detalhe.campanha.id)}>🛑 Parar campanha</Btn>
                 )}
               </div>
-              <PainelProgressoCampanha campanha={detalhe.campanha} itens={detalhe.itens} wppConectado={wppConectado} onReconectar={onReconectar} onRemoverContato={removerDaFila} />
+              <PainelProgressoCampanha campanha={detalhe.campanha} itens={detalhe.itens} wppConectado={wppConectado} onReconectar={onReconectar} onRemoverContato={removerDaFila} onPausar={pausarCampanha} onRetomar={retomarCampanha} />
               <div style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", marginBottom: 16 }}>{(detalhe.campanha.status === "em_andamento" || detalhe.campanha.status === "pausada") ? "🔴 Atualizando ao vivo a cada 5 segundos…" : "Campanha finalizada."}</div>
 
               {/* Mensagens/variações usadas nesta campanha — pra conferir ou editar */}
@@ -3802,7 +3832,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
                     const st = rotuloStatus(c.status);
                     const proc = (c.enviados || 0) + (c.erros || 0) + (c.invalidos || 0);
                     const pct = Math.min(100, Math.round((proc / Math.max(1, c.total)) * 100));
-                    const viva = c.status === "em_andamento" || c.status === "pausada";
+                    const viva = c.status === "em_andamento" || c.status === "pausada" || c.status === "pausada_manual";
                     return (
                       <div key={c.id} onClick={() => abrirDetalhe(c.id)} className="cf-card" style={{ cursor: "pointer", background: "#fff", border: "1px solid " + (viva ? "#93C5FD" : "#F1F5F9"), borderRadius: 14, padding: "14px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
