@@ -3256,6 +3256,7 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, 
   const statusCampanha = campanha.status;
   const emAndamento = statusCampanha === "em_andamento";
   const pausadaManual = statusCampanha === "pausada_manual";
+  const pausadaCota = statusCampanha === "pausada_cota";
   const pausadaBackend = statusCampanha === "pausada";
   const pausadaPorWpp = pausadaBackend || (emAndamento && wppConectado === false);
   const isEnviado = (s) => s === "enviado" || s === "sucesso";
@@ -3286,6 +3287,8 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, 
     ? { txt: "⏸ Pausada — WhatsApp caiu", bg: "#FEE2E2", cor: "#991B1B" }
     : pausadaManual
       ? { txt: "⏸ Pausada por você", bg: "#F1F5F9", cor: "#475569" }
+    : pausadaCota
+      ? { txt: "🐢 Pausada — limite seguro do dia", bg: "#FEF9C3", cor: "#854D0E" }
     : emAndamento
       ? { txt: "Enviando agora", bg: "#DBEAFE", cor: "#1D4ED8", vivo: true }
       : statusCampanha === "concluida"
@@ -3332,6 +3335,11 @@ function PainelProgressoCampanha({ campanha, itens, wppConectado, onReconectar, 
         <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
           <div style={{ fontSize: 12.5, color: "#475569", fontWeight: 600 }}>⏸ Você pausou esta campanha. Nada foi perdido — os {filaN} contato(s) que faltam continuam na fila. É só retomar que ela segue de onde parou.</div>
           {onRetomar && <Btn small onClick={() => onRetomar(campanha.id)} style={{ background: "linear-gradient(135deg, #16A34A, #15803D)" }}>▶ Retomar</Btn>}
+        </div>
+      ) : pausadaCota ? (
+        <div style={{ background: "#FEFCE8", border: "1px solid #FDE68A", borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <span style={{ fontSize: 15, lineHeight: 1 }}>🐢</span>
+          <div style={{ fontSize: 12.5, color: "#854D0E", fontWeight: 600 }}>Pausada pelo limite seguro do dia — é assim que a gente protege seu número de ser bloqueado. Os {filaN} contato(s) que faltam <strong>continuam amanhã, sozinhos</strong>, de onde pararam. Você não precisa fazer nada.</div>
         </div>
       ) : emAndamento && filaN > 0 ? (
         <div style={{ marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
@@ -3466,6 +3474,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
   const rotuloStatus = (s) => s === "em_andamento" ? { t: "Enviando", bg: "#DBEAFE", c: "#1D4ED8" }
     : s === "pausada" ? { t: "⏸ Pausada", bg: "#FEE2E2", c: "#991B1B" }
     : s === "pausada_manual" ? { t: "⏸ Pausada por você", bg: "#F1F5F9", c: "#475569" }
+    : s === "pausada_cota" ? { t: "🐢 Limite do dia", bg: "#FEF9C3", c: "#854D0E" }
     : s === "concluida" ? { t: "✅ Concluída", bg: "#DCFCE7", c: "#166534" }
     : s === "cancelada" ? { t: "🛑 Parada", bg: "#F1F5F9", c: "#475569" }
     : { t: "⚠️ Erro", bg: "#FEF3C7", c: "#92400E" };
@@ -3849,7 +3858,7 @@ function Marketing({ token, wppConectado, onReconectar, onCampanhaStatus }) {
                     const st = rotuloStatus(c.status);
                     const proc = (c.enviados || 0) + (c.erros || 0) + (c.invalidos || 0);
                     const pct = Math.min(100, Math.round((proc / Math.max(1, c.total)) * 100));
-                    const viva = c.status === "em_andamento" || c.status === "pausada" || c.status === "pausada_manual";
+                    const viva = c.status === "em_andamento" || c.status === "pausada" || c.status === "pausada_manual" || c.status === "pausada_cota";
                     return (
                       <div key={c.id} onClick={() => abrirDetalhe(c.id)} className="cf-card" style={{ cursor: "pointer", background: "#fff", border: "1px solid " + (viva ? "#93C5FD" : "#F1F5F9"), borderRadius: 14, padding: "14px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
