@@ -2931,7 +2931,7 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   const [cobrarStatus, setCobrarStatus] = useState({ ativo: false, parando: false, progresso: null });
   const [confirmCobrar, setConfirmCobrar] = useState(false);
   const [iniciandoCobrar, setIniciandoCobrar] = useState(false);
-  const clientesCobraveis = (clientes || []).filter(c => c.telefone && !["pago", "blacklist", "aguardando_confirmacao"].includes(c.status));
+  const clientesCobraveis = (clientes || []).filter(c => c.telefone && !c.dados_pendentes && !["pago", "blacklist", "aguardando_confirmacao"].includes(c.status));
 
   useEffect(() => {
     api("/relatorio/inadimplencia", {}, token).then(d => { if (d.taxa_recuperacao !== undefined) setTaxaRecuperacao(d.taxa_recuperacao); });
@@ -3060,7 +3060,7 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
     setEnviando(false);
   };
 
-  const clientesAtivos = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist").length;
+  const clientesAtivos = clientes.filter(c => c.status !== "pago" && c.status !== "blacklist" && !c.dados_pendentes).length;
   const cobrancasHoje = (historico || []).filter(h => new Date(h.criado_em).toDateString() === new Date().toDateString()).length;
   const horarioLabel = horarioInicio && horarioFim ? horarioInicio + " às " + horarioFim : "8h às 19h (padrão do sistema)";
 
