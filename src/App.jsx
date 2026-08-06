@@ -2103,7 +2103,25 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
         </div>
       )}
 
-      {isMobile ? (
+      {vista === "corrigir" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {filtrados.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}>
+              <div style={{ fontSize: 34, marginBottom: 8 }}>✅</div>
+              <div style={{ fontWeight: 600 }}>{busca ? "Nenhum resultado nessa busca." : "Nenhum cliente para corrigir. Tudo certo!"}</div>
+            </div>
+          ) : filtrados.map(c => (
+            <div key={c.id} style={{ background: "#fff", borderRadius: 14, border: "1px solid #FDE68A", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5, color: "#0B2B24" }}>{c.nome}</div>
+                <div style={{ fontSize: 12.5, color: "#64748B", marginTop: 2 }}>Telefone atual: <span style={{ color: "#B45309", fontWeight: 700 }}>{c.telefone || "— (vazio)"}</span></div>
+                <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 2 }}>{fmt(c.total_divida)}{c.vencimento ? " · vence " + fmtData(c.vencimento.split("T")[0]) : ""}</div>
+              </div>
+              <Btn small onClick={() => setModalEditar(c)} style={{ flexShrink: 0 }}><Ic.edit /> Corrigir telefone</Btn>
+            </div>
+          ))}
+        </div>
+      ) : isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {filtrados.length > 0 && (
             <div onClick={toggleSelecionarTodosFiltrados} style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 4px 2px", cursor: "pointer" }}>
