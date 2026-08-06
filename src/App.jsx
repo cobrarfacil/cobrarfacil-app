@@ -2900,8 +2900,15 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
   // ─── Relatório de falhas de envio (movido pra dentro de Cobranças) ─────────
   const [mostrarFalhas, setMostrarFalhas] = useState(false);
   const [errosEnvio, setErrosEnvio] = useState(null);
+  const [naoEntregues, setNaoEntregues] = useState([]);
   const [dataErros, setDataErros] = useState(new Date().toISOString().split("T")[0]);
   const [blacklist, setBlacklist] = useState([]);
+
+  // ─── Cobrar agora (em massa) ───────────────────────────────────────────────
+  const [cobrarStatus, setCobrarStatus] = useState({ ativo: false, parando: false, progresso: null });
+  const [confirmCobrar, setConfirmCobrar] = useState(false);
+  const [iniciandoCobrar, setIniciandoCobrar] = useState(false);
+  const clientesCobraveis = (clientes || []).filter(c => c.telefone && !["pago", "blacklist", "aguardando_confirmacao"].includes(c.status));
 
   useEffect(() => {
     api("/relatorio/inadimplencia", {}, token).then(d => { if (d.taxa_recuperacao !== undefined) setTaxaRecuperacao(d.taxa_recuperacao); });
@@ -2915,19 +2922,57 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
 
   const abrirFalhas = async () => {
     setMostrarFalhas(true);
-    const [e, b] = await Promise.all([
+    const [e, b, ne] = await Promise.all([
       api("/relatorio/erros-envio?data=" + dataErros, {}, token),
       api("/blacklist", {}, token),
+      api("/relatorio/nao-entregues?data=" + dataErros, {}, token),
     ]);
     if (e.erros) setErrosEnvio(e);
     if (Array.isArray(b)) setBlacklist(b);
+    if (ne && Array.isArray(ne.naoEntregues)) setNaoEntregues(ne.naoEntregues);
   };
 
   const buscarErrosData = async (novaData) => {
     setDataErros(novaData);
-    const e = await api("/relatorio/erros-envio?data=" + novaData, {}, token);
+    const [e, ne] = await Promise.all([
+      api("/relatorio/erros-envio?data=" + novaData, {}, token),
+      api("/relatorio/nao-entregues?data=" + novaData, {}, token),
+    ]);
     if (e.erros) setErrosEnvio(e);
+    setNaoEntregues(ne && Array.isArray(ne.naoEntregues) ? ne.naoEntregues : []);
   };
+
+  // ─── Cobrar agora: inicia, para e acompanha o progresso ao vivo ────────────
+  const iniciarCobrarAgora = async () => {
+    setIniciandoCobrar(true);
+    const d = await api("/cobrancas/cobrar-agora", { method: "POST", body: JSON.stringify({}) }, token);
+    setIniciandoCobrar(false);
+    setConfirmCobrar(false);
+    if (d.sucesso) {
+      showToastRegua(d.mensagem || "Cobrança iniciada!");
+      setCobrarStatus({ ativo: true, parando: false, progresso: { total: d.total, enviados: 0, erros: 0, pulados: 0 } });
+    } else {
+      showToastRegua(d.mensagem || d.erro || "Não foi possível iniciar.", "error");
+    }
+  };
+
+  const pararCobrarAgora = async () => {
+    setCobrarStatus(s => ({ ...s, parando: true }));
+    const d = await api("/cobrancas/cobrar-agora/parar", { method: "POST", body: JSON.stringify({}) }, token);
+    showToastRegua(d.mensagem || "Parando...");
+  };
+
+  useEffect(() => {
+    // Puxa o status ao entrar (caso já tenha uma cobrança rodando) e a cada 5s enquanto ativa.
+    let vivo = true;
+    const puxar = async () => {
+      const d = await api("/cobrancas/cobrar-agora/status", {}, token);
+      if (vivo && d && typeof d.ativo !== "undefined") setCobrarStatus({ ativo: d.ativo, parando: d.parando, progresso: d.progresso });
+    };
+    puxar();
+    const iv = setInterval(() => { if (cobrarStatus.ativo) puxar(); }, 5000);
+    return () => { vivo = false; clearInterval(iv); };
+  }, [token, cobrarStatus.ativo]);
 
   const removerBlacklist = async (id) => {
     await api("/blacklist/" + id, { method: "DELETE" }, token);
@@ -3034,6 +3079,48 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
             ))}
           </div>
 
+          <div style={{ background: "linear-gradient(135deg,#ECFDF5,#F0FDF4)", border: "2px solid #86EFAC", borderRadius: 16, padding: 18, marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 210 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#166534", marginBottom: 4 }}>⚡ Cobrar todos agora</div>
+                <div style={{ fontSize: 12.5, color: "#374151", lineHeight: 1.5 }}>Dispara a cobrança pra <strong>todos os {clientesCobraveis.length} cliente(s) em aberto</strong> agora mesmo — sem depender da data de vencimento. Os envios saem espaçados (20–40s cada) pra proteger seu número.</div>
+              </div>
+              {!cobrarStatus.ativo && (
+                <Btn variant="green" onClick={() => setConfirmCobrar(true)} disabled={clientesCobraveis.length === 0}><Ic.send /> Cobrar agora</Btn>
+              )}
+            </div>
+
+            {cobrarStatus.ativo && cobrarStatus.progresso && (() => {
+              const pr = cobrarStatus.progresso;
+              const feitos = (pr.enviados || 0) + (pr.erros || 0) + (pr.pulados || 0);
+              const pct = pr.total ? Math.min(100, Math.round((feitos / pr.total) * 100)) : 0;
+              return (
+                <div style={{ marginTop: 14, background: "#fff", borderRadius: 12, padding: 14, border: "1px solid #BBF7D0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#166534" }}>🟢 Cobrando... {feitos} de {pr.total}</div>
+                    <Btn variant="ghost" small onClick={pararCobrarAgora} disabled={cobrarStatus.parando}>{cobrarStatus.parando ? "Parando..." : "⏹ Parar"}</Btn>
+                  </div>
+                  <div style={{ background: "#E5E7EB", borderRadius: 99, height: 8, overflow: "hidden", marginBottom: 8 }}>
+                    <div style={{ width: pct + "%", height: "100%", background: "linear-gradient(90deg,#16A34A,#22C55E)", transition: "width .5s ease" }} />
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748B" }}>✅ {pr.enviados || 0} enviada(s) · ⚠️ {pr.erros || 0} falha(s) · ⏭ {pr.pulados || 0} já cobrada(s) hoje. Pode fechar a tela — continua rodando no servidor.</div>
+                </div>
+              );
+            })()}
+
+            {confirmCobrar && !cobrarStatus.ativo && (
+              <div className="cf-fade" style={{ marginTop: 14, background: "#fff", border: "1px solid #FCD34D", borderRadius: 12, padding: 14 }}>
+                <div style={{ fontSize: 13, color: "#92400E", fontWeight: 600, marginBottom: 10, lineHeight: 1.5 }}>
+                  Vai enviar cobrança no WhatsApp pra <strong>{clientesCobraveis.length} cliente(s)</strong> agora. Leva cerca de <strong>{Math.max(1, Math.round(clientesCobraveis.length * 0.5))} min</strong> (espaçado pra não bloquear). Quem já foi cobrado hoje não recebe de novo, e você pode parar quando quiser. Confirmar?
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn variant="green" onClick={iniciarCobrarAgora} disabled={iniciandoCobrar}>{iniciandoCobrar ? "Iniciando..." : "Sim, cobrar todos agora"}</Btn>
+                  <Btn variant="ghost" onClick={() => setConfirmCobrar(false)}>Cancelar</Btn>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: "#16A34A", marginBottom: 4, letterSpacing: 0.4 }}>✅ RÉGUA DE COBRANÇA</div>
             <div style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.6, marginBottom: 16 }}>
@@ -3065,14 +3152,15 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
           {mostrarFalhas && (
             <div className="cf-fade" style={{ background: "#fff", borderRadius: 16, padding: 18, border: "1px solid #F1F5F9", marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>⚠️ Cobranças que falharam</h3>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>⚠️ Quem não recebeu</h3>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <input type="date" value={dataErros} onChange={e => buscarErrosData(e.target.value)} style={{ border: "1.5px solid #E2E8F0", borderRadius: 8, padding: "6px 10px", fontSize: 13 }} />
                   <button onClick={() => setMostrarFalhas(false)} style={{ background: "#F1F5F9", border: "none", borderRadius: 8, width: 30, height: 30, cursor: "pointer", color: "#64748B" }}><Ic.close /></button>
                 </div>
               </div>
+              <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "#991B1B" }}>❌ Não foi enviada ({errosEnvio ? errosEnvio.total : 0})</h3>
               {!errosEnvio || errosEnvio.total === 0 ? (
-                <div style={{ textAlign: "center", color: "#16A34A", padding: 20, fontSize: 14, fontWeight: 600, background: "#F0FDF4", borderRadius: 10 }}>✅ Nenhuma falha nesse dia — todas as cobranças foram entregues.</div>
+                <div style={{ color: "#16A34A", padding: "10px 14px", fontSize: 13, fontWeight: 600, background: "#F0FDF4", borderRadius: 10 }}>✅ Nenhuma falha de envio nesse dia.</div>
               ) : (
                 <div>
                   <div style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#991B1B", fontWeight: 600 }}>
@@ -3100,6 +3188,34 @@ function Cobrancas({ clientes, historico, setHistorico, clientePreSelecionado, s
                   <div style={{ marginTop: 12, fontSize: 12, color: "#64748B" }}>💡 Clique em "Editar" pra corrigir na hora. Na próxima passada da régua, o sistema tenta cobrar de novo automaticamente.</div>
                 </div>
               )}
+              <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #F1F5F9" }}>
+                <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "#B45309" }}>📵 Enviadas, mas sem confirmação de entrega ({naoEntregues.length})</h3>
+                <div style={{ fontSize: 12, color: "#64748B", marginBottom: 12 }}>A mensagem saiu do sistema mas o WhatsApp não confirmou a entrega no celular (aparelho desligado/sem sinal, ou número errado). <strong>Não é certeza</strong> de que não chegou — confira antes de cobrar de novo.</div>
+                {naoEntregues.length === 0 ? (
+                  <div style={{ fontSize: 13, color: "#16A34A", fontWeight: 600, background: "#F0FDF4", borderRadius: 10, padding: "10px 14px" }}>✅ Todas as enviadas confirmaram entrega nesse dia.</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {naoEntregues.map(n => {
+                      const clienteCompleto = clientes?.find(c => c.id === n.cliente_id);
+                      return (
+                        <div key={n.cliente_id} style={{ background: "#FFFBEB", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: "#0B2B24" }}>{n.cliente_nome || "Cliente removido"}</div>
+                            <div style={{ fontSize: 12, color: "#64748B" }}>{n.cliente_telefone || "—"} · {new Date(n.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+                          </div>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            <div style={{ background: "#FEF3C7", color: "#92400E", padding: "4px 10px", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>{n.motivo}</div>
+                            {clienteCompleto && onEditarCliente && (
+                              <button onClick={() => onEditarCliente(clienteCompleto)} style={{ background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Ver / cobrar</button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {blacklist.length > 0 && (
                 <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #F1F5F9" }}>
                   <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>🚫 Blacklist ({blacklist.length})</h3>
