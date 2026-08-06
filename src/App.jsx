@@ -1660,6 +1660,7 @@ function MensagemEditorInline({ etapa, mensagemAtual, cliente, onSalvar }) {
 function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setClienteParaEditar, token, isMobile }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
+  const [vista, setVista] = useState("cobranca"); // "cobranca" | "corrigir" (lista paralela de dados a corrigir)
   const [modalAdd, setModalAdd] = useState(false);
   const [modalImport, setModalImport] = useState(false);
   const [modalRegua, setModalRegua] = useState(null);
@@ -1819,7 +1820,14 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
     if (clienteParaEditar) { setModalEditar(clienteParaEditar); setClienteParaEditar(null); }
   }, [clienteParaEditar]);
 
+  const paraCorrigir = clientes.filter(c => c.dados_pendentes);
   const filtrados = clientes.filter(c => {
+    if (vista === "corrigir") {
+      if (!c.dados_pendentes) return false;
+      if (busca && !c.nome.toLowerCase().includes(busca.toLowerCase())) return false;
+      return true;
+    }
+    if (c.dados_pendentes) return false; // clientes a corrigir saem da lista de cobrança
     if (busca && !c.nome.toLowerCase().includes(busca.toLowerCase())) return false;
     if (filtro === "todos") return true;
     if (filtro === "atrasado") return c.status === "atrasado" || c.status === "inadimplente";
@@ -2019,13 +2027,14 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
     }
   };
 
+  const emCobranca = clientes.filter(c => !c.dados_pendentes);
   const contagens = {
-    todos: clientes.length,
-    pendente: clientes.filter(c => c.status === "pendente").length,
-    atrasado: clientes.filter(c => c.status === "atrasado" || c.status === "inadimplente").length,
-    aguardando_confirmacao: clientes.filter(c => c.status === "aguardando_confirmacao").length,
-    pago: clientes.filter(c => c.status === "pago").length,
-    blacklist: clientes.filter(c => c.status === "blacklist").length,
+    todos: emCobranca.length,
+    pendente: emCobranca.filter(c => c.status === "pendente").length,
+    atrasado: emCobranca.filter(c => c.status === "atrasado" || c.status === "inadimplente").length,
+    aguardando_confirmacao: emCobranca.filter(c => c.status === "aguardando_confirmacao").length,
+    pago: emCobranca.filter(c => c.status === "pago").length,
+    blacklist: emCobranca.filter(c => c.status === "blacklist").length,
   };
   const CARDS_FILTRO = [
     { key: "todos", label: "Todos", icon: "👥" },
@@ -2055,6 +2064,19 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
         </div>
       </div>
 
+      {/* ─── Duas listas: Cobrança x Para corrigir (dados inválidos) ─────────── */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <button onClick={() => setVista("cobranca")} style={{ flex: "0 0 auto", background: vista === "cobranca" ? "#0B2B24" : "#fff", color: vista === "cobranca" ? "#fff" : "#374151", border: "1.5px solid " + (vista === "cobranca" ? "#0B2B24" : "#E2E8F0"), borderRadius: 10, padding: "9px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>💳 Cobrança ({emCobranca.length})</button>
+        <button onClick={() => setVista("corrigir")} style={{ flex: "0 0 auto", background: vista === "corrigir" ? "#B45309" : (paraCorrigir.length > 0 ? "#FFFBEB" : "#fff"), color: vista === "corrigir" ? "#fff" : (paraCorrigir.length > 0 ? "#B45309" : "#94A3B8"), border: "1.5px solid " + (vista === "corrigir" ? "#B45309" : (paraCorrigir.length > 0 ? "#FDE68A" : "#E2E8F0")), borderRadius: 10, padding: "9px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>🛠 Para corrigir ({paraCorrigir.length})</button>
+      </div>
+
+      {vista === "corrigir" && (
+        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: "12px 16px", marginBottom: 14, fontSize: 13, color: "#92400E", lineHeight: 1.5 }}>
+          🛠 Esses clientes têm <strong>telefone inválido</strong> (ex.: número de preenchimento tipo 99999…) e <strong>não são cobrados</strong>. Clique em <strong>Editar</strong>, corrija o número e o cliente <strong>volta sozinho pra lista de Cobrança</strong>. Nada foi perdido.
+        </div>
+      )}
+
+      {vista === "cobranca" && (
       <div style={{ display: "flex", gap: 10, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
         {CARDS_FILTRO.map(f => (
           <div key={f.key} onClick={() => setFiltro(f.key)} className="cf-card" style={{ cursor: "pointer", background: "#fff", border: "2px solid " + (filtro === f.key ? "#16A34A" : "#F1F5F9"), borderRadius: 14, padding: "12px 16px", minWidth: 108, flexShrink: 0 }}>
@@ -2064,6 +2086,7 @@ function Clientes({ clientes, setClientes, onCobranca, clienteParaEditar, setCli
           </div>
         ))}
       </div>
+      )}
 
       <input placeholder="🔍 Buscar cliente, telefone..." value={busca} onChange={e => setBusca(e.target.value)} style={{ width: "100%", border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none", background: "#F8FAFC", marginBottom: 14, boxSizing: "border-box" }} />
 
